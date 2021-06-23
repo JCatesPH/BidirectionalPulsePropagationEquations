@@ -1,15 +1,17 @@
 #pragma once
 
-#include "stdafx.h"
+//#include "stdafx.h"
 #define _USE_MATH_DEFINES
 
 #include <stdio.h>
-#include <cmath>
+#include <math.h>
 #include <fstream>
 #include <iostream>
-#include <math.h>
-#include "omp.h"
+#include <iomanip> 
 #include <complex> 
+#include <cmath>
+#include <algorithm>
+#include "omp.h"
 #include <fftw3.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
@@ -33,14 +35,21 @@ int VERBOSE = 6;
 complex<double>* eFieldPlusBACKUPCOLM;
 #endif
 
+
 // Simulation parameters
+#ifdef _WIN32
 const char *SIM_DATA_OUTPUT=".\\DATA\\";
+#endif
+
+#ifdef __unix__
+const char *SIM_DATA_OUTPUT="./DATA/";
+#endif
 
 //pulse parameters
 const double I_0 = 1.5e17;  //initial peak intensity
-const double twoColorSH_amplitude = 0.2;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
-const double twoColorSH_phase = 0.0; //phase shift of 2nd harmonic
-const double tau = 10.0e-15; //pulse duration fwhm
+const double twoColorSH_amplitude = 0.1;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
+const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
+const double tau = 50.0e-15; //pulse duration fwhm
 const double lambda_0 = 0.8e-6; //central wavelength
 const double omega_0 = 2 * M_PI*cLight / lambda_0; //central angular frequency
 const double waist_x = 50.0e-6; //pulse-waist fwhm
