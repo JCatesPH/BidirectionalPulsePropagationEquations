@@ -53,3 +53,7 @@ dkms.conf
 
 # VSCode files
 .vscode/
+
+# Output files
+DATA/
+figs/
