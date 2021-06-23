@@ -1,0 +1,2480 @@
+// bragg_linear.cpp : Defines the entry point for the console application.
+// ACMS version 1
+
+#include "stdafx.h"
+#include "BPPE.h"
+#include "Structure.h"
+#include "Utilities.h"
+#include <iomanip> 
+#include <omp.h>
+
+double dtime = omp_get_wtime();
+using namespace std;
+
+// Create GLOBAL structure and Material database
+Structure myStructure("myFirstStructure");
+Simulation mySimulation("andrewApplication1");
+MaterialDB myMaterialsDB("myFirstMaterialDB");
+
+// This block of vars were orignally inside main()
+double zPosition = 0.0;
+int GSLerrorFlag, p, oFlag;
+double *omegaArray, *kx, *ne, *y;
+double chi3_Material1 = (4 / 3)*epsilon_0*cLight*pow(n0_Material1, 2)*n2_Material1;
+double chi3_Material2 = (4 / 3)*epsilon_0*cLight*pow(n0_Material2, 2)*n2_Material2;
+double chi2_Material1 = chi_2;
+double chi2_Material2 = -1.0*chi_2;
+complex<double>*k_0, *k_1, *k_2, *k_3, *eFieldPlus, *eFieldMinus, *yp_init, *ym0_init, *ym1_init, *ym1_temp, *f0, *f1, *integral, *nl_k, *nl_p, *j_e;
+fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
+
+double delMeSoon[12000];
+double delMeSoon2[12000];
+int delmeFLAG = 0;
+
+
+int main()
+{	
+	if (VERBOSE >= 0) {
+		cout << "BPPE code - ACMS Ver.2" << endl;
+		cout << "Verbosity = "<< VERBOSE << endl << endl;
+		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
+	}
+
+	omp_set_num_threads(num_Threads);
+	cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
+
+	writeSimParameters();
+
+	//generateApp1MaterialsAndStructure(myMaterialsDB, myStructure);
+	//generateDefectMaterialsAndStructure(myMaterialsDB, myStructure);
+	generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
+
+	/// VERY Early termination
+	//printf("!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!: VERY Early Termination\n"); exit(-1);
+
+
+	// k_0 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	k_0 = myMaterialsDB.getMaterialByName("Vacuum")->mallocK(numActiveOmega);
+	//k_1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	k_1 = myMaterialsDB.getMaterialByName("dieMat1")->mallocK(numActiveOmega);
+	//k_2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	k_2 = myMaterialsDB.getMaterialByName("dieMat2")->mallocK(numActiveOmega);
+	//k_3 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	k_3 = myMaterialsDB.getMaterialByName("Vacuum")->mallocK(numActiveOmega);
+	
+	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	ym0_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	ym1_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	ym1_temp = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	f0 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	f1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	integral = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
+
+
+	if (numDimensionsMinusOne == 1) {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		nl_k = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		nl_p = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		j_e = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		ne = (double*)malloc(sizeof(double)*num_t*num_x);
+		kx = (double*)malloc(sizeof(double)*numActiveOmega);
+		omegaArray = (double*)malloc(sizeof(double)*numActiveOmega);
+
+		nkForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		eFieldPlusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		eFieldPlusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		npForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		eFieldMinusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		intBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+	}
+	else {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+#ifdef WRITE_OUT_REFLECTANCE
+		eFieldPlusBACKUPCOLM = (complex<double>*)malloc(sizeof(complex<double>) * num_t);
+//		// DELETE THIS LOOP
+//		double delMeSoon[12000];
+//		double delMeSoon2[12000]; 
+//#pragma loop(hint_parallel(4))
+//		for (int i = 0; i < 12000; ++i)
+//		{
+//			delMeSoon[i] = delMeSoon2[i] * sqrt((double)i); // (y[i] + 1.0i * y[i]); // *exp(-1.0i * real(k[i]) * z);
+//		}
+#endif
+
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		nl_k = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		nl_p = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		j_e = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		ne = (double*)malloc(sizeof(double)*num_t);
+		omegaArray = (double*)malloc(sizeof(double)*num_t);
+		kx = NULL;
+	
+		nkForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		eFieldPlusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		npForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		eFieldMinusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
+		intBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+	}
+
+	FILE *fp;
+	errno_t err;
+	err = fopen_s(&fp, "n.dat", "w");
+	fill_omg_k(omegaArray, kx, k_0, k_1, k_2, k_3, err, fp);
+	if (fp != NULL) { fclose(fp);  }
+	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,f0,f1,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, k_0, k_1, k_2, k_3, integral);
+	
+	myStructure.writeStructureLayoutToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "StructureLayout.txt");
+	myStructure.writeStructureToDATFile(get_current_dir() + SIM_DATA_OUTPUT + "Structure.dat");
+	myMaterialsDB.writeMaterialDBToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "MaterialDatabase.txt");
+	myStructure.writeBoundaryLayoutToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "BoundaryLayout.txt");
+
+	/// Early termination
+	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
+    printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
+
+	doNonlinearPartofBPPE();
+
+	dtime = omp_get_wtime() - dtime;
+	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
+	//cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
+
+    return 0;
+}
+
+
+void doNonlinearPartofBPPE()
+{
+	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, k_1, eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
+	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
+	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, 1.0, 1.0);
+
+	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
+	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
+	gsl_odeiv2_control * mm = gsl_odeiv2_control_y_new(10.0, 10.0);
+	gsl_odeiv2_evolve * f = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+	gsl_odeiv2_system sys = { func, NULL, 2 * num_t + 4, params };*/
+
+	if (VERBOSE >= 3) { cout << endl << endl << "First Iteration" << endl; }
+
+	cout << "  Going FORWARD through layers using CPP NONLINEAR?" << endl;
+	for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
+		// Skip the LHS layer and the RHS layers
+		if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+		{
+			boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+			params->k = lit->getMaterial().getK();
+			params->chi_2 = lit->getMaterial().getChi2();
+			params->chi_3 = lit->getMaterial().getChi3();
+			zPosition = lit->getStartZpos();
+
+			if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
+			for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
+			{
+				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+				if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+
+				if (GSLerrorFlag != GSL_SUCCESS)
+				{
+					printf("######## ERROR #######: GSL driver returned %d\n", GSLerrorFlag);
+					exit(-1);
+				}
+			}
+			integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+		}
+		//  Finally do the lowside boundary of the last assumed Vacuum layer
+		if (lit->getHiSideBoundary() == NULL) {
+			boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+		}
+	}
+
+	write_out_eFieldAndSpectrumAtZlocation(1, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);
+	write_out_eFieldAndSpectrumAtZlocation(1, 0, y, myStructure.getThickness(), eFieldMinus, k_3, eFieldMinusBackwardFFT);
+
+	if (VERBOSE >= 2) { std::cout << "Setting am_to_zero()" << endl; }
+	am_to_zero(y);
+
+	cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR 1??? oFlag=" << oFlag << endl;
+	myStructure.doBackwardPassThroughAllBoundaries(y);
+
+	cout << " Doing UPDATE_GUESS()" << endl;
+	update_guess(yp_init, f0, ym1_init, y, integral);
+
+	VERBOSE--;
+
+	for (int Iteration_number = 2; Iteration_number <= num_iterations; Iteration_number++)
+	{
+		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
+		delmeFLAG = Iteration_number;
+		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, k_0, eFieldMinusBackwardFFT);
+
+		cout << "  Going FOREWARD through layers using CPP NONLINEAR LATEST UPDATE 2??? oFlag=" << oFlag << endl;
+		for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
+			// Skip the LHS layer and the RHS layers
+			if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+			{
+				boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+				params->k = lit->getMaterial().getK();
+				params->chi_2 = lit->getMaterial().getChi2();
+				params->chi_3 = lit->getMaterial().getChi3();
+				zPosition = lit->getStartZpos();
+
+				if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
+				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
+				{
+					integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+
+					if (GSLerrorFlag != GSL_SUCCESS)
+					{
+						printf("error: driver returned %d\n", GSLerrorFlag);
+						break;
+					}
+				}
+				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+
+			}
+			//  Finally do the lowside boundary of the last assumed Vacuum layer
+			if (lit->getHiSideBoundary() == NULL) {
+				boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+			}
+		}
+
+		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness()/2.0, eFieldPlus, k_3, eFieldPlusBackwardFFT);
+		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
+		am_to_zero(y);
+
+		cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR LAST UPDATE 3??? oFlag=" << oFlag << endl;
+		myStructure.doBackwardPassThroughAllBoundaries(y);
+
+		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+		if (Iteration_number > 3) VERBOSE--;
+	}
+}
+
+
+/// doNonlinearPartofBPPE is WORKING and is a Mixed Andrew And CPP using ifdefs
+//void doNonlinearPartofBPPE_WORKING_MixedAndrewAndCPP()
+//{
+//	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, k_1, eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
+//	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
+//	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, 1.0, 1.0);
+//
+//	//write_out_e(1, 0, y, 0.0, eFieldMinus, k_0, eFieldMinusBackwardFFT);			// PARIS Plotting missing file
+//
+//	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
+//	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
+//	gsl_odeiv2_control * mm = gsl_odeiv2_control_y_new(10.0, 10.0);
+//	gsl_odeiv2_evolve * f = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+//	gsl_odeiv2_system sys = { func, NULL, 2 * num_t + 4, params };*/
+//
+//	// COLM create structure output file
+//	char structureFilePathName[STRING_BUFFER_SIZE];
+//
+//	snprintf(structureFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sStructureOLD.dat", SIM_DATA_OUTPUT);
+//
+//	FILE* fpStruct;
+//	errno_t errStruct;
+//	if (VERBOSE >= 2) { printf("Writing structure file %s\n", structureFilePathName); }
+//	errStruct = fopen_s(&fpStruct, structureFilePathName, "w");
+//
+//	if (fpStruct != NULL)
+//	{
+//		fprintf(fpStruct, "# z_pos [aLayer]\tchi_2 []\tchi_3 []\n");
+//	}
+//	else
+//	{
+//		printf("Failed to open file '%s'\n", structureFilePathName);
+//		exit(-1);
+//	}
+//
+//	if (VERBOSE >= 3) { cout << endl << endl << "First Iteration" << endl; }
+//
+//#ifdef	USE_CPP_NONLINEAR
+//		cout << "  Going FORWARD through layers using CPP NONLINEAR?" << endl;
+//	    for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
+//	        // Skip the LHS layer and the RHS layers
+//			if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+//	        {
+//	            boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+//	            params->k = lit->getMaterial().getK();
+//	            params->chi_2 = lit->getMaterial().getChi2();
+//	            params->chi_3 = lit->getMaterial().getChi3();
+//	            zPosition = lit->getStartZpos();
+//
+//	            if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps in material with k_1=" << real(lit->getMaterial().getK()[1]) << endl; }
+//	            for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
+//	            {
+//	                integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//	                //integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK());
+//	                GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+//	                if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+//
+//	                if (GSLerrorFlag != GSL_SUCCESS)
+//	                {
+//	                    printf("######## ERROR #######: GSL driver returned %d\n", GSLerrorFlag);
+//	                    break;
+//	                }
+//	            }
+//	            integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//	            // integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK() );
+//
+//	        }
+//	        //  Finally do the lowside boundary of the last assumed Vacuum layer
+//			if (lit->getHiSideBoundary() == NULL) {
+//	            boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+//			}
+//	    }
+//		oFlag = 1;
+//
+//#else
+//	std:cout << "  Going FORWARD through layers using ANDREW?" << endl;
+//	boundary(distanceSourceToSample, k_0, k_1, y);
+//	for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//	{
+//		if (VERBOSE >= 8) { std:cout << endl << "Half period number aLayer = " << aLayer << endl; }
+//
+//		if (aLayer % 2 == 0) {
+//			params->k = k_1;
+//			params->chi_2 = chi2_Material1;
+//			params->chi_3 = chi3_Material1;
+//			zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//
+//			if (VERBOSE >= 6) { std:cout << endl << " Doing EVENLayer# " << aLayer << " in " << numZstepsMaterial1 << " z Steps in material with k_1=" << real(k_1[1]) << endl; }
+//			for (int aZstep = 0; aZstep < numZstepsMaterial1; aZstep++)
+//			{
+//				integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial1, 1, y);
+//				if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+//				// COLM write even layer data to Structure.dat file
+//				fprintf(fpStruct, "%+E\t%+E\t%+E\n", zPosition, chi2_Material1, chi3_Material1);		// COLM print to file
+//
+//				if (GSLerrorFlag != GSL_SUCCESS)
+//				{
+//					printf("error: driver returned %d\n", GSLerrorFlag);
+//					break;
+//				}
+//			}
+//			integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//				oFlag = 0;
+//				std:cout << "       Reset oFlag to " << oFlag  << endl;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//		else {
+//			params->k = k_2;
+//			params->chi_2 = chi2_Material2;
+//			params->chi_3 = chi3_Material2;
+//			zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//
+//			if (VERBOSE >= 6) { std:cout << endl << " Doing ODDlayer# " << aLayer << " in " << numZstepsMaterial2 << " z Steps in material with k_2=" << real(k_2[1]) << endl; }
+//			for (int aZstep = 0; aZstep < numZstepsMaterial2; aZstep++)
+//			{
+//				integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial2, 1, y);
+//				if (VERBOSE >= 7) { printf("First Iteration, Position (Odd half period) zPosition = %.5e\n", zPosition); }
+//				// COLM write odd layer data to Structure.dat file
+//				fprintf(fpStruct, "%+E\t%+E\t%+E\n", zPosition, chi2_Material2, chi3_Material2);
+//
+//				if (GSLerrorFlag != GSL_SUCCESS)
+//				{
+//					printf("error: driver returned %d\n", GSLerrorFlag);
+//					break;
+//				}
+//			}
+//			integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//				oFlag = 1;
+//				std:cout << "       Reset oFlag to " << oFlag << endl;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//#endif
+//
+//	//COLM close Structure file
+//	if (fpStruct != NULL) { fclose(fpStruct); }
+//	if (VERBOSE >= 2) { printf("%s", "Structure file closed\n"); }
+//	write_out_e(1, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);
+//	write_out_e(1, 0, y, myStructure.getThickness(), eFieldMinus, k_3, eFieldMinusBackwardFFT);
+//
+//	if (VERBOSE >= 2) { std::cout << "Setting am_to_zero()" << endl; }
+//	am_to_zero(y);
+//
+//#ifdef	USE_CPP_NONLINEAR
+//	cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR 1??? oFlag=" << oFlag << endl;
+//	myStructure.doBackwardPassThroughAllBoundaries(y); 
+//#else
+//	if (oFlag == 1)
+//	{
+//		cout << "  Going BACKWARD through BOUNDARIES using ANDREW 1??? oFlag=" << oFlag << endl;
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//	}
+//	else {
+//		cout << "  Going BACKWARD through BOUNDARIES using ANDREW 1_ELSE??? oFlag=" << oFlag << endl;
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//	boundary(distanceSourceToSample, k_1, k_0, y);
+//#endif
+//
+//	cout << " Doing UPDATE_GUESS()" << endl;
+//	update_guess(yp_init, f0, ym1_init, y, integral);
+//
+//	VERBOSE--;
+//
+//	for (int Iteration_number = 2; Iteration_number <= num_iterations; Iteration_number++)
+//	{
+//		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
+//		write_out_e(Iteration_number, 0, y, zPosition, eFieldMinus, k_0, eFieldMinusBackwardFFT);
+//
+//#ifdef	USE_CPP_NONLINEAR
+//		cout << "  Going FOREWARD through layers using CPP NONLINEAR LATEST UPDATE 2??? oFlag=" << oFlag << endl;
+//		for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
+//			// Skip the LHS layer and the RHS layers
+//			if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+//			{
+//				boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+//				params->k = lit->getMaterial().getK();
+//				params->chi_2 = lit->getMaterial().getChi2();
+//				params->chi_3 = lit->getMaterial().getChi3();
+//				zPosition = lit->getStartZpos();
+//
+//				if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps in material with k_1=" << real(lit->getMaterial().getK()[1]) << endl; }
+//				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
+//				{
+//					integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//					//integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK());
+//					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+//					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+//
+//					if (GSLerrorFlag != GSL_SUCCESS)
+//					{
+//						printf("error: driver returned %d\n", GSLerrorFlag);
+//						break;
+//					}
+//				}
+//				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				// integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK() );
+//
+//			}
+//			//  Finally do the lowside boundary of the last assumed Vacuum layer
+//			if (lit->getHiSideBoundary() == NULL) {
+//				boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
+//			}
+//		}
+//		oFlag = 1;
+//#else
+//		cout << "  Going FOREWARD through layers using ANDREW 2??? oFlag=" << oFlag << endl;
+//		boundary(distanceSourceToSample, k_0, k_1, y);
+//		for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//		{
+//			if (VERBOSE >= 8) { cout << "Half period number aLayer = " << aLayer << endl; }
+//
+//			if (aLayer % 2 == 0) {
+//				params->k = k_1;
+//				params->chi_2 = chi2_Material1;
+//				params->chi_3 = chi3_Material1;
+//				zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//				if (VERBOSE >= 6) { cout << " Doing EVENlayer# " << aLayer << " in" << numZstepsMaterial1 << " z Steps in material with k_1=" << real(k_1[1]) << endl; }
+//				for (int step = 0; step < numZstepsMaterial1; step++)
+//				{
+//					integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial1, 1, y);
+//					if (VERBOSE >= 7) {
+//						printf("Iteration number %d, Position (Even half period) zPosition = %.5e\n", Iteration_number, zPosition);
+//					}
+//
+//					if (GSLerrorFlag != GSL_SUCCESS)
+//					{
+//						printf("error: driver returned %d\n", GSLerrorFlag);
+//						break;
+//					}
+//				}
+//				integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//					oFlag = 0;
+//					cout << "       Reset oFlag to " << oFlag << endl;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//			else {
+//				params->k = k_2;
+//				params->chi_2 = chi2_Material2;
+//				params->chi_3 = chi3_Material2;
+//				zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//				if (VERBOSE >= 6) { cout << " Doing ODDlayer# " << aLayer << " in " << numZstepsMaterial2 << " z Steps in material with k_2=" << real(k_2[1]) << endl; }
+//				for (int step = 0; step < numZstepsMaterial2; step++)
+//				{
+//					integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial2, 1, y);
+//					if (VERBOSE >= 7) {
+//						printf("Iteration number %d, Position (Odd half period) zPosition = %.5e\n", Iteration_number, zPosition);
+//					}
+//
+//					if (GSLerrorFlag != GSL_SUCCESS)
+//					{
+//						printf("error: driver returned %d\n", GSLerrorFlag);
+//						break;
+//					}
+//				}
+//				integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//					oFlag = 1;
+//					cout << "       Reset oFlag to " << oFlag << endl;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//#endif
+//		write_out_e(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);		
+//		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
+//		am_to_zero(y);
+//#ifdef	USE_CPP_NONLINEAR
+//		cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR LAST UPDATE 3??? oFlag=" << oFlag << endl;
+//		myStructure.doBackwardPassThroughAllBoundaries(y);
+//#else
+//		if (oFlag == 1)
+//		{
+//			cout << "  Going BACKWARD through BOUNDARIES using ANDREW 3??? oFlag=" << oFlag << endl;
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//		}
+//		else {
+//			cout << "  Going BACKWARD through layers USING ANDREW 3_ELSE??? oFlag=" << oFlag << endl;
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//		boundary(distanceSourceToSample, k_1, k_0, y);
+//#endif
+//		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+//		if (Iteration_number > 3) VERBOSE--;
+//	}
+//}
+
+/// doNonlinearPartofBPPE is WORKING Andrew Orignal
+//{
+//	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, k_1, eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
+//	gsl_odeiv2_system sys = { func, NULL, 4 * numActiveOmega, params };
+//	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, 1.0, 1.0);
+//
+//	//write_out_e(1, 0, y, 0.0, eFieldMinus, k_0, eFieldMinusBackwardFFT);			// PARIS Plotting missing file
+//
+//
+//	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
+//	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
+//	gsl_odeiv2_control * mm = gsl_odeiv2_control_y_new(10.0, 10.0);
+//	gsl_odeiv2_evolve * f = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+//	gsl_odeiv2_system sys = { func, NULL, 2 * num_t + 4, params };*/
+//
+//	// COLM create structure output file
+//	char structureFilePathName[STRING_BUFFER_SIZE];
+//
+//	// COLMTODO E_ij -> E_iter_i_Reflect(0) ,Transmitted(1)
+//	snprintf(structureFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sStructure.dat", SIM_DATA_OUTPUT);
+//	//snprintf(buffer2, sizeof(char) * STRING_BUFFER_SIZE, "Snew_%i%i.dat", Iteration_number, j);
+//
+//	FILE* fpStruct;
+//	errno_t errStruct;
+//	if (VERBOSE >= 2) { printf("Writing structure file %s\n", structureFilePathName); }
+//	errStruct = fopen_s(&fpStruct, structureFilePathName, "w");
+//	//errStruct = fopen_s(&fpStruct, "Structure.dat","w");
+//
+//	if (fpStruct != NULL)
+//	{
+//		//fprintf(fpStruct, "# number of layers %d \n", numLayersInSample);
+//		fprintf(fpStruct, "# z_pos [aLayer]\tchi_2 []\tchi_3 []\n");
+//		//fprintf(fpStruct, "%G\t%E\t%E\t%E\n", distanceSourceToSample/2.0, 0, 0, 0);		// Vacuum into to file	
+//
+//	}
+//	else
+//	{
+//		printf("Failed to open file '%s'\n", structureFilePathName);
+//		exit(-1);
+//	}
+//
+//
+//
+//
+//
+//	if (VERBOSE >= 3) { cout << endl << endl << "First Iteration" << endl; }
+//
+//	cout << "  Going FORWARD through layers using ANDREW?" << endl;
+//	boundary(distanceSourceToSample, k_0, k_1, y);
+//	for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//	{
+//		if (VERBOSE >= 8) { cout << endl << "Half period number aLayer = " << aLayer << endl; }
+//
+//		if (aLayer % 2 == 0) {
+//			params->k = k_1;
+//			params->chi_2 = chi2_Material1;
+//			params->chi_3 = chi3_Material1;
+//			zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//
+//			if (VERBOSE >= 6) { cout << endl << " Doing EVENLayer# " << aLayer << " in " << numZstepsMaterial1 << " z Steps in material with k_1=" << real(k_1[1]) << endl; }
+//			for (int aZstep = 0; aZstep < numZstepsMaterial1; aZstep++)
+//			{
+//				integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial1, 1, y);
+//				if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+//				// COLM write even layer data to Structure.dat file
+//				fprintf(fpStruct, "%+E\t%+E\t%+E\n", zPosition, chi2_Material1, chi3_Material1);		// COLM print to file
+//
+//				if (GSLerrorFlag != GSL_SUCCESS)
+//				{
+//					printf("error: driver returned %d\n", GSLerrorFlag);
+//					break;
+//				}
+//			}
+//			integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//				oFlag = 0;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//		else {
+//			params->k = k_2;
+//			params->chi_2 = chi2_Material2;
+//			params->chi_3 = chi3_Material2;
+//			zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//
+//			if (VERBOSE >= 6) { cout << endl << " Doing ODDlayer# " << aLayer << " in " << numZstepsMaterial2 << " z Steps in material with k_2=" << real(k_2[1]) << endl; }
+//			for (int aZstep = 0; aZstep < numZstepsMaterial2; aZstep++)
+//			{
+//				integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial2, 1, y);
+//				if (VERBOSE >= 7) { printf("First Iteration, Position (Odd half period) zPosition = %.5e\n", zPosition); }
+//				// COLM write odd layer data to Structure.dat file
+//				fprintf(fpStruct, "%+E\t%+E\t%+E\n", zPosition, chi2_Material2, chi3_Material2);
+//
+//				if (GSLerrorFlag != GSL_SUCCESS)
+//				{
+//					printf("error: driver returned %d\n", GSLerrorFlag);
+//					break;
+//				}
+//			}
+//			integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//				oFlag = 1;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//
+//	// COLM Right hand side of domain
+//	//fprintf(fpStruct, "%E\t%E\t%E\t%E\n", distanceSourceToSample+ lengthSample +distanceSampleToReceiver, k_1, 0, 0);
+//
+//	//COLM close Structure file
+//	if (fpStruct != NULL) { fclose(fpStruct); }
+//	if (VERBOSE >= 2) { printf("%s", "Structure file closed\n"); }
+//
+//
+//	write_out_e(1, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);
+//	write_out_e(1, 0, y, myStructure.getThickness(), eFieldMinus, k_3, eFieldMinusBackwardFFT);
+//
+//	if (VERBOSE >= 2) { cout << "Setting am_to_zero()" << endl; }
+//	am_to_zero(y);
+//
+//	if (oFlag == 1)
+//	{
+//		cout << "  Going BACKWARD through BOUNDARIES using ANDREW 1??? oFlag=" << oFlag << endl;
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//	}
+//	else {
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//	boundary(distanceSourceToSample, k_1, k_0, y);
+//
+//	cout << " Doing UPDATE_GUESS()" << endl;
+//	update_guess(yp_init, f0, ym1_init, y, integral);
+//
+//	VERBOSE--;
+//
+//	for (int Iteration_number = 2; Iteration_number <= num_iterations; Iteration_number++)
+//	{
+//		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
+//		write_out_e(Iteration_number, 0, y, zPosition, eFieldMinus, k_0, eFieldMinusBackwardFFT);
+//
+//		cout << "  Going FOREWARD through layers using ANDREW 2??? oFlag=" << oFlag << endl;
+//		boundary(distanceSourceToSample, k_0, k_1, y);
+//		for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//		{
+//			if (VERBOSE >= 8) { cout << "Half period number aLayer = " << aLayer << endl; }
+//
+//			if (aLayer % 2 == 0) {
+//				params->k = k_1;
+//				params->chi_2 = chi2_Material1;
+//				params->chi_3 = chi3_Material1;
+//				zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//				if (VERBOSE >= 6) { cout << " Doing EVENlayer# " << aLayer << " in" << numZstepsMaterial1 << " z Steps in material with k_1=" << real(k_1[1]) << endl; }
+//				for (int step = 0; step < numZstepsMaterial1; step++)
+//				{
+//					integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial1, 1, y);
+//					if (VERBOSE >= 7) {
+//						printf("Iteration number %d, Position (Even half period) zPosition = %.5e\n", Iteration_number, zPosition);
+//					}
+//
+//					if (GSLerrorFlag != GSL_SUCCESS)
+//					{
+//						printf("error: driver returned %d\n", GSLerrorFlag);
+//						break;
+//					}
+//				}
+//				integrate(zPosition, chi2_Material1, chi3_Material1, k_1, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//					oFlag = 0;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//			else {
+//				params->k = k_2;
+//				params->chi_2 = chi2_Material2;
+//				params->chi_3 = chi3_Material2;
+//				zPosition = distanceSourceToSample + double(aLayer) * sampleLayerThickness;
+//				if (VERBOSE >= 6) { cout << " Doing ODDlayer# " << aLayer << " in " << numZstepsMaterial2 << " z Steps in material with k_2=" << real(k_2[1]) << endl; }
+//				for (int step = 0; step < numZstepsMaterial2; step++)
+//				{
+//					integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, zStepMaterial2, 1, y);
+//					if (VERBOSE >= 7) {
+//						printf("Iteration number %d, Position (Odd half period) zPosition = %.5e\n", Iteration_number, zPosition);
+//					}
+//
+//					if (GSLerrorFlag != GSL_SUCCESS)
+//					{
+//						printf("error: driver returned %d\n", GSLerrorFlag);
+//						break;
+//					}
+//				}
+//				integrate(zPosition, chi2_Material2, chi3_Material2, k_2, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//					oFlag = 1;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//		write_out_e(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);
+//		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
+//		am_to_zero(y);
+//
+//		if (oFlag == 1)
+//		{
+//			cout << "  Going BACKWARD through BOUNDARIES using ANDREW 3??? oFlag=" << oFlag << endl;
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//		}
+//		else {
+//			cout << "  Going BACKWARD through layers USING ANDREW 4??? oFlag=" << oFlag << endl;
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//		boundary(distanceSourceToSample, k_1, k_0, y);
+//		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+//		VERBOSE--;
+//	}
+//}
+
+complex<double> index_0(double omg, double kx) {
+
+	return n0_Material0;
+}
+
+complex<double> index_1(double omg, double kx, errno_t err, FILE*fp) {
+	/*double n_r = real(sqrt(1.0 + pow(Sellmeir_omega_1, 2) / (pow(Sellmeir_omega_1, 2) - pow(omega, 2))*Sellmeir_chi_1_1 + pow(Sellmeir_omega_2, 2) / (pow(Sellmeir_omega_2, 2) - pow(omega, 2))*Sellmeir_chi_1_2 + pow(Sellmeir_omega_3, 2) / (pow(Sellmeir_omega_3, 2) - pow(omega, 2))*Sellmeir_chi_1_3+0.0*1.0i)); 
+	double n_i = imag(sqrt(1.0 + pow(Sellmeir_omega_1, 2) / (pow(Sellmeir_omega_1, 2) - pow(omega, 2))*Sellmeir_chi_1_1 + pow(Sellmeir_omega_2, 2) / (pow(Sellmeir_omega_2, 2) - pow(omega, 2))*Sellmeir_chi_1_2 + pow(Sellmeir_omega_3, 2) / (pow(Sellmeir_omega_3, 2) - pow(omega, 2))*Sellmeir_chi_1_3 + 0.0*1.0i));
+	if (n_i >= 10.0)
+	{
+		n_i = 10.0;
+	}
+	if (n_r <= 0.5)
+	{
+		n_r = 0.5;
+	}
+	if (err == 0)
+	{
+		fprintf(fp, "%.10lf \t", n_i);
+	}
+	else {
+		printf("The file 'n.dat' was not opened\n");
+		exit(-1);
+	}
+	return n_r+1.0i*n_i;*/
+
+	return n0_Material1;
+	//return sqrt(1.0 - pow(omegaPlasma, 2) / (pow(omega, 2)-1.0i*omega/tauCollision) + 0.0*1.0i);
+}
+
+complex<double> index_2(double omg, double kx) {
+
+	/*double n_r = real(sqrt(1.0 + pow(Sellmeir_omega_1, 2) / (pow(Sellmeir_omega_1, 2) - pow(omega, 2))*Sellmeir_chi_1_1 + pow(Sellmeir_omega_2, 2) / (pow(Sellmeir_omega_2, 2) - pow(omega, 2))*Sellmeir_chi_1_2 + pow(Sellmeir_omega_3, 2) / (pow(Sellmeir_omega_3, 2) - pow(omega, 2))*Sellmeir_chi_1_3 + 0.0*1.0i)); 
+	double n_i = imag(sqrt(1.0 + pow(Sellmeir_omega_1, 2) / (pow(Sellmeir_omega_1, 2) - pow(omega, 2))*Sellmeir_chi_1_1 + pow(Sellmeir_omega_2, 2) / (pow(Sellmeir_omega_2, 2) - pow(omega, 2))*Sellmeir_chi_1_2 + pow(Sellmeir_omega_3, 2) / (pow(Sellmeir_omega_3, 2) - pow(omega, 2))*Sellmeir_chi_1_3 + 0.0*1.0i));
+	if (n_i >= 10.0)
+	{
+		n_i = 10.0;
+	}
+	if (n_r <= 0.5)
+	{
+		n_r = 0.5;
+	}
+	return n_r+1.0i*n_i;*/
+
+	return n0_Material2;
+
+	//return sqrt(1.0 - pow(omegaPlasma, 2) / (pow(omega, 2) - 1.0i*omega/tauCollision) + 0.0*1.0i);
+}
+
+complex<double> index_3(double omg, double kx) {
+
+	return n0_Material3;
+}
+
+complex<double> exact_linear(complex<double> *k_0, complex<double> *k_1, complex<double> *k_2, complex<double> *k_3, complex<double>*k_4, int i)
+{
+	return (exp(-2.0 * 1.0i*k_0[i] * distanceSourceToSample)*(exp(-2.0 * 1.0i*((k_1[i] + k_2[i])*distanceSampleToReceiver + k_3[i] * Z_4))*(-k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] + k_4[i]) -
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * distanceSampleToReceiver + k_3[i] * Z_4))*(k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] + k_4[i]) -
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * zRightHandSideOfSample + k_3[i] * Z_4))*(k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] + k_4[i]) +
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSampleToReceiver + k_2[i] * zRightHandSideOfSample + k_3[i] * Z_4))*(-k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] + k_4[i]) -
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + (k_2[i] + k_3[i])*zRightHandSideOfSample))*(k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] - k_4[i]) +
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSampleToReceiver + (k_2[i] + k_3[i])*zRightHandSideOfSample))*(-k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] - k_4[i]) +
+		exp(-2.0 * 1.0i*((k_1[i] + k_2[i])*distanceSampleToReceiver + k_3[i] * zRightHandSideOfSample))*(-k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] - k_4[i]) -
+		exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * distanceSampleToReceiver + k_3[i] * zRightHandSideOfSample))*(k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] - k_4[i]))) /
+		(-(exp(-2.0 * 1.0i*((k_1[i] + k_2[i])*distanceSampleToReceiver + k_3[i] * Z_4))*(k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] + k_4[i])) +
+			exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * distanceSampleToReceiver + k_3[i] * Z_4))*(-k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] + k_4[i]) +
+			exp(-2.0* 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * zRightHandSideOfSample + k_3[i] * Z_4))*(-k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] + k_4[i]) -
+			exp(-2.0* 1.0i*(k_1[i] * distanceSampleToReceiver + k_2[i] * zRightHandSideOfSample + k_3[i] * Z_4))*(k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] + k_4[i]) +
+			exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + (k_2[i] + k_3[i])*zRightHandSideOfSample))*(-k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] - k_4[i]) -
+			exp(-2.0 * 1.0i*(k_1[i] * distanceSampleToReceiver + (k_2[i] + k_3[i])*zRightHandSideOfSample))*(k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] + k_3[i])*(-k_3[i] - k_4[i]) -
+			exp(-2.0* 1.0i*((k_1[i] + k_2[i])*distanceSampleToReceiver + k_3[i] * zRightHandSideOfSample))*(k_0[i] - k_1[i])*(-k_1[i] + k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] - k_4[i]) +
+			exp(-2.0 * 1.0i*(k_1[i] * distanceSourceToSample + k_2[i] * distanceSampleToReceiver + k_3[i] * zRightHandSideOfSample))*(-k_0[i] - k_1[i])*(-k_1[i] - k_2[i])*(-k_2[i] - k_3[i])*(-k_3[i] - k_4[i]));
+}
+
+void fill_omg_k(double*omg, double*kx, complex<double> *k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3, errno_t err, FILE*fp) {
+
+	if (numDimensionsMinusOne == 1) {
+	
+		for (int j = 0; j <= num_x / 2; j++)
+		{
+			if (j == 0) {
+				for (int i = 0; i <= num_t / 2; i++)
+				{
+					kx[i] = (M_PI / domain_x)*j;
+					omg[i] = (M_PI / domain_t)*i;
+				}
+			}
+			else if (j == num_x / 2) {
+				for (int i = 0; i <= num_t / 2; i++)
+				{
+					kx[i + numActiveOmega2] = (M_PI / domain_x)*j;
+					omg[i + numActiveOmega2] = (M_PI / domain_t)*i;
+				}
+			}
+			else {
+				for (int i = 0; i < num_t; i++)
+				{
+					kx[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_x)*j;
+					if (i <= num_t / 2) {
+						omg[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_t)* (double)i;
+					}
+					else {
+						omg[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_t)*((double)i - num_t);
+					}
+
+				}
+			}
+		}
+		for (int j = 0; j < numActiveOmega; j++)
+		{
+			if (j == 0) {
+				k_0[j] = 0.0;
+				k_1[j] = 0.0;
+				k_2[j] = 0.0;
+				k_3[j] = 0.0;
+			}
+			else 
+			{
+				k_0[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_0(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
+				k_1[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_1(omg[j], kx[j], err, fp), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
+				k_2[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_2(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
+				k_3[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_3(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
+			}		
+		}
+	}
+	else {
+		for (int i = 0; i < num_t; i++)
+		{
+			if (i <= num_t / 2) {
+				omg[i] = (M_PI / domain_t)*i;
+			}
+			else {
+				omg[i] = (M_PI / domain_t)*((double)i - num_t);
+			}
+		}
+		// COLM NEW this line replaces following comment block
+		myMaterialsDB.initAllMaterialKs(omg);
+		/* ANDREW ORIGNAL
+		for (int i = 0; i <= num_t / 2; i++)
+		{
+			if (i == 0) {
+				k_0[i] = 0.0;
+				k_1[i] = 0.0;
+				k_2[i] = 0.0;
+				k_3[i] = 0.0;
+			}
+			else {
+				k_0[i] = omg[i] * index_0(omg[i], 0.0) / cLight;
+				k_1[i] = omg[i] * index_1(omg[i], 0.0, err, fp) / cLight;
+				k_2[i] = omg[i] * index_2(omg[i], 0.0) / cLight;
+				k_3[i] = omg[i] * index_3(omg[i], 0.0) / cLight;
+			}
+		}*/
+	}
+	return;
+}
+
+//void copy_omg_k_ToMaterial(MaterialDB aMaterialDB, double* kx, complex<double>* k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3) {
+//
+//}
+
+void writeInputEfield(std::complex<double>* ee_p)
+{
+	char inputEfieldFilePathName[STRING_BUFFER_SIZE];
+	snprintf(inputEfieldFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sInputEfield_1D.dat", SIM_DATA_OUTPUT);
+	FILE* fp;
+	errno_t err = fopen_s(&fp, inputEfieldFilePathName, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# time [sec]\tEfield [V/aLayer]\n");
+		for (int i = 0; i < num_t; i++)
+		{
+			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
+			fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));   // COLM export in one column format
+		}
+	}
+	else {
+		printf("Failed to open file '%s'\n", inputEfieldFilePathName);
+
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp); }
+}
+
+void writeInputSpectrum(std::complex<double>* yp_init)
+{
+	char inputEfieldFilePathName2[STRING_BUFFER_SIZE];
+	snprintf(inputEfieldFilePathName2, sizeof(char) * STRING_BUFFER_SIZE, "%sInputSpectrum_1D.dat", SIM_DATA_OUTPUT);
+
+	FILE* fp_spectrum;
+	errno_t err2 = fopen_s(&fp_spectrum, inputEfieldFilePathName2, "w");
+	if (fp_spectrum != NULL)
+	{
+		fprintf(fp_spectrum, "# omega [Hz]\tReal []\tImag []\tAbs []\n");
+		for (int i = 0; i < num_t; i++)
+		{
+			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
+			//fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));		// COLM export in one column format
+			//fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g\n", (M_PI / domain_t)* i, real(yp_init[i]), imag(yp_init[i]));		// COLM input spectrum output
+			fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));		// COLM outputing abs(Sp) too
+#ifdef WRITE_OUT_REFLECTANCE
+																																						// COLM make a backup of input spectrum to calculate reflectance later on
+			eFieldPlusBACKUPCOLM[i] = yp_init[i];
+#endif
+		}
+	}
+	else {
+		printf("Failed to open file '%s'\n", inputEfieldFilePathName2);
+
+		exit(-1);
+	}
+	if (fp_spectrum != NULL) { fclose(fp_spectrum); }
+}
+
+void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral)
+{
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		if (i == 0) {
+			ym1_init[i] = 0.0;
+			ym0_init[i] = 0.0;
+			integral[i] = 0.0;
+		}
+		else {
+			ym1_init[i] = INITIAL_GUESS_SEED_VALUE; //exact_linear(k_0, k_1, k_2, k_0, k_0, i)*yp_init[i];
+			ym0_init[i] = 0.0;  //-1.0*yp_init[i] * exp(-1.0i*k_0[i] * 2.0*distanceSourceToSample);
+			integral[i] = 0.0;
+		}
+	}
+}
+
+void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init)
+{
+	for (int i = 0; i < 4 * numActiveOmega; i++)
+	{
+		if (i < numActiveOmega) {
+			y[i] = real(yp_init[i]);
+		}
+		else if (i < 2 * numActiveOmega) {
+			y[i] = imag(yp_init[i - numActiveOmega]);
+		}
+		else if (i < 3 * numActiveOmega) {
+			y[i] = real(ym0_init[i - 2 * numActiveOmega]);
+		}
+		else {
+			y[i] = imag(ym0_init[i - 3 * numActiveOmega]);
+		}
+	}
+}
+
+void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init)
+{
+	for (int i = 0; i < 4 * numActiveOmega; i++)
+	{
+		if (i < numActiveOmega) {
+			y[i] = real(yp_init[i]);
+		}
+		else if (i < 2 * numActiveOmega) {
+			y[i] = imag(yp_init[i - numActiveOmega]);
+		}
+		else if (i < 3 * numActiveOmega) {
+			y[i] = real(ym0_init[i - 2 * numActiveOmega]);
+		}
+		else {
+			y[i] = imag(ym0_init[i - 3 * numActiveOmega]);
+		}
+	}
+}
+
+void write2DtoFile(std::complex<double>* ee_p)
+{
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sEp_2d_%i.dat", SIM_DATA_OUTPUT, 0);
+	FILE* fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		for (int i = 0; i < num_t * num_x; i++)
+		{
+			fprintf(fp, "%.10lf \t", real(ee_p[i]));
+		}
+	}
+	else {
+		printf("The file 'Ep_2d_0.dat' was not opened\n");
+		exit(-1);
+	}
+}
+
+
+//void set_guess_ANDREW_ORIGNAL_AND_CPP_CHANGES(complex<double>*ee_p, complex<double>*yp_init, complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*f0, complex<double>*f1, double*y, fftw_plan ep_f, complex<double>*ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>*k_0, complex<double>*k_1, complex<double>*k_2, complex<double>*k_3, complex<double>*integral) {
+//
+//	double ht = (2.0*domain_t) / double(num_t);
+//	int o;
+//	if (numDimensionsMinusOne == 1) {
+//		double hx = (2.0*domain_x) / double(num_x);
+//
+//		for (int j = 0; j < num_x; j++)
+//		{
+//			for (int i = 0; i < num_t; i++)
+//			{
+//				ee_p[i + num_t * j] = A_0 * exp(-2.0*log(2.0)*pow(-domain_x + hx * ((double)j + 1), 2) / (pow(waist_x, 2)))*(sqrt(1 - twoColorSH_amplitude)*exp(-2.0*log(2.0)*pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2)))*cos(omega_0*(-domain_t + ht * ((double)i + 1))) + sqrt(twoColorSH_amplitude)*exp(-8.0*log(2.0)*pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2)))*cos(2.0*omega_0*(-domain_t + ht * ((double)i + 1)) + twoColorSH_phase));
+//			}
+//		}
+//
+//		write2DtoFile(ee_p);
+//
+//		fftw_execute(ep_f);
+//
+//		for (int j = 0; j <= num_x / 2; j++)
+//		{
+//			if (j == 0) {
+//				for (int i = 0; i <= num_t / 2; i++)
+//				{
+//					yp_init[i] = ee_p[i];
+//				}
+//			}
+//			else if (j == num_x / 2) {
+//				for (int i = 0; i <= num_t / 2; i++)
+//				{
+//					yp_init[i + numActiveOmega2] = ee_p[i + num_t * j];
+//				}
+//			}
+//			else {
+//				for (int i = 0; i < num_t; i++)
+//				{
+//					yp_init[i + (j - 1)*num_t + (num_t / 2 + 1)] = ee_p[i + num_t * j];
+//				}
+//			}
+//		}
+//	}
+//	else {
+//		for (int i = 0; i < num_t; i++)
+//			ee_p[i] = A_0 * (sqrt(1.0 - twoColorSH_amplitude)*exp(-2.0*log(2.0)*pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2)))*cos(omega_0*(-domain_t + ht * ((double)i + 1))) + sqrt(twoColorSH_amplitude)*exp(-8.0*log(2)*pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2)))*cos(2.0*omega_0*(-domain_t + ht * ((double)i + 1)) + twoColorSH_phase));
+//
+//		writeInputEfield(ee_p);
+//		fftw_execute(ep_f);
+//
+//		for (int i = 0; i < numActiveOmega; i++) yp_init[i] = ee_p[i];
+//
+//		writeInputSpectrum(yp_init);
+//	}
+//
+//	initalizeArrays(ym1_init, ym0_init, integral);	
+//	fillYfromYpAndYm(y, yp_init, ym0_init); // was initalizeYarray(y, yp_init, ym0_init) BUT they have the same function body
+//	std::cout << "In SetGuess FINISHED Initalizing stuff" << endl << endl;
+//
+//#ifdef	USE_CPP_BOUNDARY
+//	if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl; }
+//	myStructure.doForwardPassThroughAllBoundaries(y);
+//	o = 1;
+//#else
+//	cout << "  Going FORWARD through layers USING ANDREW?" << endl;
+//	boundary(distanceSourceToSample, k_0, k_1, y);
+//	for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//	{
+//		if (aLayer % 2 == 0) {
+//			// DO even numbered Layers
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//				o = 0;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//		else {
+//			if (aLayer == numLayersInSample - 1)
+//			{
+//				boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//				o = 1;
+//			}
+//			else {
+//				boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//#endif
+//
+//	am_to_zero(y);
+//	if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
+//
+//#ifdef	USE_CPP_BOUNDARY
+//	if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+//	myStructure.doBackwardPassThroughAllBoundaries(y);
+//#else
+//	cout << "  Going BACKWARD through layers USING ANDREW?" << endl;
+//	if (o == 1)
+//	{
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//		}
+//	}
+//	else {
+//		boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//		for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//			}
+//			else {
+//				boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//			}
+//		}
+//	}
+//	boundary(distanceSourceToSample, k_1, k_0, y);
+//#endif
+//
+//	update_guess(yp_init, f0, ym1_init, y, integral);
+//
+//	for (int bb = 1; bb < 3; bb++)
+//	{
+//		if(VERBOSE >= 7) { cout << "bb = " << bb << endl; }
+//		write_out_e(0, 0, y, 0.0, ee_m, k_0, em_b);
+//
+//#ifdef	USE_CPP_BOUNDARY
+//		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl;}
+//		myStructure.doForwardPassThroughAllBoundaries(y);
+//		o = 1;
+//#else
+//		cout << "  Going FOREWARD through layers USING ANDREW??? o=" << o << endl;
+//		boundary(distanceSourceToSample, k_0, k_1, y);
+//		for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+//		{
+//			if (aLayer % 2 == 0) {
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_1, k_3, y);
+//					o = 0;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//			else {
+//				if (aLayer == numLayersInSample - 1)
+//				{
+//					boundary(distanceSourceToSample + lengthSample, k_2, k_3, y);
+//					o = 1;
+//				}
+//				else {
+//					boundary(distanceSourceToSample + sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//#endif
+//
+//		write_out_e(0, 1, y, distanceSourceToSample+lengthSample+distanceSampleToReceiver, ee_p, k_3, ep_b);
+//		am_to_zero(y);
+//		if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
+//
+//#ifdef	USE_CPP_BOUNDARY
+//		if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+//		myStructure.doBackwardPassThroughAllBoundaries(y);
+//#else
+//		cout << "  Going BACKWARD through layers USING ANDREW??? o=" << o << endl;
+//		if (o == 1)
+//		{
+//			
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//			}
+//		}
+//		else {
+//			boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+//			for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+//			{
+//				if (aLayer % 2 == 0) {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_1, k_2, y);
+//				}
+//				else {
+//					boundary(distanceSourceToSample + lengthSample - sampleLayerThickness * ((double)aLayer + 1), k_2, k_1, y);
+//				}
+//			}
+//		}
+//		boundary(distanceSourceToSample, k_1, k_0, y);
+//#endif
+//
+//		int x;
+//		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+//		
+//	}
+//
+//	for (int i = 0; i < numActiveOmega; i++)
+//	{
+//		if (i == 0) {
+//			ym0_init[i] = 0.0;
+//		}
+//		else {
+//			ym0_init[i] = INITIAL_GUESS_SEED_VALUE;
+//		}
+//	}
+//
+//	fillYfromYpAndYm(y, yp_init, ym0_init);
+//
+//	return;
+//}
+
+void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, complex<double>* f0, complex<double>* f1, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3, complex<double>* integral) {
+
+	double ht = (2.0 * domain_t) / double(num_t);
+	int o;
+	if (numDimensionsMinusOne == 1) {
+		// 2D source code deleted temporarly see orignal set_guess() above
+		std::cout << "WARNING WARNING ###### ABORTING #####: In SetGuess 2D code. Source code was deleted temporarly see orignal set_guess()" << endl << endl;
+		exit(-1);
+	}
+	else {
+		for (int i = 0; i < num_t; i++)
+			ee_p[i] = A_0 * (sqrt(1.0 - twoColorSH_amplitude) * exp(-2.0 * log(2.0) * pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2))) * cos(omega_0 * (-domain_t + ht * ((double)i + 1))) + sqrt(twoColorSH_amplitude) * exp(-8.0 * log(2) * pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2))) * cos(2.0 * omega_0 * (-domain_t + ht * ((double)i + 1)) + twoColorSH_phase));
+
+		writeInputEfield(ee_p);
+		fftw_execute(ep_f);
+
+		for (int i = 0; i < numActiveOmega; i++) yp_init[i] = ee_p[i];
+
+		writeInputSpectrum(yp_init);
+	}
+
+	initalizeArrays(ym1_init, ym0_init, integral);
+	fillYfromYpAndYm(y, yp_init, ym0_init); // was initalizeYarray(y, yp_init, ym0_init) BUT they have the same function body
+	std::cout << "In SetGuess FINISHED Initalizing stuff" << endl << endl;
+
+#ifdef	USE_CPP_BOUNDARY
+	if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl; }
+	myStructure.doForwardPassThroughAllBoundaries(y);
+	o = 1;
+#else
+	cout << "  Going FORWARD through layers USING ANDREW?" << endl;
+	//boundary(distanceSourceToSample, k_0, k_1, y);
+	//for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+	// Andrew orignal deleted stuff was here
+#endif
+
+	am_to_zero(y);
+	if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
+
+#ifdef	USE_CPP_BOUNDARY
+	if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+	myStructure.doBackwardPassThroughAllBoundaries(y);
+#else
+	cout << "  Going BACKWARD through layers USING ANDREW?" << endl;
+	//if (o == 1)
+	//{
+	//	boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+	//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+	//		// Andrew orignal deleted stuff was here
+	//}
+	//else {
+	//	boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+	//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+	// 	   	// Andrew orignal deleted stuff was here
+	//}
+	//boundary(distanceSourceToSample, k_1, k_0, y);
+#endif
+
+	update_guess(yp_init, f0, ym1_init, y, integral);
+
+	for (int bb = 1; bb < 3; bb++)
+	{
+		if (VERBOSE >= 7) { cout << "bb = " << bb << endl; }
+		write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, ee_m, k_0, em_b);
+
+#ifdef	USE_CPP_BOUNDARY
+		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl; }
+		myStructure.doForwardPassThroughAllBoundaries(y);
+		o = 1;
+#else
+		//cout << "  Going FOREWARD through layers USING ANDREW??? o=" << o << endl;
+		//boundary(distanceSourceToSample, k_0, k_1, y);
+		//for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
+			// Andrew orignal deleted stuff was here
+#endif
+
+		write_out_eFieldAndSpectrumAtZlocation(0, 1, y, myStructure.getThickness(), ee_p, k_3, ep_b);
+		am_to_zero(y);
+		if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
+
+#ifdef	USE_CPP_BOUNDARY
+		if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+		myStructure.doBackwardPassThroughAllBoundaries(y);
+#else
+		//cout << "  Going BACKWARD through layers USING ANDREW??? o=" << o << endl;
+		//if (o == 1)
+		//{
+
+		//	boundary(distanceSourceToSample + lengthSample, k_3, k_2, y);
+		//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+		//	// Andrew orignal deleted stuff was here
+		else {
+			//boundary(distanceSourceToSample + lengthSample, k_3, k_1, y);
+			//for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
+			// 	// Andrew orignal deleted stuff was here
+		//}
+		//boundary(distanceSourceToSample, k_1, k_0, y);
+#endif
+
+		int x;
+		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+	}
+
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		if (i == 0) { ym0_init[i] = 0.0; }
+		else { ym0_init[i] = INITIAL_GUESS_SEED_VALUE;	}
+	}
+
+	fillYfromYpAndYm(y, yp_init, ym0_init);
+
+	return;
+}
+
+
+param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, double* ne, complex<double>* j_e, complex<double>* k, complex<double>* ee_p, complex<double>* ee_m, complex<double>* nl_k, complex<double>* nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f) {
+
+	param_type* r = (param_type*)malloc(sizeof(param_type));
+	if (r != NULL)
+	{
+	r->chi_2 = chi_2;
+	r->chi_3 = chi_3;
+	r->omega = omg;
+	r->kx = kx;
+	r->rho = ne;
+	r->j_e = j_e;
+	r->k = k;
+	r->ee_p = ee_p;
+	r->ee_m = ee_m;
+	r->nl_k = nl_k;
+	r->nl_p = nl_p;
+	r->nk_f = nk_f;
+	r->ep_b = ep_b;
+	r->em_b = em_b;
+	r->np_f = np_f;
+}
+	else {
+		printf("Could not maloc space in fill_params()\n");
+		exit(-1);
+	}
+	return r;
+}
+
+void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
+
+	complex<double> sp, sm;
+	for (int i = 1; i <= num_t / 2; i++)
+	{
+		if (i >= freqLowerCutoff && i <= freqUpperCutoff) {
+			double k_0_r = real(k_0[i]);
+			double k_0_i = imag(k_0[i]);
+			double k_1_r = real(k_1[i]);
+			double k_1_i = imag(k_1[i]);
+
+			sp = (exp(-1.0i*((k_0_r + 1.0i*k_0_i) - (k_1_r + 1.0i*k_1_i))*z)*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i] + 1.0i*y[i + num_t / 2 + 1]) + exp(1.0i*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i))*z)*((k_1_r + 1.0i*k_1_i) - (k_0_r + 1.0i*k_0_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]));
+
+			sm = (exp(-1.0i*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i))*z)*((k_1_r + 1.0i*k_1_i) - (k_0_r + 1.0i*k_0_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i] + 1.0i*y[i + num_t / 2 + 1]) + exp(1.0i*((k_0_r + 1.0i*k_0_i) - (k_1_r + 1.0i*k_1_i))*z)*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]));
+
+			y[i] = real(sp);
+			y[i + num_t / 2 + 1] = imag(sp);
+			y[i + num_t + 2] = real(sm);
+			y[i + 3 * num_t / 2 + 3] = imag(sm);
+		}
+	}
+	if (VERBOSE >= 5) { cout << "       Done Boundary() for z = " << z << endl;}
+	return;
+}
+
+void writeSimParameters()
+{
+
+	char parametersFilePathName[STRING_BUFFER_SIZE];
+	snprintf(parametersFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sSimParameters.dat", SIM_DATA_OUTPUT);
+
+	FILE* fp;
+	errno_t err;
+	if (VERBOSE >= 2) { printf("Writing Simulation Parameter file %s\n", parametersFilePathName); }
+	err = fopen_s(&fp, parametersFilePathName, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "cLight         \t\t%.17g    /*speed of light */\n", cLight);
+		fprintf(fp, "epsilon_0      \t\t%.17g    /*permittivity of free space */\n", epsilon_0);
+		fprintf(fp, "Znaught        \t\t%.17g    /*impedance of free space */\n", Znaught);
+		fprintf(fp, "charge_e       \t\t%.17g    /*electron charge */\n", charge_e);
+		fprintf(fp, "mass_e         \t\t%.17g    /*electron mass */\n", mass_e);
+		fprintf(fp, "u_Argon        \t\t%.17g    /*argon potential */\n", u_Argon);
+		fprintf(fp, "u_Hydrogen     \t\t%.17g    /*hydrogen potential */\n", u_Hydrogen);
+		fprintf(fp, "E_a            \t\t%.17g    /*QST parameters */\n", E_a);
+		fprintf(fp, "mu_a           \t\t%.17g   \n", mu_a);
+		fprintf(fp, "I_0            \t\t%.17g    /*initial peak ensity */\n", I_0);
+		fprintf(fp, "twoColorSH_amplitude \t\t%.17g    /*two-color pulse: 2nd harmonic with half duration of fundamental */\n", twoColorSH_amplitude);
+		fprintf(fp, "twoColorSH_phase \t\t%.17g    /*phase shift of 2nd harmonic */\n", twoColorSH_phase);
+		fprintf(fp, "tau             \t\t%.17g    /*pulse duration fwhm */\n", tau);
+		fprintf(fp, "lambda_0        \t\t%.17g    /*central wavelength */\n", lambda_0);
+		fprintf(fp, "omega_0         \t\t%.17g    /*central angular frequency */\n", omega_0);
+		fprintf(fp, "waist_x         \t\t%.17g    /*pulse-waist fwhm */\n", waist_x);
+		fprintf(fp, "num_t           \t\t%.17g    /*number of time pos */\n", (double)num_t);
+		fprintf(fp, "num_x           \t\t%.17g    /*number of x pos */\n", (double)num_x);
+		fprintf(fp, "domain_t        \t\t%.17g    /*time domain */\n", domain_t);
+		fprintf(fp, "domain_x        \t\t%.17g    /*x domain */\n", domain_x);
+		fprintf(fp, "num_atoms       \t\t%.17g    /*number of atoms in gas */\n", num_atoms);
+		fprintf(fp, "rho_0           \t\t%.17g    /* initial electron density */\n", rho_0);
+		fprintf(fp, "j_e0            \t\t%.17g   \n", j_e0);
+		fprintf(fp, "freqUpperCutoff \t\t%.17g    /* upper frequency cut-off */\n", (double)freqUpperCutoff);
+		fprintf(fp, "freqLowerCutoff \t\t%.17g    /*lower frequency cut-off */\n", (double)freqLowerCutoff);
+		fprintf(fp, "num_iterations  \t\t%.17g    /*number of BPPE iterations*/ */\n", (double)num_iterations);
+		fprintf(fp, "shift           \t\t%.17g   \n", shift);
+		fprintf(fp, "numDimensionsMinusOne \t\t%.17g    /*(1+1) dimension (0) or (2+1) dimension (1) */\n", (double)numDimensionsMinusOne);
+		fprintf(fp, "plasmaOnOff     \t%d /*plasma on (1) or off (0) */\n", plasmaOnOff);
+		fprintf(fp, "l_0               \t\t%.17g   \n", (double)l_0);
+		fprintf(fp, "numActiveOmega    \t\t%.17g   \n", (double)numActiveOmega);
+		fprintf(fp, "numActiveOmega2   \t\t%.17g   \n", (double)numActiveOmega2);
+		fprintf(fp, "omegaPlasmaDamping \t\t%.17g    /*plasma damping */\n", omegaPlasmaDamping);
+		fprintf(fp, "tauCollision       \t\t%.17g    /*mean collision time */\n", tauCollision);
+		fprintf(fp, "lengthSample       \t\t%.17g    /*length of slab */\n", lengthSample);
+		fprintf(fp, "distanceSourceToSample \t\t%.17g    /*distance from laser source to slab */\n", distanceSourceToSample);
+		fprintf(fp, "distanceSampleToReceiver \t\t%.17g    /*distance from slab to receiver */\n", distanceSampleToReceiver);
+		fprintf(fp, "zRightHandSideOfSample \t\t%.17g   \n", zRightHandSideOfSample);
+		fprintf(fp, "Z_4                     \t\t%.17g   \n", Z_4);
+		fprintf(fp, "sampleLayerThickness   \t\t%.17g    /*half period */\n", sampleLayerThickness);
+		fprintf(fp, "numLayersInSample      \t\t%.17g    /*number of half-periods in slab */\n", (double)numLayersInSample);
+		fprintf(fp, "zStepMaterial1         \t\t%.17g    /*propagation aZstep in material 1 */\n", zStepMaterial1);
+		fprintf(fp, "zStepMaterial2         \t\t%.17g    /*propagation aZstep in material 2 */\n", zStepMaterial2);
+		fprintf(fp, "numZstepsMaterial1     \t\t%.17g    /*number of steps in material 1 */\n", (double)numZstepsMaterial1);
+		fprintf(fp, "numZstepsMaterial2     \t\t%.17g    /*number of steps in material 2 */\n", (double)numZstepsMaterial2);
+		fprintf(fp, "n0_Material0           \t\t%.17g    /*central index in material 0 */\n", n0_Material0);
+		fprintf(fp, "n0_Material1           \t\t%.17g    /*central index in material 1 */\n", n0_Material1);
+		fprintf(fp, "n0_Material2           \t\t%.17g    /*central index in material 2 */\n", n0_Material2);
+		fprintf(fp, "n0_Material3           \t\t%.17g    /*central index in material 3 */\n", n0_Material3);
+		fprintf(fp, "n2_Material1           \t\t%.17g    /*nonlinear index in material 1 */\n", n2_Material1);
+		fprintf(fp, "n2_Material2           \t\t%.17g    /*nonlinear index in material 2 */\n", n2_Material2);
+		fprintf(fp, "chi_2                  \t\t%.17g    /*nonlinear chi_2 */\n", chi_2);
+		fprintf(fp, "A_0                    \t\t%.17g    /*pulse peak amplitude */\n", A_0);
+		fprintf(fp, "Keldysh                \t\t%.17g    /*keldysh parameter */\n", Keldysh);
+		fprintf(fp, "omegaPlasma            \t\t%.17g    /*fully-ionized plasma frequency */\n", omegaPlasma);
+		fprintf(fp, "Sellmeir_chi_1_1       \t\t%.17g   \n", Sellmeir_chi_1_1);
+		fprintf(fp, "Sellmeir_chi_1_2       \t\t%.17g   \n", Sellmeir_chi_1_2);
+		fprintf(fp, "Sellmeir_chi_1_3       \t\t%.17g   \n", Sellmeir_chi_1_3);
+		fprintf(fp, "Sellmeir_omega_1       \t\t%.17g   \n", Sellmeir_omega_1);
+		fprintf(fp, "Sellmeir_omega_2       \t\t%.17g   \n", Sellmeir_omega_2);
+		fprintf(fp, "Sellmeir_omega_3       \t\t%.17g   \n", Sellmeir_omega_3);
+	}
+	else {
+		printf("Failed to open file '%s'\n", parametersFilePathName);
+	}
+	if (fp != NULL) { fclose(fp); }		// COLM added to avoid errors
+}
+
+void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
+{
+	Material vacuum("Vacuum", n0_Material0, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(vacuum);
+	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
+	theMaterialDB.addMaterial(mat1);
+	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
+	theMaterialDB.addMaterial(mat2);
+	Material mat3("linMieMat3", n0_Material2, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(mat3);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSourceToSample, zStepMaterial1);
+	for (int i = 0; i < (numLayersInSample/2); i++)
+	{
+		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
+		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+	}
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSampleToReceiver, zStepMaterial1);
+}
+
+void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
+{
+	Material vacuum("Vacuum", n0_Material0, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(vacuum);
+	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
+	theMaterialDB.addMaterial(mat1);
+	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
+	theMaterialDB.addMaterial(mat2);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSourceToSample, zStepMaterial1);
+	for (int i = 0; i < (numLayersInSample / 4); i++)
+	{
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+	}
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness + sampleLayerThickness/3.0, zStepMaterial1);
+
+	for (int i = 0; i < (numLayersInSample / 4); i++)
+	{
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
+	}
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSampleToReceiver, zStepMaterial1);
+}
+
+void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
+{
+	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(vacuum);
+	Material mat1("dieMat1", 1.75, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(mat1);
+	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
+	theMaterialDB.addMaterial(mat2);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSourceToSample, zStepMaterial1);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness * numLayersInSample/4, zStepMaterial1);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSampleToReceiver, zStepMaterial1);
+}
+
+
+void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b) {
+
+	char efieldFilePathName[STRING_BUFFER_SIZE];
+	char spectrumFilePathName[STRING_BUFFER_SIZE];
+	// COLMTODO E_ij -> E_iter_i_Reflect(0) ,Transmitted(1)
+	snprintf(efieldFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sEfield_iteration_%i_%s.dat", SIM_DATA_OUTPUT, num, (j == 0 ? "Reflected" : "Transmitted"));
+	snprintf(spectrumFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sSpectrum_iteration_%i_%s.dat", SIM_DATA_OUTPUT, num, (j == 0 ? "Reflected" : "Transmitted"));
+	//snprintf(buffer2, sizeof(char) * STRING_BUFFER_SIZE, "Snew_%i%i.dat", Iteration_number, j);
+
+	if 	(z>myStructure.getThickness()) {
+		printf("Request to write field at point outside structure %g  Structure range 0<->%g\n", z, myStructure.getThickness());
+	}
+
+
+	if (j == 1) {
+
+		for (int i = 0; i <= num_t / 2; i++)
+		{
+			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * (zPosition + distanceSampleToReceiver));		// phase corrections by Andrew (2021-01-25)
+			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
+		}
+
+		for (int i = 1; i < num_t / 2; i++)
+		{
+			//ee[num_t - i] = (y[i] - 1.0i*y[i + num_t / 2 + 1])*exp(1.0i*conj(k[i])*(zPosition + distanceSampleToReceiver));		// phase corrections by Andrew (2021-01-25)
+			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * conj(k[i]) * z);
+		}
+	}
+	else {
+		for (int i = 0; i <= num_t / 2; i++)
+		{
+			ee[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]);
+		}
+
+		for (int i = 1; i < num_t / 2; i++)
+		{
+			ee[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_t / 2 + 3]);
+		}
+	}
+
+	// PARIS output spectrum
+	FILE* fp2;
+	errno_t err2;
+	err2 = fopen_s(&fp2, spectrumFilePathName, "w");
+	if (fp2 != NULL)
+	{
+		fprintf(fp2, "# omega [Hz]\tReal []\tImag []\tAbs []      recorded at zPosition=%g[microns]\n", z * 1e6);
+
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp2, "%g \t %+.17g \t %+.17g\t %+.17g\n", (M_PI/domain_t)*i, real(ee[i]), imag(ee[i]), abs(ee[i]));		// COLM export in one column format
+		}
+	}
+	else {
+		printf("Failed to open file '%s'\n", spectrumFilePathName);
+	}
+	if(fp2 != NULL) { fclose(fp2);  }		// COLM added to avoid errors
+
+#ifdef WRITE_OUT_REFLECTANCE
+	if (j == 0)
+	{
+		// COLM output Reflectance spectrum
+		char reflectanceFilePathName[STRING_BUFFER_SIZE];
+		snprintf(reflectanceFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sReflectanceSpectrum_iteration_%i_%s.dat", SIM_DATA_OUTPUT, num, (j == 0 ? "Reflected" : "Transmitted"));
+		FILE* fp3;
+		errno_t err3;
+		err3 = fopen_s(&fp3, reflectanceFilePathName, "w");
+		if (fp3 != NULL)
+		{
+			fprintf(fp3, "# omega [Hz] \tReflectance []\n");
+
+			for (int i = 0; i <= numActiveOmega; i++)
+			{
+				fprintf(fp3, "%g \t %+.17g \n", (M_PI / domain_t) * i, abs((ee[i] * ee[i]) / (eFieldPlusBACKUPCOLM[i] * eFieldPlusBACKUPCOLM[i])));		// COLM export in one column format
+			}
+		}
+		else {
+			printf("Failed to open file '%s'\n", reflectanceFilePathName);
+		}
+		if (fp3 != NULL) { fclose(fp3); }		// COLM added to avoid errors 
+	}
+#endif
+
+	fftw_execute(e_b);
+
+	for (int i = 0; i < num_t; i++)
+	{
+		ee[i] = ee[i] / (double(num_t));
+	}
+
+	FILE *fp;
+	errno_t err;
+	err = fopen_s(&fp, efieldFilePathName, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# time [sec]\tEfield [V/m]    recorded at zPosition=%g[microns]\n",z*1e6);
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7g\t%.17g \n", i*domain_t/num_t, real(ee[i]));		// COLM export in one column format
+		}
+	}
+	else {
+		printf("Failed to open file '%s'\n", efieldFilePathName);
+	}
+	if (fp != NULL) { fclose(fp);  }		// COLM added to avoid errors
+	return;
+}
+
+// PARIS Sets second half to zero (minuns going real and imag parts)
+void am_to_zero(double*y) {
+
+	for (int i = 0; i <= num_t + 1; i++)
+	{
+		y[i + num_t + 2] = 0.0;
+	}
+
+	return;
+}
+
+void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym1_init, double*y, complex<double>*integral) {
+
+	for (int i = 0; i <= num_t / 2; i++)
+	{
+		f0[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
+		integral[i] = 0.0;
+	}
+
+	for (int i = 0; i < 2 * num_t + 4; i++)
+	{
+		if (i <= num_t / 2) {
+			y[i] = real(yp_init[i]);
+		}
+		else if (i <= num_t + 1) {
+			y[i] = imag(yp_init[i - (num_t / 2 + 1)]);
+		}
+		else if (i <= 3 * num_t / 2 + 2) {
+			y[i] = real(ym1_init[i - (num_t + 2)]);
+		}
+		else {
+			y[i] = imag(ym1_init[i - (3 * num_t / 2 + 3)]);
+		}
+
+	}
+	return;
+}
+
+int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral) {
+
+	for (int i = 0; i <= num_t / 2; i++)
+	{
+		f1[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
+		integral[i] = 0.0;
+		ym1_temp[i] = ym1_init[i];
+	}
+
+	for (int i = 0; i <= num_t / 2; i++)
+	{
+		if (i == 0) {
+			ym1_init[i] = 0.0;
+		}
+		else {
+			ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
+		}
+	}
+
+	for (int i = 0; i < 2 * num_t + 4; i++)
+	{
+		if (i <= num_t / 2) {
+			y[i] = real(yp_init[i]);
+		}
+		else if (i <= num_t + 1) {
+			y[i] = imag(yp_init[i - (num_t / 2 + 1)]);
+		}
+		else if (i <= 3 * num_t / 2 + 2) {
+			y[i] = real(ym1_init[i - (num_t + 2)]);
+		}
+		else {
+			y[i] = imag(ym1_init[i - (3 * num_t / 2 + 3)]);
+		}
+	}
+
+	for (int i = 0; i <= num_t / 2; i++)
+	{
+		f0[i] = f1[i];
+		ym0_init[i] = ym1_temp[i];
+	}
+	return 1;
+}
+
+/// int funcANDREWorignal(double z, const double y[], double f[], void* params)
+//int funcANDREWorignal(double z, const double y[], double f[], void* params) {
+//
+//	param_type* p = reinterpret_cast<param_type*>(params);
+//
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		p->ee_p[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+//	}
+//
+//#pragma omp  parallel for
+//	for (int i = 1; i < num_t / 2; i++)
+//	{
+//		p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+//	}
+//
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_t / 2 + 3]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+//	}
+//#pragma omp parallel for
+//	for (int i = 1; i < num_t / 2; i++)
+//	{
+//		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_t / 2 + 3]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+//	}
+//
+//	fftw_execute(p->ep_b);
+//	fftw_execute(p->em_b);
+//
+//#pragma omp parallel for
+//	for (int i = 0; i < num_t; i++)
+//	{
+//		p->ee_p[i] = p->ee_p[i] / (double(num_t));
+//		p->ee_m[i] = p->ee_m[i] / (double(num_t));
+//		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
+//	}
+//
+//
+//	fftw_execute(p->nk_f);
+//
+//	if (plasmaOnOff == 1) {
+//		double w;
+//		double ht = (2.0 * domain_t) / double(num_t);
+//		p->rho[0] = rho_0;
+//		for (int i = 0; i < num_t - 1; i++)
+//		{
+//			w = 4.0 * mu_a * pow((u_Argon / u_Hydrogen), 2.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift) * exp(-2.0 / 3.0 * pow((u_Argon / u_Hydrogen), 1.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift));
+//			p->rho[i + 1] = p->rho[i] + ht * w * (num_atoms - p->rho[i]);
+//		}
+//
+//		p->j_e[0] = j_e0;
+//		for (int i = 0; i < num_t - 1; i++)
+//		{
+//			//p->j_e[i + 1] = (1.0 - ht / tauCollision)*p->j_e[i] + ht * pow(charge_e, 2) / mass_e * p->rho[i] * real(p->eFieldPlus[i] + p->eFieldMinus[i]);
+//			p->j_e[i + 1] = p->j_e[i] * exp(-1.0 * ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5 * ht * (p->rho[i] * real(p->ee_p[i] + p->ee_m[i]) * exp(-1.0 * ht / tauCollision) + p->rho[i + 1] * real(p->ee_p[i + 1] + p->ee_m[i + 1]));
+//		}
+//
+//		if (z == distanceSourceToSample)
+//		{
+//			write_out_ne(0, p->rho);
+//			write_out_je(0, p->j_e);
+//		}
+//
+//		fftw_execute(p->np_f);
+//
+//	}
+//	else {
+//		for (int i = 0; i < num_t; i++)
+//		{
+//			p->nl_p[i] = 0.0;
+//		}
+//	}
+//
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i] = 0.0;
+//		}
+//		else {
+//			f[i] = real((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * pow(cLight, 2)) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * pow(cLight, 2) * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+//		}
+//	}
+//
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + num_t / 2 + 1] = 0.0;
+//		}
+//		else {
+//			f[i + num_t / 2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * pow(cLight, 2)) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * pow(cLight, 2) * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+//		}
+//	}
+//
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + num_t + 2] = 0.0;
+//		}
+//		else {
+//			f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * pow(cLight, 2)) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * pow(cLight, 2) * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+//		}
+//	}
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_t / 2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + 3 * num_t / 2 + 3] = 0.0;
+//		}
+//		else {
+//			f[i + 3 * num_t / 2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * pow(cLight, 2)) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * pow(cLight, 2) * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+//		}
+//	}
+//
+//	return GSL_SUCCESS;
+//}
+
+int func(double z, const double y[], double f[], void *params) {
+
+	param_type *p = reinterpret_cast<param_type*>(params);
+
+	const int num_tOver2 = num_t / 2;
+	const double clightSquared = pow(cLight, 2);
+
+#pragma omp parallel for
+	for (int i = 0; i <= num_tOver2; i++)
+	{
+		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
+		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+	}
+
+#pragma omp  parallel for
+	for (int i = 1; i < num_tOver2; i++)
+	{
+		const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
+		p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+	}
+
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_tOver2; i++)
+//	{
+//		p->ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+//	}
+//#pragma omp parallel for
+//	for (int i = 1; i < num_tOver2; i++)
+//	{
+//		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+//	}
+
+	fftw_execute(p->ep_b);
+	fftw_execute(p->em_b);
+
+#pragma omp parallel for
+	for (int i = 0; i < num_t; i++)
+	{
+		p->ee_p[i] = p->ee_p[i] / (double(num_t));
+		p->ee_m[i] = p->ee_m[i] / (double(num_t));
+		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
+	}
+
+
+	fftw_execute(p->nk_f);
+	
+	if (plasmaOnOff == 1) {
+		double w;
+		double ht = (2.0*domain_t) / double(num_t);
+		p->rho[0] = rho_0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			w = 4.0*mu_a*pow((u_Argon / u_Hydrogen), 2.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift)*exp(-2.0 / 3.0*pow((u_Argon / u_Hydrogen), 1.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift));
+			p->rho[i + 1] = p->rho[i] + ht * w*(num_atoms - p->rho[i]);
+		}
+
+		p->j_e[0] = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			//p->j_e[i + 1] = (1.0 - ht / tauCollision)*p->j_e[i] + ht * pow(charge_e, 2) / mass_e * p->rho[i] * real(p->eFieldPlus[i] + p->eFieldMinus[i]);
+			p->j_e[i + 1] = p->j_e[i] * exp(-1.0*ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5*ht*(p->rho[i] * real(p->ee_p[i] + p->ee_m[i])*exp(-1.0*ht / tauCollision) + p->rho[i + 1] * real(p->ee_p[i + 1] + p->ee_m[i + 1]));
+		}
+	
+		//if (z == distanceSourceToSample)
+		if (z > myStructure.getThickness()/2 && delmeFLAG == num_iterations)
+		{
+			write_multicolumnMonitor(delmeFLAG, z, p->ee_p, p->ee_m, p->rho, p->j_e); 
+			write_out_ne(delmeFLAG, z, p->rho);
+		    write_out_je(delmeFLAG, p->j_e);
+			write_out_ee_p(delmeFLAG, p->ee_p);
+			write_out_ee_m(delmeFLAG, p->ee_m);
+			delmeFLAG+=num_iterations*666;
+		}
+
+		fftw_execute(p->np_f);
+	
+	}
+	else if (plasmaOnOff == 2) {
+		double ht = (2.0 * domain_t) / double(num_t);
+		double neutrals = num_atoms;                          // Neutral particles
+		double electrons = 0.0;                      // background Electrons
+		double change = 0.0;    
+		double current = 0.0;                                       // Current to be exported to UPPE
+		double current_change = 0.0e0;                              // Current change for differential equation
+		double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
+
+		p->rho[0] = electrons;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			double fieldIntensity = (( pow(real(p->ee_p[i] + p->ee_m[i]),2) ) / Znaught );
+			change = neutrals * mpi_sigmaK * ht * pow(fieldIntensity, mpi_k);
+			electrons += change;
+			neutrals -= change;
+			// Don't allow neutrals dip below zero
+			if (neutrals < 0.0) neutrals = 0.0;
+			if (electrons > num_atoms) electrons = num_atoms;
+
+			p->rho[i + 1] = electrons;
+		}
+
+		p->j_e[0] = j_e0;
+		fv1 = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			//p->j_e[i + 1] = (1.0 - ht / tauCollision)*p->j_e[i] + ht * pow(charge_e, 2) / mass_e * p->rho[i] * real(p->eFieldPlus[i] + p->eFieldMinus[i]);
+			// Andrew original
+			//p->j_e[i + 1] = p->j_e[i] * exp(-1.0 * ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5 * ht * (p->rho[i] * real(p->ee_p[i] + p->ee_m[i]) * exp(-1.0 * ht / tauCollision) + p->rho[i + 1] * real(p->ee_p[i + 1] + p->ee_m[i + 1]));
+			
+			
+			// CALCULATING THE CURRENT for UPPE (based on Ewan's notes Jan-24 2018)
+			//  First order method	
+			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
+			// Second order method (Kolja)
+			fv2 = real(p->ee_p[i+1] + p->ee_m[i+1]);
+			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			fv1 = fv2;
+			current += current_change;
+			p->j_e[i + 1] = current;
+		}
+
+		//if (z == distanceSourceToSample)
+		double aPointMonLocation = myStructure.getThickness() / 2; 
+		if (z > aPointMonLocation && delmeFLAG == num_iterations)
+		{
+			printf("Outputting Point Monitor files... \n");
+			write_multicolumnMonitor(delmeFLAG, z, p->ee_p, p->ee_m, p->rho, p->j_e);
+			write_out_ne(delmeFLAG, z, p->rho);
+			write_out_je(delmeFLAG, p->j_e);
+			write_out_ee_p(delmeFLAG, p->ee_p);
+			write_out_ee_m(delmeFLAG, p->ee_m);
+			delmeFLAG += num_iterations * 666;
+		}
+
+		fftw_execute(p->np_f);
+
+	}
+	else {
+#pragma omp parallel for
+		for (int i = 0; i < num_t; i++)
+		{
+			p->nl_p[i] = 0.0;
+		}
+	}
+		
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		f[i] = 0.0;
+		f[i + num_tOver2 + 1] = 0.0;
+		f[i + num_t + 2] = 0.0;
+		f[i + 3 * num_tOver2 + 3] = 0.0;
+	}
+	for (int i = freqUpperCutoff + 1; i <= num_tOver2; i++) {
+		f[i] = 0.0;
+		f[i + num_tOver2 + 1] = 0.0;
+		f[i + num_t + 2] = 0.0;
+		f[i + 3 * num_tOver2 + 3] = 0.0;
+	}
+#pragma omp parallel for
+	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
+		f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
+		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+		f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
+	}
+	
+
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_tOver2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + num_tOver2 + 1] = 0.0;
+//		}
+//		else {
+//			f[i + num_tOver2 + 1] = imag((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
+//		}
+//	}
+
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_tOver2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + num_t + 2] = 0.0;
+//		}
+//		else {
+//			f[i + num_t + 2] = real((1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
+//		}
+//	}
+//#pragma omp parallel for
+//	for (int i = 0; i <= num_tOver2; i++)
+//	{
+//		if (i < freqLowerCutoff || i > freqUpperCutoff)
+//		{
+//			f[i + 3 * num_tOver2 + 3] = 0.0;
+//		}
+//		else {
+//			f[i + 3 * num_tOver2 + 3] = imag((1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
+//		}
+//	}
+
+	return GSL_SUCCESS;
+}
+
+
+void integrateStub(double z, double chi_2, double chi_3, complex<double>* k) {
+	integrate(z, chi_2, chi_3, k, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+}
+
+void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f) {
+	const int num_tOver2 = num_t / 2;
+
+#pragma omp parallel for	
+	for (int i = 0; i <= num_tOver2; i++)
+	{
+		ee_p[i] = (y[i] + 1.0i*y[i + num_tOver2 + 1])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+	}
+
+#pragma omp parallel for	
+	for (int i = 1; i < num_tOver2; i++)
+	{
+		ee_p[num_t - i] = (y[i] - 1.0i*y[i + num_tOver2 + 1])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+	}
+
+#pragma omp parallel for	
+	for (int i = 0; i <= num_tOver2; i++)
+	{
+		ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+	}
+
+#pragma omp parallel for	
+	for (int i = 1; i < num_tOver2; i++)
+	{
+		ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+	}
+
+	fftw_execute(ep_b);
+	fftw_execute(em_b);
+
+#pragma omp parallel for	
+	for (int i = 0; i < num_t; i++)
+	{
+		ee_p[i] = ee_p[i] / (double(num_t));
+		ee_m[i] = ee_m[i] / (double(num_t));
+		nl_k[i] = chi_2 * pow(real(ee_p[i] + ee_m[i]), 2) + chi_3 * pow(real(ee_p[i] + ee_m[i]), 3);
+	}
+
+	fftw_execute(nk_f);
+
+	if (plasmaOnOff == 1) {
+		double wFactor;
+		double ht = (2.0*domain_t) / double(num_t);
+		ne[0] = rho_0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			wFactor = 4.0*mu_a*pow((u_Argon / u_Hydrogen), 2.5) / (abs(real(ee_p[i]+ee_m[i])) / E_a + shift)*exp(-2.0 / 3.0*pow((u_Argon / u_Hydrogen), 1.5) / (abs(real(ee_p[i]+ee_m[i])) / E_a + shift));
+			ne[i + 1] = ne[i] + ht * wFactor*(num_atoms - ne[i]);
+		}
+
+		j_e[0] = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			//j_e[i + 1] = (1.0 - ht / tauCollision)*j_e[i] + ht * pow(charge_e, 2) / mass_e * rho[i] * (real(eFieldPlus[i]+eFieldMinus[i]));
+			j_e[i + 1] = j_e[i] * exp(-1.0*ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5*ht*(ne[i] * real(ee_p[i] + ee_m[i])*exp(-1.0*ht / tauCollision) + ne[i + 1] * real(ee_p[i + 1] + ee_m[i + 1]));
+		}
+	
+		fftw_execute(np_f);
+	}
+	else if (plasmaOnOff == 2) {
+		double ht = (2.0 * domain_t) / double(num_t);
+		double neutrals = num_atoms;                          // Neutral particles
+		double electrons = 0.0; 
+		double change = 0.0;
+		double current = 0.0;                                       // Current to be exported to UPPE
+		double current_change = 0.0e0;                              // Current change for differential equation
+		double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
+
+		ne[0] = electrons;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			double fieldIntensity = ((pow(real(ee_p[i] + ee_m[i]), 2)) / Znaught);
+			change = neutrals * mpi_sigmaK * ht * pow(fieldIntensity, mpi_k);
+			electrons += change;
+			neutrals -= change;
+			// Don't allow neutrals dip below zero
+			if (neutrals < 0.0) neutrals = 0.0;
+			if (electrons > num_atoms) electrons = num_atoms;
+
+			ne[i + 1] = electrons;
+		}
+
+		j_e[0] = j_e0;
+		fv1 = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			// CALCULATING THE CURRENT for UPPE (based on Ewan's notes Jan-24 2018)
+			//  First order method	
+			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
+			// Second order method (Kolja)
+			fv2 = real(ee_p[i + 1] + ee_m[i + 1]);
+			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			fv1 = fv2;
+			current += current_change;
+			j_e[i + 1] = current;
+		}
+
+		fftw_execute(np_f);
+	}
+	else {
+		for (int i = 0; i < num_t; i++)
+		{
+			nl_p[i] = 0.0;
+		}
+	}
+
+	for (int i = 0; i <= num_t / 2; i++)
+	{
+		if (i < freqLowerCutoff || i > freqUpperCutoff)
+		{
+			integral[i] = 0.0;
+		}
+		else {
+			integral[i] += (-1.0i*pow(omg[i], 2) / (2.0*(k[i])*pow(cLight, 2))*nl_k[i] - omg[i] / (2.0*(k[i])*pow(cLight, 2)*epsilon_0)*nl_p[i])* exp(-1.0i*real(k[i]) * z)*exp(-1.0*abs(imag(k[i]))*z)*zStepMaterial1;
+		}
+	}
+	return;
+}
+void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));
+	printf("\t\tWriting point monitor data to file: %s \n", buffer);
+
+	FILE* fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# Algorithm iteration number %d  at Moitor zPosition %.17g[micron]  \n", iterationNo,  theZpos*1e6);
+		fprintf(fp, "# time [sec]\t\tEfieldPositive[V/m]\t\tEfieldNegative[V/m]\t\tNumberElectrons\t\tCurrent\n");
+		double dt = (2.0 * domain_t) / double(num_t);
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), real(eem[i]), ne[i], real(j_e[i]));
+		}
+	}
+	else {
+		printf("The file %s was not opened\n", buffer);
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp); }
+
+	return;
+}
+void write_out_ne(int j, double theZpos, double*ne) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sNe_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, j, (int)round(theZpos*1.0e9));
+	printf("\t\tWriting %s file \n", buffer);
+
+	FILE *fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# time [sec]\tNumberElectrons\n");
+		double dt = (2.0 * domain_t) / double(num_t);
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7g\t%.17g \n", i * dt, ne[i]);
+		}
+	}
+	else {
+		printf("The file 'Ne.dat' was not opened\n");
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp);  }
+
+	return;
+}
+
+
+void write_out_je(int j, complex<double>*j_e) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sJe_%i.dat", SIM_DATA_OUTPUT, j);
+
+	FILE *fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		double dt = (2.0 * domain_t) / double(num_t); 
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(j_e[i]));
+		}
+	}
+	else {
+		printf("The file 'Je.dat' was not opened\n");
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp);  }
+
+	return;
+}
+
+void write_out_ee_p(int j, complex<double>* eep) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%see_p_%i.dat", SIM_DATA_OUTPUT, j);
+
+	FILE* fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		double dt = (2.0 * domain_t) / double(num_t); 
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(eep[i]));
+		}
+	}
+	else {
+		printf("The file 'ee_p.dat' was not opened\n");
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp); }
+
+	return;
+}
+
+void write_out_ee_m(int j, complex<double>* eem) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%see_m_%i.dat", SIM_DATA_OUTPUT, j);
+
+	FILE* fp;
+	errno_t err;
+	err = fopen_s(&fp, buffer, "w");
+	if (fp != NULL)
+	{
+		double dt = (2.0 * domain_t) / double(num_t);
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(eem[i]));
+		}
+	}
+	else {
+		printf("The file 'ee_m.dat' was not opened\n");
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp); }
+
+	return;
+}
