@@ -1083,7 +1083,13 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
 			//fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));		// COLM export in one column format
 			//fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g\n", (M_PI / domain_t)* i, real(yp_init[i]), imag(yp_init[i]));		// COLM input spectrum output
-			fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));		// COLM outputing abs(Sp) too
+			if (i < numActiveOmega / 2) {
+				fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
+			}
+			else {
+				fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * (i - numActiveOmega), real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
+			}
+					// COLM outputing abs(Sp) too
 #ifdef WRITE_OUT_REFLECTANCE
 																																						// COLM make a backup of input spectrum to calculate reflectance later on
 			eFieldPlusBACKUPCOLM[i] = yp_init[i];
@@ -1760,7 +1766,13 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp2, "%g \t %+.17g \t %+.17g\t %+.17g\n", (M_PI/domain_t)*i, real(ee[i]), imag(ee[i]), abs(ee[i]));		// COLM export in one column format
+			//fprintf(fp2, "%g \t %+.17g \t %+.17g\t %+.17g\n", (M_PI/domain_t)*i, real(ee[i]), imag(ee[i]), abs(ee[i]));		// COLM export in one column format
+			if (i < num_t / 2) {
+				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(ee[i]), imag(ee[i]), abs(ee[i]));
+			}
+			else {
+				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * (i - num_t), real(ee[i]), imag(ee[i]), abs(ee[i]));
+			}
 		}
 	}
 	else {
