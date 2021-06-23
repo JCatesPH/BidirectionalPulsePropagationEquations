@@ -1,11 +1,10 @@
 // bragg_linear.cpp : Defines the entry point for the console application.
 // ACMS version 1
 
-#include "stdafx.h"
+//#include "stdafx.h"
+#include "Utilities.h"
 #include "BPPE.h"
 #include "Structure.h"
-#include "Utilities.h"
-#include <iomanip> 
 #include <omp.h>
 
 double dtime = omp_get_wtime();
@@ -123,15 +122,16 @@ int main()
 
 	FILE *fp;
 	errno_t err;
-	err = fopen_s(&fp, "n.dat", "w");
+	fp = fopen("n.dat", "w");
 	fill_omg_k(omegaArray, kx, k_0, k_1, k_2, k_3, err, fp);
 	if (fp != NULL) { fclose(fp);  }
 	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,f0,f1,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, k_0, k_1, k_2, k_3, integral);
 	
-	myStructure.writeStructureLayoutToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "StructureLayout.txt");
-	myStructure.writeStructureToDATFile(get_current_dir() + SIM_DATA_OUTPUT + "Structure.dat");
-	myMaterialsDB.writeMaterialDBToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "MaterialDatabase.txt");
-	myStructure.writeBoundaryLayoutToASCIIFile(get_current_dir() + SIM_DATA_OUTPUT + "BoundaryLayout.txt");
+	std::string reldatpath = SIM_DATA_OUTPUT;
+	myStructure.writeStructureLayoutToASCIIFile(reldatpath + "StructureLayout.txt");
+	myStructure.writeStructureToDATFile(reldatpath + "Structure.dat");
+	myMaterialsDB.writeMaterialDBToASCIIFile(reldatpath + "MaterialDatabase.txt");
+	myStructure.writeBoundaryLayoutToASCIIFile(reldatpath + "BoundaryLayout.txt");
 
 	/// Early termination
 	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
@@ -1047,7 +1047,7 @@ void writeInputEfield(std::complex<double>* ee_p)
 	char inputEfieldFilePathName[STRING_BUFFER_SIZE];
 	snprintf(inputEfieldFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sInputEfield_1D.dat", SIM_DATA_OUTPUT);
 	FILE* fp;
-	errno_t err = fopen_s(&fp, inputEfieldFilePathName, "w");
+	fp = fopen(inputEfieldFilePathName, "w");
 	if (fp != NULL)
 	{
 		fprintf(fp, "# time [sec]\tEfield [V/aLayer]\n");
@@ -1070,12 +1070,15 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 	char inputEfieldFilePathName2[STRING_BUFFER_SIZE];
 	snprintf(inputEfieldFilePathName2, sizeof(char) * STRING_BUFFER_SIZE, "%sInputSpectrum_1D.dat", SIM_DATA_OUTPUT);
 
+	//printf("Input Spectrum file: %s\n", inputEfieldFilePathName2);
+
 	FILE* fp_spectrum;
-	errno_t err2 = fopen_s(&fp_spectrum, inputEfieldFilePathName2, "w");
+	fp_spectrum = fopen(inputEfieldFilePathName2, "w");
 	if (fp_spectrum != NULL)
 	{
 		fprintf(fp_spectrum, "# omega [Hz]\tReal []\tImag []\tAbs []\n");
-		for (int i = 0; i < num_t; i++)
+		for (int i = 0; i < numActiveOmega; i++)
+		//for (int i = 0; i < num_t; i++)
 		{
 			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
 			//fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));		// COLM export in one column format
@@ -1155,8 +1158,8 @@ void write2DtoFile(std::complex<double>* ee_p)
 	char buffer[STRING_BUFFER_SIZE];
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sEp_2d_%i.dat", SIM_DATA_OUTPUT, 0);
 	FILE* fp;
-	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	//errno_t err;
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		for (int i = 0; i < num_t * num_x; i++)
@@ -1571,7 +1574,7 @@ void writeSimParameters()
 	FILE* fp;
 	errno_t err;
 	if (VERBOSE >= 2) { printf("Writing Simulation Parameter file %s\n", parametersFilePathName); }
-	err = fopen_s(&fp, parametersFilePathName, "w");
+	fp = fopen(parametersFilePathName, "w");
 	if (fp != NULL)
 	{
 		fprintf(fp, "cLight         \t\t%.17g    /*speed of light */\n", cLight);
@@ -1750,7 +1753,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 	// PARIS output spectrum
 	FILE* fp2;
 	errno_t err2;
-	err2 = fopen_s(&fp2, spectrumFilePathName, "w");
+	fp2 = fopen(spectrumFilePathName, "w");
 	if (fp2 != NULL)
 	{
 		fprintf(fp2, "# omega [Hz]\tReal []\tImag []\tAbs []      recorded at zPosition=%g[microns]\n", z * 1e6);
@@ -1799,7 +1802,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 
 	FILE *fp;
 	errno_t err;
-	err = fopen_s(&fp, efieldFilePathName, "w");
+	fp = fopen(efieldFilePathName, "w");
 	if (fp != NULL)
 	{
 		fprintf(fp, "# time [sec]\tEfield [V/m]    recorded at zPosition=%g[microns]\n",z*1e6);
@@ -2357,7 +2360,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 
 	FILE* fp;
 	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		fprintf(fp, "# Algorithm iteration number %d  at Moitor zPosition %.17g[micron]  \n", iterationNo,  theZpos*1e6);
@@ -2384,7 +2387,7 @@ void write_out_ne(int j, double theZpos, double*ne) {
 
 	FILE *fp;
 	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		fprintf(fp, "# time [sec]\tNumberElectrons\n");
@@ -2411,7 +2414,7 @@ void write_out_je(int j, complex<double>*j_e) {
 
 	FILE *fp;
 	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		double dt = (2.0 * domain_t) / double(num_t); 
@@ -2436,7 +2439,7 @@ void write_out_ee_p(int j, complex<double>* eep) {
 
 	FILE* fp;
 	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		double dt = (2.0 * domain_t) / double(num_t); 
@@ -2461,7 +2464,7 @@ void write_out_ee_m(int j, complex<double>* eem) {
 
 	FILE* fp;
 	errno_t err;
-	err = fopen_s(&fp, buffer, "w");
+	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
 		double dt = (2.0 * domain_t) / double(num_t);
