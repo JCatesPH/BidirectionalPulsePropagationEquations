@@ -246,7 +246,7 @@ void doNonlinearPartofBPPE()
 			}
 		}
 
-		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness()/2.0, eFieldPlus, k_3, eFieldPlusBackwardFFT);
+		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, k_3, eFieldPlusBackwardFFT);
 		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
 		am_to_zero(y);
 
