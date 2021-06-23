@@ -136,7 +136,7 @@ public:
                 foundZstepSize =   aLayer.getStepSize();
         }
         if (isnan(foundZstepSize)) {
-            std::cout << " ERROR: the requested ZstepSize at zPosition " << aZpos << " does not exist (is aZpos outside domain???)" << endl;
+            std::cout << " ERROR: the requested ZstepSize at zPosition " << aZpos << " does not exist (is aZpos outside domain?)" << endl;
             exit(-1);
         }
         return foundZstepSize;

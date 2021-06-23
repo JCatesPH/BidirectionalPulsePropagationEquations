@@ -8,7 +8,10 @@
 #endif
 
 #include<iostream>
+
 using namespace std;
+
+typedef int errno_t;
 
 std::string get_current_dir() {
 	char buff[FILENAME_MAX]; //create string buffer to hold path
