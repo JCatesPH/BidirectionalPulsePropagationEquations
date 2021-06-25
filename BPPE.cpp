@@ -40,7 +40,13 @@ int main()
 	}
 
 	omp_set_num_threads(num_Threads);
-	cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
+	cout << "Num threads set to  = " << num_Threads << endl << "  Test: ";
+
+	#pragma omp parallel 
+	{
+		cout << omp_get_thread_num();
+	}
+	cout << endl << endl;
 
 	writeSimParameters();
 
@@ -1592,12 +1598,12 @@ void writeSimParameters()
 		fprintf(fp, "u_Hydrogen     \t\t%.17g    /*hydrogen potential */\n", u_Hydrogen);
 		fprintf(fp, "E_a            \t\t%.17g    /*QST parameters */\n", E_a);
 		fprintf(fp, "mu_a           \t\t%.17g   \n", mu_a);
-		fprintf(fp, "I_0            \t\t%.17g    /*initial peak ensity */\n", I_0);
+		fprintf(fp, "I_0            \t\t%.8g    /*initial peak ensity */\n", I_0);
 		fprintf(fp, "twoColorSH_amplitude \t\t%.17g    /*two-color pulse: 2nd harmonic with half duration of fundamental */\n", twoColorSH_amplitude);
 		fprintf(fp, "twoColorSH_phase \t\t%.17g    /*phase shift of 2nd harmonic */\n", twoColorSH_phase);
-		fprintf(fp, "tau             \t\t%.17g    /*pulse duration fwhm */\n", tau);
+		fprintf(fp, "tau             \t\t%.8g    /*pulse duration fwhm */\n", tau);
 		fprintf(fp, "lambda_0        \t\t%.17g    /*central wavelength */\n", lambda_0);
-		fprintf(fp, "omega_0         \t\t%.17g    /*central angular frequency */\n", omega_0);
+		fprintf(fp, "omega_0         \t\t%.17e    /*central angular frequency */\n", omega_0);
 		fprintf(fp, "waist_x         \t\t%.17g    /*pulse-waist fwhm */\n", waist_x);
 		fprintf(fp, "num_t           \t\t%.17g    /*number of time pos */\n", (double)num_t);
 		fprintf(fp, "num_x           \t\t%.17g    /*number of x pos */\n", (double)num_x);
@@ -1710,8 +1716,11 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSourceToSample, zStepMaterial1);
 
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness * numLayersInSample/4, zStepMaterial1);
-
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness * numLayersInSample/4, zStepMaterial1);
+	for (int i = 0; i < numLayersInSample; i++)
+	{
+		theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness, zStepMaterial1);
+	}
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSampleToReceiver, zStepMaterial1);
 }
 
@@ -2043,7 +2052,7 @@ int func(double z, const double y[], double f[], void *params) {
 	const int num_tOver2 = num_t / 2;
 	const double clightSquared = pow(cLight, 2);
 
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
 	{
 		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
@@ -2051,7 +2060,7 @@ int func(double z, const double y[], double f[], void *params) {
 		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 	}
 
-#pragma omp  parallel for
+	#pragma omp parallel for
 	for (int i = 1; i < num_tOver2; i++)
 	{
 		const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
@@ -2073,7 +2082,7 @@ int func(double z, const double y[], double f[], void *params) {
 	fftw_execute(p->ep_b);
 	fftw_execute(p->em_b);
 
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
 		p->ee_p[i] = p->ee_p[i] / (double(num_t));
@@ -2159,8 +2168,8 @@ int func(double z, const double y[], double f[], void *params) {
 		}
 
 		//if (z == distanceSourceToSample)
-		double aPointMonLocation = myStructure.getThickness() / 2; 
-		if (z > aPointMonLocation && delmeFLAG == num_iterations)
+		double aPointMonLocation = 0.998*zRightHandSideOfSample; 
+		if (z >= aPointMonLocation && delmeFLAG == num_iterations)
 		{
 			printf("Outputting Point Monitor files... \n");
 			write_multicolumnMonitor(delmeFLAG, z, p->ee_p, p->ee_m, p->rho, p->j_e);
@@ -2175,7 +2184,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 	}
 	else {
-#pragma omp parallel for
+		#pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
 			p->nl_p[i] = 0.0;
@@ -2194,7 +2203,7 @@ int func(double z, const double y[], double f[], void *params) {
 		f[i + num_t + 2] = 0.0;
 		f[i + 3 * num_tOver2 + 3] = 0.0;
 	}
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
 		f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
 		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
@@ -2249,25 +2258,25 @@ void integrateStub(double z, double chi_2, double chi_3, complex<double>* k) {
 void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f) {
 	const int num_tOver2 = num_t / 2;
 
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int i = 0; i <= num_tOver2; i++)
 	{
 		ee_p[i] = (y[i] + 1.0i*y[i + num_tOver2 + 1])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
 	}
 
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int i = 1; i < num_tOver2; i++)
 	{
 		ee_p[num_t - i] = (y[i] - 1.0i*y[i + num_tOver2 + 1])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
 	}
 
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int i = 0; i <= num_tOver2; i++)
 	{
 		ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
 	}
 
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int i = 1; i < num_tOver2; i++)
 	{
 		ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
@@ -2276,7 +2285,7 @@ void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*o
 	fftw_execute(ep_b);
 	fftw_execute(em_b);
 
-#pragma omp parallel for	
+	#pragma omp parallel for	
 	for (int i = 0; i < num_t; i++)
 	{
 		ee_p[i] = ee_p[i] / (double(num_t));
@@ -2454,10 +2463,11 @@ void write_out_ee_p(int j, complex<double>* eep) {
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
+		fprintf(fp, "# time [sec]\tRe(E) [V/m]\tIm(E) [V/m]\n");
 		double dt = (2.0 * domain_t) / double(num_t); 
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(eep[i]));
+			fprintf(fp, "%.7g\t%.17g\t%.17g \n", i * dt, real(eep[i]), imag(eep[i]));
 		}
 	}
 	else {
@@ -2479,10 +2489,11 @@ void write_out_ee_m(int j, complex<double>* eem) {
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
+		fprintf(fp, "# time [sec]\tRe(E) [V/m]\tIm(E) [V/m]\n");
 		double dt = (2.0 * domain_t) / double(num_t);
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(eem[i]));
+			fprintf(fp, "%.7g\t%.17g\t%.17g \n", i * dt, real(eem[i]), imag(eem[i]));
 		}
 	}
 	else {
