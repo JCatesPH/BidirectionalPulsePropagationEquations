@@ -1036,6 +1036,7 @@ void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*y
 
 int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral) {
 
+	int nExcRaised = 0;
 	for (int i = 0; i <= num_t / 2; i++)
 	{
 		f1[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
@@ -1049,7 +1050,19 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 			ym1_init[i] = 0.0;
 		}
 		else {
-			ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
+			// Added exception handling for case where field is not updated. 
+			if (abs(f1[i] - f0[i] - ym1_init[i] + ym0_init[i]) < DBL_MIN) {
+				if (nExcRaised == 0) {
+					cout << "Exception 21. Underflow of denominator in secant method. Further iterations may not be necessary!" << endl;
+					nExcRaised++;
+				}
+				ym1_init[i] = ym0_init[i];
+			}
+			else{
+				ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
+			}		
+		}
+			}		
 		}
 	}
 
