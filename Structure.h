@@ -11,6 +11,8 @@
 #include <gsl/gsl_math.h>
 #include "Materials.h"
 
+//#define VERBOSE_BOUNDARY 
+
 // global functions defined in main.cpp file
 void boundary(double z, complex<double>* k_0, complex<double>* k_1, double* y);
 
@@ -59,18 +61,22 @@ public:
 
     void setLowSideBoundary(Boundary* aBoundary) { lowSideBoundary = aBoundary; }
     Boundary* getLowSideBoundary() {
+        #ifdef VERBOSE_BOUNDARY
         if (lowSideBoundary == NULL) {
             std::cout << " WARNING: the requested lowSideBoundary for layer#" << m_layerIDnum << " does not exist" << endl;
             //exit(-1);
         }
+        #endif
         return lowSideBoundary;
     }
     void setHiSideBoundary(Boundary* aBoundary) { hiSideBoundary = aBoundary; }
     Boundary* getHiSideBoundary() {
+        #ifdef VERBOSE_BOUNDARY
         if (hiSideBoundary == NULL) {
             std::cout << " WARNING: the requested hiSideBoundary for layer#" << m_layerIDnum << " does not exist" << endl;
             //exit(-1);
         }
+        #endif
         return hiSideBoundary;
     }
    
