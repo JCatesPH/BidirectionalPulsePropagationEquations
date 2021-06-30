@@ -592,7 +592,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 	std::cout << "In SetGuess FINISHED Initalizing stuff" << endl << endl;
 
 #ifdef	USE_CPP_BOUNDARY
-	if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl; }
+	if (VERBOSE >= 7) { cout << "  Going FORWARD through layers" << endl; }
 	myStructure.doForwardPassThroughAllBoundaries(y);
 	o = 1;
 #else
@@ -606,7 +606,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 	if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
 
 #ifdef	USE_CPP_BOUNDARY
-	if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+	if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers" << endl; }
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 #else
 	cout << "  Going BACKWARD through layers USING ANDREW?" << endl;
@@ -632,7 +632,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 		write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, ee_m, k_0, em_b);
 
 #ifdef	USE_CPP_BOUNDARY
-		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers USING C++?" << endl; }
+		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers" << endl; }
 		myStructure.doForwardPassThroughAllBoundaries(y);
 		o = 1;
 #else
@@ -647,7 +647,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 		if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
 
 #ifdef	USE_CPP_BOUNDARY
-		if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers USING C++?" << endl; }
+		if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers" << endl; }
 		myStructure.doBackwardPassThroughAllBoundaries(y);
 #else
 		//cout << "  Going BACKWARD through layers USING ANDREW??? o=" << o << endl;
@@ -1062,8 +1062,8 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 				ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
 			}		
 		}
+	}
 			}		
-		}
 	}
 
 	for (int i = 0; i < 2 * num_t + 4; i++)
@@ -1182,7 +1182,7 @@ int func(double z, const double y[], double f[], void *params) {
 		p->rho[0] = electrons;
 		for (int i = 0; i < num_t - 1; i++)
 		{
-			double fieldIntensity = (( pow(real(p->ee_p[i] + p->ee_m[i]),2) ) / Znaught );
+			double fieldIntensity = (( pow(real(p->ee_p[i] + p->ee_m[i]), 2) ) / Znaught );
 			change = neutrals * mpi_sigmaK * ht * pow(fieldIntensity, mpi_k);
 			electrons += change;
 			neutrals -= change;
