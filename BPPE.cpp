@@ -6,6 +6,8 @@
 #include "BPPE.h"
 #include "Structure.h"
 #include <omp.h>
+//#include <fenv.h>
+#include <float.h>
 
 double dtime = omp_get_wtime();
 using namespace std;
@@ -33,6 +35,8 @@ int delmeFLAG = 0;
 
 int main()
 {	
+	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+
 	if (VERBOSE >= 0) {
 		cout << "BPPE code - ACMS Ver.2" << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
@@ -148,6 +152,7 @@ int main()
 	dtime = omp_get_wtime() - dtime;
 	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
 	//cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
+	cout << endl << "Exiting program.." << endl << endl;
 
     return 0;
 }
@@ -157,7 +162,8 @@ void doNonlinearPartofBPPE()
 {
 	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, k_1, eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
-	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, 1.0, 1.0);
+	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
+	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, zStepMaterial1, epsabs, epsrel);
 
 	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
@@ -167,7 +173,7 @@ void doNonlinearPartofBPPE()
 
 	if (VERBOSE >= 3) { cout << endl << endl << "First Iteration" << endl; }
 
-	cout << "  Going FORWARD through layers using CPP NONLINEAR?" << endl;
+	cout << "  Going FORWARD through layers" << endl;
 	for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
 		// Skip the LHS layer and the RHS layers
 		if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
@@ -182,7 +188,8 @@ void doNonlinearPartofBPPE()
 			for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
 			{
 				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-				GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+				//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+				GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zPosition + lit->getStepSize(), y);
 				if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 
 				if (GSLerrorFlag != GSL_SUCCESS)
@@ -205,7 +212,7 @@ void doNonlinearPartofBPPE()
 	if (VERBOSE >= 2) { std::cout << "Setting am_to_zero()" << endl; }
 	am_to_zero(y);
 
-	cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR 1??? oFlag=" << oFlag << endl;
+	cout << "  Going BACKWARD through BOUNDARIES" << endl;
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
 	cout << " Doing UPDATE_GUESS()" << endl;
@@ -219,7 +226,7 @@ void doNonlinearPartofBPPE()
 		delmeFLAG = Iteration_number;
 		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, k_0, eFieldMinusBackwardFFT);
 
-		cout << "  Going FOREWARD through layers using CPP NONLINEAR LATEST UPDATE 2??? oFlag=" << oFlag << endl;
+		cout << "  Going FORWARD through layers" << endl;
 		for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
 			// Skip the LHS layer and the RHS layers
 			if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
@@ -234,7 +241,8 @@ void doNonlinearPartofBPPE()
 				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
 				{
 					integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-					GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
+					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zPosition + lit->getStepSize(), y);
 					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 
 					if (GSLerrorFlag != GSL_SUCCESS)
@@ -256,10 +264,11 @@ void doNonlinearPartofBPPE()
 		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
 		am_to_zero(y);
 
-		cout << "  Going BACKWARD through BOUNDARIES using CPP NONLINEAR LAST UPDATE 3??? oFlag=" << oFlag << endl;
+		cout << "  Going BACKWARD through BOUNDARIES" << endl;
 		myStructure.doBackwardPassThroughAllBoundaries(y);
 
 		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+
 		if (Iteration_number > 3) VERBOSE--;
 	}
 }
@@ -1062,8 +1071,6 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 				ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
 			}		
 		}
-	}
-			}		
 	}
 
 	for (int i = 0; i < 2 * num_t + 4; i++)
