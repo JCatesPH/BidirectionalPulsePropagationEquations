@@ -11,7 +11,7 @@
 #include <complex> 
 #include <cmath>
 #include <algorithm>
-#include "omp.h"
+#include <omp.h>
 #include <fftw3.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
@@ -22,7 +22,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE 1.0e5
+#define INITIAL_GUESS_SEED_VALUE 1.0e2
 
 // CODE parameters
 int VERBOSE = 6;
@@ -45,15 +45,18 @@ const char *SIM_DATA_OUTPUT=".\\DATA\\";
 const char *SIM_DATA_OUTPUT="./DATA/";
 #endif
 
+const double epsabs = 1e-5;
+const double epsrel = 1e-5;
+
 //pulse parameters
-const double I_0 = 1.5e17;  //initial peak intensity
-const double twoColorSH_amplitude = 0.1;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
+const double I_0 = 1.5e18;  //initial peak intensity [W / m^2]
+const double twoColorSH_amplitude = 0.0;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm
-const double lambda_0 = 0.8e-6; //central wavelength
+const double lambda_0 = 1.0e-6; //central wavelength
 const double omega_0 = 2 * M_PI*cLight / lambda_0; //central angular frequency
 const double waist_x = 50.0e-6; //pulse-waist fwhm
-const int num_t = int(pow(2, 14)); //number of time points
+const int num_t = int(pow(2, 17)); //number of time points
 const int num_x = int(pow(2, 6)); //number of x points
 const double domain_t = 1500e-15; //time domain
 const double domain_x = 125.0e-6; //x domain
@@ -63,7 +66,7 @@ const double j_e0 = 0.0;
 const int freqUpperCutoff = num_t / 2; // upper frequency cut-off
 const int freqLowerCutoff = 1; //lower frequency cut-off
 const int num_iterations = 5; //number of BPPE iterations
-const int num_Threads = 4; // numnber of OpenMP threads
+const int num_Threads = 6; // numnber of OpenMP threads
 const double shift = 1.0e-9;
 
 //material parameters
@@ -74,15 +77,15 @@ const int numActiveOmega = num_t / 2 + 1; //num_x * num_t / 2 + 2;
 const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 const double omegaPlasmaDamping = 2.0 * M_PI*5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
 const double tauCollision = 26.9984566e-15; //1.88679e15; //mean collision time
-const double lengthSample = 5.0e-6;  //length of slab
+const double lengthSample = 90.0e-6;  //length of slab
 const double distanceSourceToSample = 10.0e-6; //distance from laser source to slab
-const double distanceSampleToReceiver = 10.0e-6; //distance from slab to receiver
+const double distanceSampleToReceiver = 5.0e-6; //distance from slab to receiver
 const double zRightHandSideOfSample = distanceSourceToSample+lengthSample;
 const double Z_4 = zRightHandSideOfSample; 
-const double sampleLayerThickness = 0.25e-6; //half period
+const double sampleLayerThickness = 30.0e-6; //half period
 const int numLayersInSample = int(lengthSample / sampleLayerThickness); //number of half-periods in slab
-const double zStepMaterial1 = 0.01e-6; //propagation step in material 1
-const double zStepMaterial2 = 0.01e-6; //propagation step in material 2
+const double zStepMaterial1 = 0.5e-6; //propagation step in material 1
+const double zStepMaterial2 = 0.5e-6; //propagation step in material 2
 const int numZstepsMaterial1 = int(sampleLayerThickness / zStepMaterial1); //number of steps in material 1
 const int numZstepsMaterial2 = int(sampleLayerThickness / zStepMaterial2); //number of steps in material 2
 
