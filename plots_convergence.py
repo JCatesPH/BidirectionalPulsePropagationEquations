@@ -31,7 +31,8 @@ for itnum in z_it:
 ax.set_yticks(z_it)
 ax.set_xlabel(r'$\omega$')
 ax.set_ylabel('Iteration')
-ax.set_zlabel('Intensity [log]')
+ax.set_zlabel('Amplitude [log]')
+ax.set_title('Transmitted spectrum convergence')
 
 plt.tight_layout()
 #plt.show()
