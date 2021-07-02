@@ -45,8 +45,11 @@ const char *SIM_DATA_OUTPUT=".\\DATA\\";
 const char *SIM_DATA_OUTPUT="./DATA/";
 #endif
 
+// GSL ODE API parameters
 const double epsabs = 1e-5;
-const double epsrel = 1e-5;
+const double epsrel = 1e-4;
+const int ode_nmax = 1e3;
+const double hstart = 1.0e-8;
 
 //pulse parameters
 const double I_0 = 1.5e18;  //initial peak intensity [W / m^2]

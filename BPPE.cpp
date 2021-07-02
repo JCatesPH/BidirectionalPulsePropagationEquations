@@ -32,7 +32,6 @@ double delMeSoon[12000];
 double delMeSoon2[12000];
 int delmeFLAG = 0;
 
-
 int main()
 {	
 	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -163,7 +162,9 @@ void doNonlinearPartofBPPE()
 	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, k_1, eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
-	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, zStepMaterial1, epsabs, epsrel);
+	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
+	gsl_odeiv2_driver_set_nmax(d, ode_nmax);
+
 
 	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
@@ -192,7 +193,15 @@ void doNonlinearPartofBPPE()
 				GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zPosition + lit->getStepSize(), y);
 				if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 
-				if (GSLerrorFlag != GSL_SUCCESS)
+				if (GSLerrorFlag == GSL_EMAXITER) {
+					printf("######## ERROR #######: GSL driver returned GSL_EMAXITER. The maximum number of steps is set to %d.\n", ode_nmax);
+					printf("	Occurred at z = %e\n", zPosition);
+					// Reset the evolve and step objects.
+					gsl_odeiv2_driver_reset(d);
+					// Reset the step size to initial guess.
+					gsl_odeiv2_driver_reset_hstart(d, hstart);
+				}
+				else if (GSLerrorFlag != GSL_SUCCESS)
 				{
 					printf("######## ERROR #######: GSL driver returned %d\n", GSLerrorFlag);
 					exit(-1);
@@ -245,7 +254,15 @@ void doNonlinearPartofBPPE()
 					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zPosition + lit->getStepSize(), y);
 					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 
-					if (GSLerrorFlag != GSL_SUCCESS)
+					if (GSLerrorFlag == GSL_EMAXITER) {
+						printf("######## ERROR #######: GSL driver returned GSL_EMAXITER. The maximum number of steps is set to %d.\n", ode_nmax);
+						printf("	Occurred at z = %e\n", zPosition);
+						// Reset the evolve and step objects.
+						gsl_odeiv2_driver_reset(d);
+						// Reset the step size to initial guess.
+						gsl_odeiv2_driver_reset_hstart(d, hstart);
+					} 
+					else if (GSLerrorFlag != GSL_SUCCESS)
 					{
 						printf("error: driver returned %d\n", GSLerrorFlag);
 						break;
