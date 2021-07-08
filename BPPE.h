@@ -48,7 +48,7 @@ const char *SIM_DATA_OUTPUT="./DATA/";
 // GSL ODE API parameters
 const double epsabs = 1e-5;
 const double epsrel = 1e-4;
-const int ode_nmax = 1e6;
+const int ode_nmax = 1e4;
 const double hstart = 1.25e-8;
 
 //pulse parameters
@@ -59,9 +59,9 @@ const double tau = 50.0e-15; //pulse duration fwhm
 const double lambda_0 = 1.0e-6; //central wavelength
 const double omega_0 = 2 * M_PI*cLight / lambda_0; //central angular frequency
 const double waist_x = 50.0e-6; //pulse-waist fwhm
-const int num_t = int(pow(2, 16)); //number of time points
+const int num_t = int(pow(2, 17)); //number of time points
 const int num_x = int(pow(2, 6)); //number of x points
-const double domain_t = 1500e-15; //time domain
+const double domain_t = 3500e-15; //time domain
 const double domain_x = 125.0e-6; //x domain
 const double num_atoms = 4.0e25;  //number of atoms in gas
 const double rho_0 = 1000; // = num_atoms; // initial electron density
@@ -80,7 +80,7 @@ const int numActiveOmega = num_t / 2 + 1; //num_x * num_t / 2 + 2;
 const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 const double omegaPlasmaDamping = 2.0 * M_PI*5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
 const double tauCollision = 26.9984566e-15; //1.88679e15; //mean collision time
-const double lengthSample = 95.0e-6;  //length of slab
+const double lengthSample = 10.0e-6;  //length of slab
 const double distanceSourceToSample = 5.0e-6; //distance from laser source to slab
 const double distanceSampleToReceiver = 5.0e-6; //distance from slab to receiver
 const double zRightHandSideOfSample = distanceSourceToSample+lengthSample;
@@ -153,7 +153,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 void am_to_zero(double*y);
 int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral);
 int func(double z, const double y[], double f[], void *params);
-void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f);
+void integrate(double z, double zStep, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f);
 void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_out_ne(int j, double zPos, double* ne);
 void write_out_je(int j, complex<double>*j_e);

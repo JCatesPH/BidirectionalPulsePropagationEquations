@@ -204,7 +204,7 @@ for pointmon in pmon_li:
 
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.semilogy(eSpectrumT[:,0], np.abs(eOmTotal[:]))
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:]))
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
     plt.xlabel(r'$\omega$')

@@ -176,7 +176,7 @@ void doNonlinearPartofBPPE()
 
 	if (VERBOSE >= 3) { cout << endl << endl << "First Iteration" << endl; }
 
-	cout << "  Going FORWARD through layers" << endl;
+/* 	cout << "  Going FORWARD through layers" << endl;
 	for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
 		// Skip the LHS layer and the RHS layers
 		if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
@@ -229,11 +229,12 @@ void doNonlinearPartofBPPE()
 	cout << " Doing UPDATE_GUESS()" << endl;
 	update_guess(yp_init, f0, ym1_init, y, integral);
 
-	VERBOSE--;
+	VERBOSE--; */
 
 	double zRight;
+	double zStepSize;
 
-	for (int Iteration_number = 2; Iteration_number <= num_iterations; Iteration_number++)
+	for (int Iteration_number = 1; Iteration_number <= num_iterations; Iteration_number++)
 	{
 		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
 		delmeFLAG = Iteration_number;
@@ -250,7 +251,7 @@ void doNonlinearPartofBPPE()
 				params->chi_3 = lit->getMaterial().getChi3();
 				zPosition = lit->getStartZpos();
 
-				if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
+				if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
 				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
 				{
 					// Make sure step size resets don't cause layers to grow
@@ -260,8 +261,9 @@ void doNonlinearPartofBPPE()
 					else {
 						zRight = zPosition + lit->getStepSize();
 					}
+					zStepSize = zRight - zPosition;
 					
-					integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+					integrate(zPosition, zStepSize, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
 					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
 					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
 					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
@@ -289,8 +291,11 @@ void doNonlinearPartofBPPE()
 						delmeFLAG += num_iterations * 666;
 					}
 				}
-				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-
+				integrate(zPosition, zStepSize, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+				if (VERBOSE >= 3) {
+					cout << "Layer #" << lit->getlayerIDnum() << " ending z position: " << zPosition << endl;
+				}
+				
 			}
 			//  Finally do the lowside boundary of the last assumed Vacuum layer
 			if (lit->getHiSideBoundary() == NULL) {
@@ -1056,12 +1061,14 @@ void am_to_zero(double*y) {
 
 void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym1_init, double*y, complex<double>*integral) {
 
+	#pragma omp parallel for
 	for (int i = 0; i <= num_t / 2; i++)
 	{
 		f0[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
 		integral[i] = 0.0;
 	}
 
+	#pragma omp parallel for
 	for (int i = 0; i < 2 * num_t + 4; i++)
 	{
 		if (i <= num_t / 2) {
@@ -1297,11 +1304,11 @@ int func(double z, const double y[], double f[], void *params) {
 }
 
 
-void integrateStub(double z, double chi_2, double chi_3, complex<double>* k) {
-	integrate(z, chi_2, chi_3, k, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+void integrateStub(double z, double zStep, double chi_2, double chi_3, complex<double>* k) {
+	integrate(z, zStep, chi_2, chi_3, k, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
 }
 
-void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f) {
+void integrate(double z, double zStep, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f) {
 	const int num_tOver2 = num_t / 2;
 
 	#pragma omp parallel for	
@@ -1407,6 +1414,7 @@ void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*o
 		}
 	}
 
+	#pragma omp parallel for
 	for (int i = 0; i <= num_t / 2; i++)
 	{
 		if (i < freqLowerCutoff || i > freqUpperCutoff)
@@ -1419,6 +1427,8 @@ void integrate(double z, double chi_2, double chi_3, complex<double>*k, double*o
 	}
 	return;
 }
+
+
 void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e) {
 
 	char buffer[STRING_BUFFER_SIZE];
