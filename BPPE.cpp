@@ -165,6 +165,8 @@ void doNonlinearPartofBPPE()
 	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
 	gsl_odeiv2_driver_set_nmax(d, ode_nmax);
 
+	// Set approximate location to output point monitor
+	double aPointMonLocation = zRightHandSideOfSample; 
 
 	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
@@ -1187,7 +1189,7 @@ int func(double z, const double y[], double f[], void *params) {
 		}
 	
 		//if (z == distanceSourceToSample)
-		if (z > myStructure.getThickness()/2 && delmeFLAG == num_iterations)
+/* 		if (z > myStructure.getThickness()/2 && delmeFLAG == num_iterations)
 		{
 			write_multicolumnMonitor(delmeFLAG, z, p->ee_p, p->ee_m, p->rho, p->j_e); 
 			write_out_ne(delmeFLAG, z, p->rho);
@@ -1195,7 +1197,7 @@ int func(double z, const double y[], double f[], void *params) {
 			write_out_ee_p(delmeFLAG, p->ee_p);
 			write_out_ee_m(delmeFLAG, p->ee_m);
 			delmeFLAG+=num_iterations*666;
-		}
+		} */
 
 		fftw_execute(p->np_f);
 	
