@@ -231,6 +231,8 @@ void doNonlinearPartofBPPE()
 
 	VERBOSE--;
 
+	double zRight;
+
 	for (int Iteration_number = 2; Iteration_number <= num_iterations; Iteration_number++)
 	{
 		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
@@ -251,9 +253,17 @@ void doNonlinearPartofBPPE()
 				if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
 				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
 				{
+					// Make sure step size resets don't cause layers to grow
+					if (zPosition + lit->getStepSize() > lit->getEndZpos()) {
+						zRight = lit->getEndZpos();
+					}
+					else {
+						zRight = zPosition + lit->getStepSize();
+					}
+					
 					integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
 					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
-					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zPosition + lit->getStepSize(), y);
+					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
 					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 
 					if (GSLerrorFlag == GSL_EMAXITER) {
@@ -263,6 +273,9 @@ void doNonlinearPartofBPPE()
 						gsl_odeiv2_driver_reset(d);
 						// Reset the step size to initial guess.
 						gsl_odeiv2_driver_reset_hstart(d, hstart);
+
+						// Decrement aZstep so the reset doesn't cause problems. MAY NOT BE NECESSARY!
+						aZstep--;
 					} 
 					else if (GSLerrorFlag != GSL_SUCCESS)
 					{
