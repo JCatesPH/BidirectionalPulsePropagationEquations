@@ -1418,11 +1418,11 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 	if (fp != NULL)
 	{
 		fprintf(fp, "# Algorithm iteration number %d  at Moitor zPosition %.17g[micron]  \n", iterationNo,  theZpos*1e6);
-		fprintf(fp, "# time [sec]\t\tEfieldPositive[V/m]\t\tEfieldNegative[V/m]\t\tNumberElectrons\t\tCurrent\n");
+		fprintf(fp, "# time [sec]\t\tReEtP[V/m]\t\tImEtP[V/m]\t\tReEtM[V/m]\t\tImEtM[V/m]\t\tNumberElectrons\t\tCurrent\n");
 		double dt = (2.0 * domain_t) / double(num_t);
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), real(eem[i]), ne[i], real(j_e[i]));
+			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), imag(eep[i]), real(eem[i]), imag(eep[i]), ne[i], real(j_e[i]));
 		}
 	}
 	else {
