@@ -267,6 +267,12 @@ void doNonlinearPartofBPPE()
 						printf("error: driver returned %d\n", GSLerrorFlag);
 						break;
 					}
+					else if (delmeFLAG == num_iterations && zPosition >= aPointMonLocation - zStepMaterial1 && zPosition <= aPointMonLocation + zStepMaterial1)
+					{
+						printf("Outputting Point Monitor files... \n");
+						write_multicolumnMonitor(delmeFLAG, zPosition, params->ee_p, params->ee_m, params->rho, params->j_e);
+						delmeFLAG += num_iterations * 666;
+					}
 				}
 				integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
 
@@ -1238,17 +1244,7 @@ int func(double z, const double y[], double f[], void *params) {
 		}
 
 		//if (z == distanceSourceToSample)
-		double aPointMonLocation = 0.998*zRightHandSideOfSample; 
-		if (z >= aPointMonLocation && delmeFLAG == num_iterations)
-		{
-			printf("Outputting Point Monitor files... \n");
-			write_multicolumnMonitor(delmeFLAG, z, p->ee_p, p->ee_m, p->rho, p->j_e);
-			write_out_ne(delmeFLAG, z, p->rho);
-			write_out_je(delmeFLAG, p->j_e);
-			write_out_ee_p(delmeFLAG, p->ee_p);
-			write_out_ee_m(delmeFLAG, p->ee_m);
-			delmeFLAG += num_iterations * 666;
-		}
+		
 
 		fftw_execute(p->np_f);
 
@@ -1281,41 +1277,6 @@ int func(double z, const double y[], double f[], void *params) {
 		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
 	}
 	
-
-//#pragma omp parallel for
-//	for (int i = 0; i <= num_tOver2; i++)
-//	{
-//		if (i < freqLowerCutoff || i > freqUpperCutoff)
-//		{
-//			f[i + num_tOver2 + 1] = 0.0;
-//		}
-//		else {
-//			f[i + num_tOver2 + 1] = imag((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
-//		}
-//	}
-
-//#pragma omp parallel for
-//	for (int i = 0; i <= num_tOver2; i++)
-//	{
-//		if (i < freqLowerCutoff || i > freqUpperCutoff)
-//		{
-//			f[i + num_t + 2] = 0.0;
-//		}
-//		else {
-//			f[i + num_t + 2] = real((1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
-//		}
-//	}
-//#pragma omp parallel for
-//	for (int i = 0; i <= num_tOver2; i++)
-//	{
-//		if (i < freqLowerCutoff || i > freqUpperCutoff)
-//		{
-//			f[i + 3 * num_tOver2 + 3] = 0.0;
-//		}
-//		else {
-//			f[i + 3 * num_tOver2 + 3] = imag((1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
-//		}
-//	}
 
 	return GSL_SUCCESS;
 }
