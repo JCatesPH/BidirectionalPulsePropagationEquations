@@ -20,7 +20,25 @@ if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     pathhead = 'DATA'
     itnum = '5'
+######################################
 
+
+#%% Load in the simulation parameters
+df = pd.read_table(pathhead + '/SimParameters.dat', 
+    header=None, names=['Variable', 'Value', 'Description']
+    )
+
+# Remove trailing whitespace on variable names
+df['Variable']=df['Variable'].str.strip()
+
+#%% Parse out desired values (Intensity, Central freq., and pulse duration)
+iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
+omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
+taup = df.loc[df['Variable'] == 'tau'].values[0,1]
+
+labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)
+
+######################################
 
 
 #%% Read in input spectrum
@@ -31,11 +49,13 @@ inSpectrum = df.values
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(inSpectrum[:,0], inSpectrum[:,3])
+plt.plot(inSpectrum[:,0], inSpectrum[:,3], label=labstr)
 plt.title(r'Input Intensity Spectrum')
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
 plt.grid(which='major')
+plt.legend()
+plt.xlim([0.0, np.max(inSpectrum[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/inSpectrum.png')
 #plt.show()
@@ -49,13 +69,14 @@ eSpectrumT = df.values
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumT[:,0], eSpectrumT[:,3])
+plt.plot(eSpectrumT[:,0], eSpectrumT[:,3], label=labstr)
 plt.title(r'Transmitted pulse spectrum')
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
 plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
 plt.grid(which='major')
-#plt.show()
+plt.legend()
+plt.xlim([0.0, np.max(eSpectrumT[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_transmitted.png')
 
@@ -69,13 +90,14 @@ eSpectrumR = df.values
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumR[:,0], eSpectrumR[:,3])
+plt.plot(eSpectrumR[:,0], eSpectrumR[:,3], label=labstr)
 plt.title(r'Reflected pulse spectrum')
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
 plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
 plt.grid(which='major')
-#plt.show()
+plt.legend()
+plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_reflected.png')
 
@@ -98,10 +120,11 @@ plt.legend(['Transmitted', 'Reflected'])
 plt.xlabel(r'$\omega$')
 plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
 plt.grid(which='major')
-#plt.show()
 plt.margins(x=0)
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_both.png')
+#plt.show()
+
 ####################################################################
 ####################################################################
 
@@ -148,12 +171,13 @@ for pointmon in pmon_li:
     # Plot the forward-propagating pulse
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.plot(df['t [s]'], df['Re(Ept) [V/m]'])
+    plt.plot(df['t [s]'], df['Re(Ept) [V/m]'], label=labstr)
     plt.title(r'Forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_+(t)]$ [V/m]')
     plt.grid(which='major')
+    plt.legend()
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_forward_' + zm + '.png')
@@ -162,12 +186,13 @@ for pointmon in pmon_li:
     # Plot the backward-propagating pulse
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.plot(df['t [s]'], df['Re(Emt) [V/m]'])
+    plt.plot(df['t [s]'], df['Re(Emt) [V/m]'], label=labstr)
     plt.title(r'Backward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_-(t)]$ [V/m]')
     plt.grid(which='major')
+    plt.legend()
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_backward_' + zm + '.png')
@@ -182,12 +207,13 @@ for pointmon in pmon_li:
     # Plot the total field
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.plot(df['t [s]'], np.real(eTotal))
+    plt.plot(df['t [s]'], np.real(eTotal), label=labstr)
     plt.title(r'Total field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_+(t) + E_-(t)]$ [V/m]')
     plt.grid(which='major')
+    plt.legend()
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_total_' + zm + '.png')
@@ -198,19 +224,53 @@ for pointmon in pmon_li:
     eOmM = np.fft.fft(eM)
     eOmTotal = np.fft.fft(eTotal)
 
-    halflen = len(eOmTotal)
+    halflen = int(len(eOmTotal)/2)
     dom_t = float(df.values[-1:,0] - df.values[0,0])
     omeg = [math.pi * i / dom_t for i in range(halflen)]
 
+    # Plot forward-prop spectrum
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:]))
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen]), label=labstr)
+    plt.title(r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, np.max(omeg)])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/EwP_' + zm + '.png')
+    #plt.show()
+
+    # Plot backward-prop spectrum
+    plt.clf()
+    plt.figure(figsize=(8, 6))
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmM[:halflen]), label=labstr)
+    plt.title(r'Backward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, np.max(omeg)])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/EwM_' + zm + '.png')
+    #plt.show()
+
+    # Plot total spectrum
+    plt.clf()
+    plt.figure(figsize=(8, 6))
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
     plt.xlabel(r'$\omega$')
     plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
     plt.grid(which='major')
-    plt.xlim([0.0, 32e15])
+    plt.legend()
+    plt.xlim([0.0, np.max(omeg)])
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ew_total_' + zm + '.png')
