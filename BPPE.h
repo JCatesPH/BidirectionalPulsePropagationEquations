@@ -22,7 +22,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE 1.0e2
+#define INITIAL_GUESS_SEED_VALUE 1.0e5
 
 // CODE parameters
 int VERBOSE = 6;
@@ -48,11 +48,11 @@ const char *SIM_DATA_OUTPUT="./DATA/";
 // GSL ODE API parameters
 const double epsabs = 1e-5;
 const double epsrel = 1e-4;
-const int ode_nmax = 1e4;
+const int ode_nmax = 1e6;
 const double hstart = 1.25e-8;
 
 //pulse parameters
-const double I_0 = 5.0e17;  //initial peak intensity [W / m^2]
+const double I_0 = 5.0e16;  //initial peak intensity [W / m^2]
 const double twoColorSH_amplitude = 0.0;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm
