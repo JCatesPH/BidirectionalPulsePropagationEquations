@@ -40,6 +40,28 @@ labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$
 
 ######################################
 
+#%% Load in the structure file
+df = pd.read_table(pathhead + '/Structure.dat',
+        index_col=False
+    )
+structure = df.values
+
+#%% Plot structure indices
+plt.clf()
+plt.figure(figsize=(8, 6))
+plt.plot(structure[:,0], structure[:,2], label=r'n_0')
+plt.plot(structure[:,0], structure[:,3], label=r'n_2')
+plt.title(r'Structure')
+plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+plt.xlabel(r'$z$ [m]')
+plt.grid(which='major')
+plt.legend()
+plt.tight_layout()
+plt.savefig(pathhead + '/figs/Structure.png')
+
+
+######################################
+
 
 #%% Read in input spectrum
 df = pd.read_table(pathhead + '/InputSpectrum_1D.dat', header=0)

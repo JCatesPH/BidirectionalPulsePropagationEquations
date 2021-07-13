@@ -276,7 +276,7 @@ public:
     void writeStructureToDATFile(string aFilePath) {
         if (true) { printf("Writing Structure to DATA file %s\n", aFilePath.c_str()); }
         ofstream outFile(aFilePath);
-        outFile << "# z_pos\t\tMaterialID\t\tn0 []\t\tn2 []\t\tchi_2 []\t\tchi_3 []" << endl;
+        outFile << "# z_pos\tMaterialID\tn0 []\tn2 []\tchi_2 []\tchi_3 []" << endl;
         outFile << std::scientific;
         for (Layer& aLayer : m_layers) {
            double theZpos = aLayer.getStartZpos();
