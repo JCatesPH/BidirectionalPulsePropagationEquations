@@ -55,7 +55,8 @@ int main()
 
 	//generateApp1MaterialsAndStructure(myMaterialsDB, myStructure);
 	//generateDefectMaterialsAndStructure(myMaterialsDB, myStructure);
-	generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
+	//generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
+	generateLayerTestMaterialsAndStructure(myMaterialsDB, myStructure);
 
 	/// VERY Early termination
 	//printf("!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!: VERY Early Termination\n"); exit(-1);
@@ -166,7 +167,7 @@ void doNonlinearPartofBPPE()
 	gsl_odeiv2_driver_set_nmax(d, ode_nmax);
 
 	// Set approximate location to output point monitor
-	double aPointMonLocation = zRightHandSideOfSample; 
+	double aPointMonLocation = 0.75*zRightHandSideOfSample; 
 
 	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
@@ -617,7 +618,6 @@ void write2DtoFile(std::complex<double>* ee_p)
 }
 
 
-
 void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, complex<double>* f0, complex<double>* f1, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3, complex<double>* integral) {
 
 	double ht = (2.0 * domain_t) / double(num_t);
@@ -864,6 +864,23 @@ void writeSimParameters()
 		printf("Failed to open file '%s'\n", parametersFilePathName);
 	}
 	if (fp != NULL) { fclose(fp); }		// COLM added to avoid errors
+}
+
+void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
+{
+	Material vacuum("Vacuum", n0_Material0, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(vacuum);
+	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
+	theMaterialDB.addMaterial(mat1);
+	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
+	theMaterialDB.addMaterial(mat2);
+
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSourceToSample, zStepMaterial1);
+	for (int i = 0; i < numLayersInSample; i++)
+	{
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+	}
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), distanceSampleToReceiver, zStepMaterial1);
 }
 
 void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
@@ -1456,6 +1473,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 
 	return;
 }
+
 void write_out_ne(int j, double theZpos, double*ne) {
 
 	char buffer[STRING_BUFFER_SIZE];
