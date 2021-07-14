@@ -192,7 +192,6 @@ for pointmon in pmon_li:
 
     # Plot the forward-propagating pulse
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.plot(df['t [s]'], df['Re(Ept) [V/m]'], label=labstr)
     plt.title(r'Forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
@@ -207,7 +206,6 @@ for pointmon in pmon_li:
 
     # Plot the backward-propagating pulse
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.plot(df['t [s]'], df['Re(Emt) [V/m]'], label=labstr)
     plt.title(r'Backward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
@@ -228,7 +226,6 @@ for pointmon in pmon_li:
 
     # Plot the total field
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.plot(df['t [s]'], np.real(eTotal), label=labstr)
     plt.title(r'Total field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
@@ -252,7 +249,6 @@ for pointmon in pmon_li:
 
     # Plot forward-prop spectrum
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen]), label=labstr)
     plt.title(r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
@@ -268,7 +264,6 @@ for pointmon in pmon_li:
 
     # Plot backward-prop spectrum
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmM[:halflen]), label=labstr)
     plt.title(r'Backward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
@@ -284,7 +279,6 @@ for pointmon in pmon_li:
 
     # Plot total spectrum
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
