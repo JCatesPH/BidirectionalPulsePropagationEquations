@@ -1,7 +1,7 @@
 # --- Variable definitions ---
 CC = g++
 CXX = g++
-CPPFLAGS = -fopenmp -std=c++17
+CPPFLAGS = -fopenmp -std=c++17 -Wall
 LDFLAGS = -lm -ldl -lgsl -lfftw3 -lgslcblas
 #CPPFLAGS = -qopenmp -Wall -std=c++17 -fPIC -DMKL_ILP64 -m64 -I"${MKLROOT}/include" #-Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -fstack-protector -fvisibility=hidden -g3
 #CPPFLAGS = -fopenmp -Wall -DMKL_ILP64 -mkl=parallel -I"${MKLROOT}/include" #-qopt-report -qopt-report-phase=openmp
