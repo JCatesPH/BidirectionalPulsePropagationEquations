@@ -293,6 +293,21 @@ for pointmon in pmon_li:
     #plt.show()
 
 
+    # Plot total spectrum in THz
+    plt.clf()
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), label=labstr)
+    plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, 100e12])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/Ew_total_THz_' + zm + '.png')
+
+
 #%% Read in forward-propagating pulse
 df = pd.read_table(pathhead + '/Efield_iteration_' + itnum + '_Transmitted.dat', header=0)
 eFieldT = df.values
