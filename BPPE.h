@@ -52,7 +52,7 @@ const int ode_nmax = 1e6;
 const double hstart = 1.25e-8;
 
 //pulse parameters
-const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
+const double I_0 = 50.0e12;  //initial peak intensity [W / m^2]
 const double twoColorSH_amplitude = 0.1;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm

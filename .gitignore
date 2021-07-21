@@ -58,3 +58,8 @@ dkms.conf
 DATA*
 figs/
 n.dat
+*.png
+
+# Python files
+*.ipynb
+*.py
