@@ -45,7 +45,7 @@ int main()
 
 	#pragma omp parallel 
 	{
-		cout << omp_get_thread_num();
+		cout << omp_get_thread_num() << " ";
 	}
 	cout << endl << endl;
 
@@ -824,11 +824,9 @@ void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &th
 	const double sampleLayerThickness = 0.25e-6; //half period
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
 		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
 	}
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
@@ -871,7 +869,7 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
 	theMaterialDB.addMaterial(mat2);
 
-	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
+	Material plasmaMat("PlasmaMat", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
 	plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	theMaterialDB.addMaterial(plasmaMat);
 	
@@ -887,6 +885,8 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
 	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
