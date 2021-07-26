@@ -884,12 +884,15 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+	#ifdef BERGEREP
 	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
+	#else
+		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+	#endif
 }
 
 

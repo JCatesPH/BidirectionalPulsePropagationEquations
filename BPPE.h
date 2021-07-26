@@ -45,6 +45,8 @@ const char *SIM_DATA_OUTPUT=".\\DATA\\";
 const char *SIM_DATA_OUTPUT="./DATA/";
 #endif
 
+#define BERGEREP
+
 const int num_Threads = 16; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
