@@ -1115,6 +1115,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 	const int num_tOver2 = num_t / 2;
 	const double clightSquared = pow(cLight, 2);
+	const double num_td = (double)num_t;
 
 #pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
@@ -1153,8 +1154,8 @@ int func(double z, const double y[], double f[], void *params) {
 #pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
-		p->ee_p[i] = p->ee_p[i] / (double(num_t));
-		p->ee_m[i] = p->ee_m[i] / (double(num_t));
+		p->ee_p[i] = p->ee_p[i] / num_td;
+		p->ee_m[i] = p->ee_m[i] / num_td;
 		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
 	}
 
@@ -1164,7 +1165,7 @@ int func(double z, const double y[], double f[], void *params) {
 	if (plasmaOnOff == 1) {
 		double w;
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0*domain_t) / double(num_t);
+		double ht = (2.0*domain_t) / num_td;
 		p->rho[0] = rho_0;
 		for (int i = 0; i < num_t - 1; i++)
 		{
@@ -1197,7 +1198,7 @@ int func(double z, const double y[], double f[], void *params) {
 	else if (p->doPlasmaCalc == 2) {
 
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0 * domain_t) / double(num_t);
+		double ht = (2.0 * domain_t) / num_td;
 		double neutrals = num_atoms;                          // Neutral particles
 		double electrons = 0.0;                      // background Electrons
 		double change = 0.0;    
