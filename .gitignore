@@ -58,6 +58,7 @@ dkms.conf
 DATA*
 figs/
 n.dat
+<<<<<<< HEAD
 
 # Python scripts
 *.py 
@@ -66,3 +67,10 @@ n.dat
 
 # Linux-specific files
 Makefile
+=======
+*.png
+
+# Python files
+*.ipynb
+*.py
+>>>>>>> c45471ca2fb469081db7d3d9c647c168987e3db5

@@ -35,6 +35,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
+sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1]
 
 labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)
 
@@ -87,6 +88,8 @@ plt.savefig(pathhead + '/figs/inSpectrum.png')
 df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Transmitted.dat', header=0)
 eSpectrumT = df.values
 
+dOm = abs(eSpectrumT[1,0] - eSpectrumT[0,0])
+print('dOmega = {:.2e}'.format(dOm))
 
 #%%
 plt.clf()
@@ -160,7 +163,7 @@ for name in glob.glob(pathhead + '/PointMon_*'):
     nameli = name.split('_')
     #print(nameli)
     zloc = nameli[-1].split('nm')
-    zloc = zloc[0]
+    zloc = str(float(zloc[0]) - sourceThickness*1e9)
     #print('Location of point monitor: {} nm'.format(zloc))
     zmon_li.append(zloc)
 
@@ -262,6 +265,20 @@ for pointmon in pmon_li:
     plt.savefig(pathhead + '/figs/EwP_' + zm + '.png')
     #plt.show()
 
+    # Plot forward spectrum in THz
+    plt.clf()
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen]), 'b-o', label=labstr)
+    plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, 200e12])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/Ew_fwd_THz_' + zm + '.png')
+
     # Plot backward-prop spectrum
     plt.clf()
     plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmM[:halflen]), label=labstr)
@@ -291,6 +308,21 @@ for pointmon in pmon_li:
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ew_total_' + zm + '.png')
     #plt.show()
+
+
+    # Plot total spectrum in THz
+    plt.clf()
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), 'b-o', label=labstr)
+    plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, 100e12])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/Ew_total_THz_' + zm + '.png')
 
 
 #%% Read in forward-propagating pulse
