@@ -252,17 +252,17 @@ public:
         if (true) { printf("Writing Structure Layout file %s\n", aFilePath.c_str()); }
         ofstream outFile(aFilePath);
         outFile << "Structure Name:\t" << m_structureName << endl;
-        outFile << "Total Thickness:\t" << m_totalThickness << endl;
+        outFile << "Total Thickness:\t" << m_totalThickness * m2um << " [um]" << endl;
         outFile << "Number of layers:\t" << m_layers.size() << endl;
         outFile << endl;
-        outFile << setw(8) << "Layer#" << setw(12) << "zStart" << setw(15) << "Thickness" << setw(15) << "stepSize" << setw(15) << "zEnd" << "    " << "Material" << endl;
+        outFile << setw(8) << "Layer#" << setw(12) << "zStart[um]" << setw(15) << "Thickness[um]" << setw(15) << "stepSize[um]" << setw(15) << "zEnd[um]" << "    " << "Material" << endl;
         outFile << "-------------------------------------------------------------------------------------------------" << endl;
         for (Layer& aLayer : m_layers) {
             outFile << setw(5) << aLayer.getlayerIDnum();
-            outFile << setw(15) << aLayer.getStartZpos();
-            outFile << setw(15) << aLayer.getThickness();
-            outFile << setw(15) << aLayer.getStepSize();
-            outFile << setw(15) << aLayer.getEndZpos();
+            outFile << setw(15) << aLayer.getStartZpos() * m2um;
+            outFile << setw(15) << aLayer.getThickness() * m2um;
+            outFile << setw(15) << aLayer.getStepSize() * m2um;
+            outFile << setw(15) << aLayer.getEndZpos() * m2um;
             outFile << "    " << aLayer.getMaterial().serializedToString();
             if (aLayer.getlayerIDnum() != 0)
                 outFile << " LHSBoundaryID= " << aLayer.getLowSideBoundary()->getBoundaryIDnum();

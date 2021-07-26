@@ -1,12 +1,12 @@
 #pragma once
 #include <string>
 #include <complex>
-#include <algorithm>
 #include <list>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <algorithm> // Necessary for find_if(...) function
 #include "physicalConstants.h"
 //#include "Structure.h"
 
@@ -22,6 +22,9 @@ private:
 	double m_n2;
 	double m_chi_2;
 	double m_chi_3;
+	int m_doPlasmaCalc = 0;
+	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0;
+
 	complex<double>* m_k=nullptr;
 	int m_numActiveOmega = 0;
 public:
@@ -47,6 +50,22 @@ public:
 	double getn2() { return m_n2; }
 	double getChi2() { return m_chi_2; }
 	double getChi3() { return m_chi_3; }
+	double getdoPlasmaCalc() { return m_doPlasmaCalc; }
+	double getmpi_sigmaK() { return m_mpi_sigmaK; }
+	double getmpi_k() { return m_mpi_k; }
+
+	void setAsPlasmaMaterial(int doPlasmaCalc, double mpi_sigmaK, double mpi_k) {
+		m_doPlasmaCalc = doPlasmaCalc;
+		m_mpi_sigmaK = mpi_sigmaK;
+		m_mpi_k = mpi_k;
+		std::stringstream ss;
+		ss << m_name;
+		ss << "  [ doPlasmaCalc=" << m_doPlasmaCalc;
+		ss << " mpi_sigmaK=" << m_mpi_sigmaK;
+		ss << " mpi_k=" << m_mpi_k;
+		ss << " ]";
+		m_matInfoAsString.append(ss.str());
+	}
 	//void getMaterialInformationAsString(string& aString) {
 	//	char materialAsCharacters[200];
 	//	sprintf_s(materialAsCharacters, "%s\t[n0=%g\tn2=%g\tchi2=%g\tk[1]=%g", m_name.c_str(), m_n0, m_n2, m_chi_2, real(m_k[1]));
@@ -128,8 +147,9 @@ public:
 		outFile.close();
 }
 
-	void initAllMaterialKs(double* omg) {
+	void initAllMaterialKs(double* omg, int numOmega) {
 		for (Material& aMaterial : m_materials) {
+			aMaterial.mallocK(numOmega);
 			aMaterial.fillK(omg);
 			if (false) 	cout << "   Filled k in material:" << aMaterial.serializedToString() << endl;
 		}
