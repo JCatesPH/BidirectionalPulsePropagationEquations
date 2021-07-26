@@ -787,6 +787,12 @@ void writeSimParameters()
 		fprintf(fp, "Sellmeir_omega_1       \t%.17g\t/*FILL */\n", Sellmeir_omega_1);
 		fprintf(fp, "Sellmeir_omega_2       \t%.17g\t/*FILL */\n", Sellmeir_omega_2);
 		fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
+
+		// Print the GSL ODE parameters
+		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", epsabs);
+		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", epsrel);
+		fprintf(fp, "ode_nmax       \t%.2g\t/*maximum ode steps before reset */\n", (double)ode_nmax);
+		fprintf(fp, "hstart      \t%.17g\t/*initial guess of step size*/\n", hstart);
 	}
 	else {
 		printf("Failed to open file '%s'\n", parametersFilePathName);
