@@ -62,3 +62,7 @@ n.dat
 # Python scripts
 *.py 
 *.ipynb
+.ipynb_checkpoints/*
+
+# Linux-specific files
+Makefile
