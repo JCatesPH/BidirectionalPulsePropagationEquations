@@ -6,6 +6,7 @@
 #include "BPPE.h"
 #include "Structure.h"
 #include "Utilities.h"
+#include "createLayers.h"
 #include <iomanip> 
 #include <omp.h>
 #include <vector>
@@ -154,6 +155,19 @@ int main()
 	cout << endl << "Exiting program.." << endl << endl;
 
     return 0;
+}
+
+void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
+{
+	#ifdef BERGEREP
+	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
+	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
+	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
+	#else
+		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+	#endif
 }
 
 
@@ -721,7 +735,7 @@ void writeSimParameters()
 	snprintf(parametersFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sSimParameters.dat", SIM_DATA_OUTPUT);
 
 	FILE* fp;
-	errno_t err;
+	//errno_t err;
 	if (VERBOSE >= 2) { printf("Writing Simulation Parameter file %s\n", parametersFilePathName); }
 	fp = fopen(parametersFilePathName, "w");
 	if (fp != NULL)
@@ -800,106 +814,8 @@ void writeSimParameters()
 	if (fp != NULL) { fclose(fp); }		// COLM added to avoid errors
 }
 
-void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
-{
-	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(vacuum);
-	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
-	theMaterialDB.addMaterial(mat1);
-	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
-	theMaterialDB.addMaterial(mat2);
 
-	double sampleThickness = 20*microns;
 
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleThickness, zStepMaterial1);
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
-}
-
-void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
-{
-	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(vacuum);
-	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
-	theMaterialDB.addMaterial(mat1);
-	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
-	theMaterialDB.addMaterial(mat2);
-	Material mat3("linMieMat3", n0_Material2, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(mat3);
-
-	const double sampleLayerThickness = 0.25e-6; //half period
-
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	for (int i = 0; i < 3; i++)
-	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-	}
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
-}
-
-void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
-{
-	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(vacuum);
-	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
-	theMaterialDB.addMaterial(mat1);
-	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
-	theMaterialDB.addMaterial(mat2);
-
-	const double sampleLayerThickness = 0.25e-6; //half period
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	for (int i = 0; i < 10; i++)
-	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-	}
-
-	theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness + sampleLayerThickness/3.0, zStepMaterial1);
-
-	for (int i = 0; i < 10; i++)
-	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-	}
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
-}
-
-void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
-{
-	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(vacuum);
-
-	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
-	theMaterialDB.addMaterial(mat1);
-	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
-	theMaterialDB.addMaterial(mat2);
-
-	Material plasmaMat("PlasmaMat", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
-	theMaterialDB.addMaterial(plasmaMat);
-	
-	const double sampleLayerThickness = 1.005e-3; 
-
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	
-	theStructure.addLayer(theMaterialDB.getMaterialByName("PlasmaMat"), sampleLayerThickness, zStepMaterial1);
-
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
-}
-
-void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
-{
-	#ifdef BERGEREP
-	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
-	#else
-		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
-	#endif
-}
 
 
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b) {
@@ -944,7 +860,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 
 	// PARIS output spectrum
 	FILE* fp2;
-	errno_t err2;
+	//errno_t err2;
 	fp2 = fopen(spectrumFilePathName, "w");
 	if (fp2 != NULL)
 	{
@@ -973,7 +889,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		char reflectanceFilePathName[STRING_BUFFER_SIZE];
 		snprintf(reflectanceFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sReflectanceSpectrum_iteration_%i_%s.dat", SIM_DATA_OUTPUT, num, (j == 0 ? "Reflected" : "Transmitted"));
 		FILE* fp3;
-		errno_t err3;
+		//errno_t err3;
 		err3 = fopen_s(&fp3, reflectanceFilePathName, "w");
 		if (fp3 != NULL)
 		{
@@ -999,7 +915,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 	}
 
 	FILE *fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(efieldFilePathName, "w");
 	if (fp != NULL)
 	{
@@ -1411,7 +1327,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 	printf("\t\tWriting point monitor data to file: %s \n", buffer);
 
 	FILE* fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
@@ -1439,7 +1355,7 @@ void write_out_ne(int j, double theZpos, double*ne) {
 	printf("\t\tWriting %s file \n", buffer);
 
 	FILE *fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
@@ -1466,7 +1382,7 @@ void write_out_je(int j, complex<double>*j_e) {
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sJe_%i.dat", SIM_DATA_OUTPUT, j);
 
 	FILE *fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
@@ -1491,7 +1407,7 @@ void write_out_ee_p(int j, complex<double>* eep) {
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%see_p_%i.dat", SIM_DATA_OUTPUT, j);
 
 	FILE* fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{
@@ -1517,7 +1433,7 @@ void write_out_ee_m(int j, complex<double>* eem) {
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%see_m_%i.dat", SIM_DATA_OUTPUT, j);
 
 	FILE* fp;
-	errno_t err;
+	//errno_t err;
 	fp = fopen(buffer, "w");
 	if (fp != NULL)
 	{

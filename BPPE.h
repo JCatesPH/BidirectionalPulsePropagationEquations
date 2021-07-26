@@ -25,7 +25,6 @@ using namespace std;
 #define INITIAL_GUESS_SEED_VALUE  1.0e1 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
-int VERBOSE = 6;
 #define USE_CPP_BOUNDARY
 #define USE_CPP_NONLINEAR
 
@@ -37,14 +36,6 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 
 // Simulation parameters
-#ifdef _WIN32
-const char *SIM_DATA_OUTPUT=".\\DATA\\";
-#endif
-
-#ifdef __unix__
-const char *SIM_DATA_OUTPUT="./DATA/";
-#endif
-
 #define BERGEREP
 
 const int num_Threads = 16; // numnber of OpenMP threads
