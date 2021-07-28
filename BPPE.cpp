@@ -159,15 +159,16 @@ int main()
 
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	#ifdef BERGEREP
-	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
-	#else
-		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
-	#endif
+	
+	monitorZlocations.push_back(LHSsourceLayerThickness + 3e-6); // 3 microns in plasma
+	monitorZlocations.push_back(LHSsourceLayerThickness + 10e-6); // 10 microns in plasma
+	monitorZlocations.push_back(LHSsourceLayerThickness + 15e-6); // 10 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
+
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+
 }
 
 

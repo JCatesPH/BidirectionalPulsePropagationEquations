@@ -1,8 +1,8 @@
 #include "BPPE.h"
 #include "Structure.h"
 
-double sampleLayerThickness = 5e-6;
-int numLayersInSample = 5;
+double sampleLayerThickness = 15.1e-6;
+int numLayersInSample = 1;
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
 {
@@ -73,17 +73,14 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 {
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
-	Material mat1("dieMat1", 1.75, 0.0, 0.0, 0.0);
-	theMaterialDB.addMaterial(mat1);
-	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
-	theMaterialDB.addMaterial(mat2);
+
+	Material plasmaMat("PlasmaMat", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
+	plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	theMaterialDB.addMaterial(plasmaMat);
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
+	
+	theStructure.addLayer(theMaterialDB.getMaterialByName("PlasmaMat"), sampleLayerThickness, zStepMaterial1);
 
-	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness * numLayersInSample/4, zStepMaterial1);
-	for (int i = 0; i < numLayersInSample; i++)
-	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness, zStepMaterial1);
-	}
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }

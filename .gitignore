@@ -67,3 +67,4 @@ n.dat
 
 # Linux-specific files
 Makefile
+config/*
