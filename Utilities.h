@@ -1,4 +1,5 @@
 #pragma once
+
 #ifdef _WIN64
 #include <direct.h>
 #define GetCurrentDir _getcwd
@@ -7,11 +8,20 @@
 #define GetCurrentDir getcwd
 #endif
 
-#include<iostream>
+#include <iostream>
 
 using namespace std;
 
-typedef int errno_t;
+
+#ifdef _WIN32
+const char *SIM_DATA_OUTPUT=".\\DATA\\";
+#endif
+
+#ifdef __unix__
+const char *SIM_DATA_OUTPUT="./DATA/";
+#endif
+
+int VERBOSE = 6;
 
 std::string get_current_dir() {
 	char buff[FILENAME_MAX]; //create string buffer to hold path
