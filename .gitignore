@@ -65,11 +65,15 @@ DATA*
 figs/
 n.dat
 
+Makefile
 *.py
 *.ipynb
+config/*
+.ipynb_checkpoints/*
 gsl_2_4*
 64fftw/
 BPPE-Plasma-Colm/x64/
 BPPE-Plasma-Colm/Debug/
 BPPE-Plasma-Colm/DATA/
 BPPE-Plasma-Colm/.vs/
+

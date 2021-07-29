@@ -22,10 +22,9 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE  1.0e1 // orignal Andrew Value = 1.0e5
+#define INITIAL_GUESS_SEED_VALUE  1.0e2 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
-int VERBOSE = 6;
 #define USE_CPP_BOUNDARY
 #define USE_CPP_NONLINEAR
 
@@ -37,15 +36,6 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 
 // Simulation parameters
-#ifdef _WIN32
-const char *SIM_DATA_OUTPUT=".\\DATA\\";
-#endif
-
-#ifdef __unix__
-const char *SIM_DATA_OUTPUT="./DATA/";
-#endif
-
-#define BERGEREP
 
 const int num_Threads = 16; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
@@ -82,7 +72,7 @@ const double Znaught = FUDGE_FACTOR * (1.0 / (epsilon_0 * cLight));
 // domain parameters
 const int num_t = int(pow(2, 17)); //number of time points
 const int num_x = int(pow(2, 6)); //number of x points
-const double domain_t = 4500e-15; //time domain
+const double domain_t = 2000e-15; //time domain
 const double domain_x = 125.0e-6; //x domain
 const int freqUpperCutoff = num_t / 2; // upper frequency cut-off
 const int freqLowerCutoff = 1; //lower frequency cut-off
@@ -99,7 +89,7 @@ const double RHSbufferLayerThickness = 10.0 * microns; //distance from slab to r
 // Predefine a few common material parameters
 const double n0_Vacuum = 1.0; //central index in material 0
 const double n0_Argon = 1.000281;
-const double n2_Argon = 4.0e-20; //nonlinear index in material 1
+const double n2_Argon = 0.0; //1.0e-19; //nonlinear index in material 1
 const double chi3_Argon = (4 / 3) * epsilon_0 * cLight * pow(n0_Argon, 2) * n2_Argon;
 const double chi2_Argon = 0.0;
 const double n0_Material1 = 1.25; //1.5; //central index in material 1
