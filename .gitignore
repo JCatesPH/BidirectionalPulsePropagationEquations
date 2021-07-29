@@ -61,10 +61,12 @@ dkms.conf
 
 # Output files
 DATA*
-
+*.png
 figs/
 n.dat
+
 *.py
+*.ipynb
 gsl_2_4*
 64fftw/
 BPPE-Plasma-Colm/x64/

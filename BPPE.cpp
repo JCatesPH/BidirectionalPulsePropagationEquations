@@ -45,7 +45,7 @@ int main()
 
 	#pragma omp parallel 
 	{
-		cout << omp_get_thread_num();
+		cout << omp_get_thread_num() << " ";
 	}
 	cout << endl << endl;
 
@@ -790,6 +790,12 @@ void writeSimParameters()
 		fprintf(fp, "Sellmeir_omega_1       \t%.17g\t/*FILL */\n", Sellmeir_omega_1);
 		fprintf(fp, "Sellmeir_omega_2       \t%.17g\t/*FILL */\n", Sellmeir_omega_2);
 		fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
+
+		// Print the GSL ODE parameters
+		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", epsabs);
+		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", epsrel);
+		fprintf(fp, "ode_nmax       \t%.2g\t/*maximum ode steps before reset */\n", (double)ode_nmax);
+		fprintf(fp, "hstart      \t%.17g\t/*initial guess of step size*/\n", hstart);
 	}
 	else {
 		printf("Failed to open file '%s'\n", parametersFilePathName);
@@ -827,11 +833,9 @@ void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &th
 	const double sampleLayerThickness = 0.25e-6; //half period
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	for (int i = 0; i < 10; i++)
+	for (int i = 0; i < 3; i++)
 	{
-		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
 		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
 	}
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
@@ -873,7 +877,7 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
 	theMaterialDB.addMaterial(mat2);
 
-	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
+	Material plasmaMat("PlasmaMat", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
 	plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	theMaterialDB.addMaterial(plasmaMat);
 	
@@ -888,10 +892,15 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 
 void setupPointMonitorLocationsPlasma(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	#ifdef BERGEREP
 	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
+	#else
+		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+	#endif
 }
 
 
@@ -1117,6 +1126,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 	const int num_tOver2 = num_t / 2;
 	const double clightSquared = pow(cLight, 2);
+	const double num_td = (double)num_t;
 
 #pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
@@ -1155,8 +1165,8 @@ int func(double z, const double y[], double f[], void *params) {
 #pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
-		p->ee_p[i] = p->ee_p[i] / (double(num_t));
-		p->ee_m[i] = p->ee_m[i] / (double(num_t));
+		p->ee_p[i] = p->ee_p[i] / num_td;
+		p->ee_m[i] = p->ee_m[i] / num_td;
 		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
 	}
 
@@ -1166,7 +1176,7 @@ int func(double z, const double y[], double f[], void *params) {
 	if (plasmaOnOff == 1) {
 		double w;
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0*domain_t) / double(num_t);
+		double ht = (2.0*domain_t) / num_td;
 		p->rho[0] = rho_0;
 		for (int i = 0; i < num_t - 1; i++)
 		{
@@ -1199,7 +1209,7 @@ int func(double z, const double y[], double f[], void *params) {
 	else if (p->doPlasmaCalc == 2) {
 
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0 * domain_t) / double(num_t);
+		double ht = (2.0 * domain_t) / num_td;
 		double neutrals = num_atoms;                          // Neutral particles
 		double electrons = 0.0;                      // background Electrons
 		double change = 0.0;    
