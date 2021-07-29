@@ -53,9 +53,9 @@ int main()
 
 	//generateApp1MaterialsAndStructure(myMaterialsDB, myStructure);
 	//generateDefectMaterialsAndStructure(myMaterialsDB, myStructure);
-	generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
-	//generateLayerTestMaterialsAndStructure(myMaterialsDB, myStructure);
-    setupPointMonitorLocations(myMaterialsDB, myStructure);
+	//generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
+	generateLayerTestMaterialsAndStructure(myMaterialsDB, myStructure);
+    setupPointMonitorLocationsBasic(myMaterialsDB, myStructure);
 	/// VERY Early termination
 	//printf("!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!: VERY Early Termination\n"); exit(-1);
 
@@ -414,13 +414,15 @@ void writeInputEfield(std::complex<double>* ee_p)
 	snprintf(inputEfieldFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sInputEfield_1D.dat", SIM_DATA_OUTPUT);
 	FILE* fp;
 	fp = fopen(inputEfieldFilePathName, "w");
+	double dt = domain_t / double(num_t);
+
 	if (fp != NULL)
 	{
-		fprintf(fp, "# time [sec]\tEfield [V/aLayer]\n");
+		fprintf(fp, "# time [sec]\tEfield [V/m]\n");
 		for (int i = 0; i < num_t; i++)
 		{
 			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
-			fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));   // COLM export in one column format
+			fprintf(fp, "%.7g\t%.17g \n", i * dt, real(ee_p[i]));   // COLM export in one column format
 		}
 	}
 	else {
@@ -455,9 +457,8 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 			else {
 				fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * (i - numActiveOmega), real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
 			}
-					// COLM outputing abs(Sp) too
-#ifdef WRITE_OUT_REFLECTANCE
-																																						// COLM make a backup of input spectrum to calculate reflectance later on
+			// COLM outputing abs(Sp) too
+#ifdef WRITE_OUT_REFLECTANCE																																						// COLM make a backup of input spectrum to calculate reflectance later on
 			eFieldPlusBACKUPCOLM[i] = yp_init[i];
 #endif
 		}
@@ -548,7 +549,7 @@ void write2DtoFile(std::complex<double>* ee_p)
 
 void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, complex<double>* f0, complex<double>* f1, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral) {
 
-	double ht = (2.0 * domain_t) / double(num_t);
+	double ht = (1.0 * domain_t) / double(num_t);
 	int o;
 	if (numDimensionsMinusOne == 1) {
 		// 2D source code deleted temporarly see orignal set_guess() above
@@ -556,9 +557,11 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 		exit(-1);
 	}
 	else {
-		for (int i = 0; i < num_t; i++)
-			ee_p[i] = A_0 * (sqrt(1.0 - twoColorSH_amplitude) * exp(-2.0 * log(2.0) * pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2))) * cos(omega_0 * (-domain_t + ht * ((double)i + 1))) + sqrt(twoColorSH_amplitude) * exp(-8.0 * log(2) * pow(-domain_t + ht * ((double)i + 1), 2) / (pow(tau, 2))) * cos(2.0 * omega_0 * (-domain_t + ht * ((double)i + 1)) + twoColorSH_phase));
-
+		for (int i = 0; i < num_t; i++) {
+			double s = (-domain_t/2.0) + ht * ((double)i + 1);
+			ee_p[i] = A_0 * (sqrt(1.0 - twoColorSH_amplitude) * exp(-2.0 * log(2.0) * pow(s, 2) / (pow(tau, 2))) * cos(omega_0 * s)
+				           + sqrt(twoColorSH_amplitude) *       exp(-8.0 * log(2.0) * pow(s, 2) / (pow(tau, 2))) * cos(2.0 * omega_0 * s + twoColorSH_phase));
+		}
 		writeInputEfield(ee_p);
 		fftw_execute(ep_f);
 
@@ -865,7 +868,6 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 {
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
-
 	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
 	theMaterialDB.addMaterial(mat1);
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
@@ -884,12 +886,21 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }
 
-void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
+void setupPointMonitorLocationsPlasma(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
 	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
 	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
+}
+
+
+void setupPointMonitorLocationsBasic(MaterialDB& theMaterialDB, Structure& theStructure)
+{
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	monitorZlocations.push_back(theStructure.getThickness() * 0.25); // quarter through total domain
+	monitorZlocations.push_back(theStructure.getThickness() * 0.5); // halfway through total domain
+	monitorZlocations.push_back(theStructure.getThickness() * 0.75); // three quareter through total domain
 }
 
 

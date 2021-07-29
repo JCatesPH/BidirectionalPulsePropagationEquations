@@ -53,7 +53,7 @@ const double hstart = 1.25e-8;
 
 //pulse parameters
 const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
-const double twoColorSH_amplitude = 0.1;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
+const double twoColorSH_amplitude = 0.0;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm
 const double lambda_0 = 1.0e-6; //central wavelength
@@ -154,7 +154,8 @@ void generateApp1MaterialsAndStructure(MaterialDB &myMaterialsDB, Structure &the
 void generateLayerTestMaterialsAndStructure(MaterialDB &myMaterialsDB, Structure &theStructure);
 void generateDefectMaterialsAndStructure(MaterialDB& myMaterialsDB, Structure& theStructure);
 void generatePlasmaTestMaterialsAndStructure(MaterialDB& myMaterialsDB, Structure& theStructure);
-void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructure);
+void setupPointMonitorLocationsBasic(MaterialDB& myMaterialsDB, Structure& theStructure);
+void setupPointMonitorLocationsPlasma(MaterialDB& myMaterialsDB, Structure& theStructure);
 void set_guess(complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , double* , fftw_plan , complex<double>* , fftw_plan , fftw_plan , complex<double>* );
 
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
