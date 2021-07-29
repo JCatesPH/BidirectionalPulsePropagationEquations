@@ -53,8 +53,20 @@ dkms.conf
 
 # VSCode files
 .vscode/
+*.json
+*.vcxproj*
+.vs/
+*.sln
+
 
 # Output files
 DATA*
+
 figs/
 n.dat
+*.py
+gsl_2_4*
+64fftw/
+BPPE-Plasma-Colm/x64/
+BPPE-Plasma-Colm/DATA/
+BPPE-Plasma-Colm/.vs/
