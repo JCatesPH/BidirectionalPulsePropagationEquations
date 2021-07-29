@@ -164,8 +164,6 @@ public:
         }
     }
 
-
-
     void createNewBoundary() {
         list<Layer>::reverse_iterator rit = m_layers.rbegin();
         Layer* RHSlayer, * LHSLayer;
