@@ -52,11 +52,9 @@ int main()
 
 	writeSimParameters();
 
-	//generateApp1MaterialsAndStructure(myMaterialsDB, myStructure);
-	//generateDefectMaterialsAndStructure(myMaterialsDB, myStructure);
-	//generatePlasmaTestMaterialsAndStructure(myMaterialsDB, myStructure);
-	generateLayerTestMaterialsAndStructure(myMaterialsDB, myStructure);
-    setupPointMonitorLocationsBasic(myMaterialsDB, myStructure);
+
+	generateLayers(myMaterialsDB, myStructure);
+    setupPointMonitorLocations(myMaterialsDB, myStructure);
 	/// VERY Early termination
 	//printf("!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!: VERY Early Termination\n"); exit(-1);
 
@@ -160,14 +158,14 @@ int main()
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	
-	monitorZlocations.push_back(LHSsourceLayerThickness + 3e-6); // 3 microns in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 10e-6); // 10 microns in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 15e-6); // 10 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 3e-6); // 3 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 10e-6); // 10 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 15e-6); // 10 microns in plasma
 	//monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
 
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
-	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+	monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+	monitorZlocations.push_back(theStructure.getThickness() * 0.75);
 
 }
 

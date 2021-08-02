@@ -1,8 +1,16 @@
 #include "BPPE.h"
 #include "Structure.h"
+#include "createLayers.h"
+#include "physicalConstants.h"
 
 double sampleLayerThickness = 15.1e-6;
 int numLayersInSample = 1;
+
+
+void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
+{
+	generateLayerTestMaterialsAndStructure(theMaterialDB, theStructure);
+}
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
 {
@@ -13,11 +21,10 @@ void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structur
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
 	theMaterialDB.addMaterial(mat2);
 
+	double aLayerThickness = 10*microns;
+
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-	for (int i = 0; i < numLayersInSample; i++)
-	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-	}
+    theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), aLayerThickness, zStepMaterial1);
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }
 
