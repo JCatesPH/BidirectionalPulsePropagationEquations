@@ -9,7 +9,7 @@ int numLayersInSample = 1;
 
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	generateLayerTestMaterialsAndStructure(theMaterialDB, theStructure);
+	generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
 }
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
