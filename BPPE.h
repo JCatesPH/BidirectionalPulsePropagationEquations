@@ -49,7 +49,7 @@ const int ode_nmax = 1e6;
 const double hstart = 1e-8;
 
 //pulse parameters
-const double I_0 = 1.0; // 50.0e16;  //initial peak intensity [W / m^2]
+const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
 const double twoColorSH_amplitude = 0.0;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm
@@ -123,7 +123,6 @@ typedef struct {
 	double mpi_sigmaK, mpi_k;
 	complex<double> *k, *ee_p, *ee_m, *nl_k, *nl_p, *j_e;
 	fftw_plan nk_f, ep_b, em_b, np_f;
-
 }param_type;
 
 complex<double> index_0(double omg, double kx);
@@ -132,7 +131,7 @@ complex<double> index_1(double omg, double kx, FILE*fp);
 complex<double> index_2(double omg, double kx);
 complex<double> index_3(double omg, double kx);
 param_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
-void fill_omg_k(double*omg, double*kx, FILE*fp);
+void fill_omg_k(double*omg, double*kx);
 void writeInputEfield(std::complex<double>* ee_p);
 void writeInputSpectrum(std::complex<double>* yp_init);
 void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);

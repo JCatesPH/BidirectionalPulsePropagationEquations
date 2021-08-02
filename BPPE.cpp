@@ -10,6 +10,10 @@
 #include <iomanip> 
 #include <omp.h>
 #include <vector>
+#include <float.h>
+
+//#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
+//#define FFTW_WISDOM_TYPE FFTW_PATIENT
 
 double dtime = omp_get_wtime();
 using namespace std;
@@ -27,13 +31,16 @@ double *omegaArray, *timeValuesArray, *kx, *ne, *y;
 complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym0_init, *ym1_init, *ym1_temp, *f0, *f1, *integral, *nl_k, *nl_p, *j_e;
 fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 
-//double delMeSoon[12000];
-//double delMeSoon2[12000];
 int delmeFLAG = 0;
 
 int main()
 {	
-	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+	// feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#ifndef NDEBUG
+	_clearfp();
+	_controlfp(_controlfp(0, 0) & ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW),
+		_MCW_EM);
+#endif
 
 	if (VERBOSE >= 0) {
 		cout << "BPPE code - ACMS Ver.2" << endl;
@@ -78,6 +85,19 @@ int main()
 	integral = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
 
+
+#ifndef _WIN64
+	char wisdomFilePath[STRING_BUFFER_SIZE];
+	snprintf(wisdomFilePath, sizeof(char) * STRING_BUFFER_SIZE, "%smywisdomfile", SIM_DATA_OUTPUT);
+	printf("\t\tREADING mywisdomfile: %s \n", wisdomFilePath);
+    FILE* wisdomFile;
+	if ((wisdomFile = fopen(wisdomFilePath, "r")) == NULL) { printf("WARNING: mywisdomfile not found\n"); }
+	else {
+		printf("mywisdomfile found importing wisdom...\n");
+		//fftw_import_wisdom_from_file(wisdomFile);
+		fclose(wisdomFile);
+	}
+#endif
 
 	if (numDimensionsMinusOne == 1) {
 		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
@@ -128,11 +148,26 @@ int main()
 		intBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
 	}
 
-	FILE *fp;
-	//errno_t err;
-	fp = fopen("n.dat", "w");
-	fill_omg_k(omegaArray, kx, fp);
-	if (fp != NULL) { fclose(fp);  }
+
+#ifndef _WIN64
+	printf(" SAVING mywisdomfile...\n");
+	if ((wisdomFile = fopen(wisdomFilePath, "w")) == NULL){
+		printf("ERROR: CANNOT OPEN/ACCESS FILE - mywisdomfile\n");
+		exit(-1);
+	}
+	else {
+		//fftw_export_wisdom_to_file(wisdomFile);
+		fclose(wisdomFile);
+	}
+#endif
+
+	//FILE *fp;
+	////errno_t err;
+	//fp = fopen("n.dat", "w");
+
+
+	fill_omg_k(omegaArray, kx);
+	//if (fp != NULL) { fclose(fp);  }
 	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,f0,f1,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, integral);
 	
 	std::string reldatpath = SIM_DATA_OUTPUT;
@@ -205,6 +240,8 @@ void doNonlinearPartofBPPE()
 				params->chi_2 = lit->getMaterial().getChi2();
 				params->chi_3 = lit->getMaterial().getChi3();
 				params->doPlasmaCalc = lit->getMaterial().getdoPlasmaCalc();
+				params->mpi_k = lit->getMaterial().getmpi_k();
+				params->mpi_sigmaK = lit->getMaterial().getmpi_sigmaK();
 				zPosition = lit->getStartZpos();
 
 				if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
@@ -337,7 +374,7 @@ complex<double> index_3(double omg, double kx) {
 }
 
 
-void fill_omg_k(double*omg, double*kx, FILE*fp) {
+void fill_omg_k(double*omg, double*kx) {
 
 /*	if (numDimensionsMinusOne == 1) {
 	
@@ -700,7 +737,6 @@ param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, dou
 	r->ep_b = ep_b;
 	r->em_b = em_b;
 	r->np_f = np_f;
-	r->doPlasmaCalc = plasmaBool;
 }
 	else {
 		printf("Could not maloc space in fill_params()\n");
