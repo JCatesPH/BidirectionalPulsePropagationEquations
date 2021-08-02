@@ -174,7 +174,9 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 void doNonlinearPartofBPPE()
 {
-	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT);
+	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
+			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
+			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.begin()->getMaterial().getdoPlasmaCalc());
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
 	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
@@ -204,6 +206,7 @@ void doNonlinearPartofBPPE()
 				params->k = lit->getMaterial().getK();
 				params->chi_2 = lit->getMaterial().getChi2();
 				params->chi_3 = lit->getMaterial().getChi3();
+				params->doPlasmaCalc = lit->getMaterial().getdoPlasmaCalc();
 				zPosition = lit->getStartZpos();
 
 				if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
@@ -218,7 +221,7 @@ void doNonlinearPartofBPPE()
 					}
 					zStepSize = zRight - zPosition;
 					
-					integrate(zPosition, zStepSize, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+					integrate(zPosition, zStepSize, params, y, integral);
 					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
 					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
 					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
@@ -252,7 +255,7 @@ void doNonlinearPartofBPPE()
 						}
 					}
 				}
-				integrate(zPosition, zStepSize, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
+				integrate(zPosition, zStepSize, params, y, integral);
 				if (VERBOSE >= 3) {
 					cout << "Layer #" << lit->getlayerIDnum() << " ending z position: " << zPosition << endl;
 				}
@@ -679,7 +682,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 }
 
 
-param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, double* ne, complex<double>* j_e, complex<double>* k, complex<double>* ee_p, complex<double>* ee_m, complex<double>* nl_k, complex<double>* nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f) {
+param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, double* ne, complex<double>* j_e, complex<double>* k, complex<double>* ee_p, complex<double>* ee_m, complex<double>* nl_k, complex<double>* nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool) {
 
 	param_type* r = (param_type*)malloc(sizeof(param_type));
 	if (r != NULL)
@@ -699,6 +702,7 @@ param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, dou
 	r->ep_b = ep_b;
 	r->em_b = em_b;
 	r->np_f = np_f;
+	r->doPlasmaCalc = plasmaBool;
 }
 	else {
 		printf("Could not maloc space in fill_params()\n");
@@ -1069,16 +1073,6 @@ int func(double z, const double y[], double f[], void *params) {
 		p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
 	}
 
-//#pragma omp parallel for
-//	for (int i = 0; i <= num_tOver2; i++)
-//	{
-//		p->ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
-//	}
-//#pragma omp parallel for
-//	for (int i = 1; i < num_tOver2; i++)
-//	{
-//		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
-//	}
 
 	fftw_execute(p->ep_b);
 	fftw_execute(p->em_b);
@@ -1094,40 +1088,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 	fftw_execute(p->nk_f);
 	
-	if (plasmaOnOff == 1) {
-		double w;
-		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0*domain_t) / num_td;
-		p->rho[0] = rho_0;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			w = 4.0*mu_a*pow((u_Argon / u_Hydrogen), 2.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift)*exp(-2.0 / 3.0*pow((u_Argon / u_Hydrogen), 1.5) / (abs(real(p->ee_p[i] + p->ee_m[i])) / E_a + shift));
-			p->rho[i + 1] = p->rho[i] + ht * w*(num_atoms - p->rho[i]);
-		}
-
-		p->j_e[0] = j_e0;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			//p->j_e[i + 1] = (1.0 - ht / tauCollision)*p->j_e[i] + ht * pow(charge_e, 2) / mass_e * p->rho[i] * real(p->eFieldPlus[i] + p->eFieldMinus[i]);
-			p->j_e[i + 1] = p->j_e[i] * exp(-1.0*ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5*ht*(p->rho[i] * real(p->ee_p[i] + p->ee_m[i])*exp(-1.0*ht / tauCollision) + p->rho[i + 1] * real(p->ee_p[i + 1] + p->ee_m[i + 1]));
-		}
-	
-		// PUT MONITOR OUTPUTS HERE
-		// ////if (z == LHSsourceLayerThickness)
-		//if (z > myStructure.getThickness()/2 && currentIterationNumber == num_iterations)
-		//{
-		//	write_multicolumnMonitor(currentIterationNumber, z, p->ee_p, p->ee_m, p->rho, p->j_e); 
-		//	write_out_ne(currentIterationNumber, z, p->rho);
-		//    write_out_je(currentIterationNumber, p->j_e);
-		//	write_out_ee_p(currentIterationNumber, p->ee_p);
-		//	write_out_ee_m(currentIterationNumber, p->ee_m);
-		//	currentIterationNumber+=num_iterations*666;
-		//}
-
-		fftw_execute(p->np_f);
-	
-	}
-	else if (p->doPlasmaCalc == 2) {
+	if (p->doPlasmaCalc == 2) {
 
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
 		double ht = (2.0 * domain_t) / num_td;
@@ -1179,12 +1140,16 @@ int func(double z, const double y[], double f[], void *params) {
 		fftw_execute(p->np_f);
 
 	}
-	else {
+	else if (p->doPlasmaCalc == 0){
 #pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
 			p->nl_p[i] = 0.0;
 		}
+	}
+	else {
+		cout << "ERROR: Invalid plasma parameter passed to func." << endl;
+		exit(EXIT_FAILURE);
 	}
 		
 	for (int i = 0; i < freqLowerCutoff; i++) {
@@ -1212,70 +1177,47 @@ int func(double z, const double y[], double f[], void *params) {
 }
 
 
-void integrateStub(double z, double zStep, double chi_2, double chi_3, complex<double>* k) {
-	integrate(z, zStep, chi_2, chi_3, k, omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-}
-
-void integrate(double z, double zStep, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f) {
+void integrate(double z, double zStep, param_type *pars, double*y, complex<double>*integral) {
 	const int num_tOver2 = num_t / 2;
 
-#pragma omp parallel for	
+/* #pragma omp parallel for	
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		ee_p[i] = (y[i] + 1.0i*y[i + num_tOver2 + 1])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+		pars->ee_p[i] = (y[i] + 1.0i*y[i + num_tOver2 + 1])*exp(-1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
 	}
 
 #pragma omp parallel for	
 	for (int i = 1; i < num_tOver2; i++)
 	{
-		ee_p[num_t - i] = (y[i] - 1.0i*y[i + num_tOver2 + 1])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+		pars->ee_p[num_t - i] = (y[i] - 1.0i*y[i + num_tOver2 + 1])*exp(1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
 	}
 
 #pragma omp parallel for	
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+		pars->ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
 	}
 
 #pragma omp parallel for	
 	for (int i = 1; i < num_tOver2; i++)
 	{
-		ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(k[i])*z)*exp(-1.0*abs(imag(k[i]))*z);
+		pars->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
 	}
 
-	fftw_execute(ep_b);
-	fftw_execute(em_b);
+	fftw_execute(pars->ep_b);
+	fftw_execute(pars->em_b);
 
 #pragma omp parallel for	
 	for (int i = 0; i < num_t; i++)
 	{
-		ee_p[i] = ee_p[i] / (double(num_t));
-		ee_m[i] = ee_m[i] / (double(num_t));
-		nl_k[i] = chi_2 * pow(real(ee_p[i] + ee_m[i]), 2) + chi_3 * pow(real(ee_p[i] + ee_m[i]), 3);
-	}
-
-	fftw_execute(nk_f);
-
-	if (plasmaOnOff == 1) {
-		double wFactor;
-		double ht = (2.0*domain_t) / double(num_t);
-		ne[0] = rho_0;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			wFactor = 4.0*mu_a*pow((u_Argon / u_Hydrogen), 2.5) / (abs(real(ee_p[i]+ee_m[i])) / E_a + shift)*exp(-2.0 / 3.0*pow((u_Argon / u_Hydrogen), 1.5) / (abs(real(ee_p[i]+ee_m[i])) / E_a + shift));
-			ne[i + 1] = ne[i] + ht * wFactor*(num_atoms - ne[i]);
+		pars->ee_p[i] = pars->ee_p[i] / (double(num_t));
+		pars->ee_m[i] = pars->ee_m[i] / (double(num_t));
+		pars->nl_k[i] = pars->chi_2 * pow(real(pars->ee_p[i] + pars->ee_m[i]), 2) + pars->chi_3 * pow(real(pars->ee_p[i] + pars->ee_m[i]), 3);
 		}
 
-		j_e[0] = j_e0;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			//j_e[i + 1] = (1.0 - ht / tauCollision)*j_e[i] + ht * pow(charge_e, 2) / mass_e * rho[i] * (real(eFieldPlus[i]+eFieldMinus[i]));
-			j_e[i + 1] = j_e[i] * exp(-1.0*ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5*ht*(ne[i] * real(ee_p[i] + ee_m[i])*exp(-1.0*ht / tauCollision) + ne[i + 1] * real(ee_p[i + 1] + ee_m[i + 1]));
-		}
+	fftw_execute(pars->nk_f);
 	
-		fftw_execute(np_f);
-	}
-	else if (plasmaOnOff == 2) {
+	if (pars->doPlasmaCalc == 2) {
 		double ht = (2.0 * domain_t) / double(num_t);
 		double neutrals = num_atoms;                          // Neutral particles
 		double electrons = 0.0; 
@@ -1284,18 +1226,18 @@ void integrate(double z, double zStep, double chi_2, double chi_3, complex<doubl
 		double current_change = 0.0e0;                              // Current change for differential equation
 		double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
 
-		ne[0] = electrons;
+		pars->rho[0] = electrons;
 		for (int i = 0; i < num_t - 1; i++)
 		{
-			double fieldIntensity = ((pow(real(ee_p[i] + ee_m[i]), 2)) / Znaught);
-			change = neutrals * mpi_sigmaK * ht * pow(fieldIntensity, mpi_k);
+			double fieldIntensity = ((pow(real(pars->ee_p[i] + pars->ee_m[i]), 2)) / Znaught);
+			change = neutrals * pars->mpi_sigmaK * ht * pow(fieldIntensity, pars->mpi_k);
 			electrons += change;
 			neutrals -= change;
 			// Don't allow neutrals dip below zero
 			if (neutrals < 0.0) neutrals = 0.0;
 			if (electrons > num_atoms) electrons = num_atoms;
 
-			ne[i + 1] = electrons;
+			pars->rho[i + 1] = electrons;
 		}
 
 		j_e[0] = j_e0;
@@ -1306,30 +1248,34 @@ void integrate(double z, double zStep, double chi_2, double chi_3, complex<doubl
 			//  First order method	
 			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
 			// Second order method (Kolja)
-			fv2 = real(ee_p[i + 1] + ee_m[i + 1]);
+			fv2 = real(pars->ee_p[i + 1] + pars->ee_m[i + 1]);
 			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
 			fv1 = fv2;
 			current += current_change;
 			j_e[i + 1] = current;
 		}
 
-		fftw_execute(np_f);
+		fftw_execute(pars->np_f);
 	}
-	else {
+	else if (pars->doPlasmaCalc == 0) {
 		for (int i = 0; i < num_t; i++)
 		{
 			nl_p[i] = 0.0;
 		}
 	}
-
-	for (int i = 0; i <= num_t / 2; i++)
+	else {
+		cout << "ERROR: Invalid option passed for plasma calculation." << endl;
+		exit(EXIT_FAILURE);
+	}
+ */
+	for (int i = 0; i <= num_tOver2; i++)
 	{
 		if (i < freqLowerCutoff || i > freqUpperCutoff)
 		{
 			integral[i] = 0.0;
 		}
 		else {
-			integral[i] += (-1.0i*pow(omg[i], 2) / (2.0*(k[i])*pow(cLight, 2))*nl_k[i] - omg[i] / (2.0*(k[i])*pow(cLight, 2)*epsilon_0)*nl_p[i])* exp(-1.0i*real(k[i]) * z)*exp(-1.0*abs(imag(k[i]))*z)*zStepMaterial1;
+			integral[i] += (-1.0i*pow(pars->omega[i], 2) / (2.0*(pars->k[i])*pow(cLight, 2))*nl_k[i] - pars->omega[i] / (2.0*(pars->k[i])*pow(cLight, 2)*epsilon_0)*pars->nl_p[i])* exp(-1.0i*real(pars->k[i]) * z)*exp(-1.0*abs(imag(pars->k[i]))*z)*zStepMaterial1;
 		}
 	}
 	return;

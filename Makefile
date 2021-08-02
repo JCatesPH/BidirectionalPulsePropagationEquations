@@ -6,7 +6,7 @@ CXX = icc
 
 CPPFLAGS = -qopenmp -Wall -std=c++17 -fPIC -DMKL_ILP64 -m64 -I"${MKLROOT}/include" 
 #CPPFLAGS += -g  # activate debugging
-CPPFLAGS += -no-prec-div # approximate division, respectively
+#CPPFLAGS += -no-prec-div # approximate division
 
 #CPPFLAGS = -fopenmp -Wall -DMKL_ILP64 -mkl=parallel -I"${MKLROOT}/include" #-qopt-report -qopt-report-phase=openmp
 #LDFLAGS = -lm -lgsl -lstdc++ -lfftw3 -Wl,--no-as-needed -lmkl_cdft_core -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -L${MKLROOT}/lib/intel64 -ldl

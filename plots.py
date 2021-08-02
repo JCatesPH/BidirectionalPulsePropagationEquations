@@ -59,7 +59,7 @@ plt.grid(which='major')
 plt.legend()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Structure.png')
-
+plt.show()
 
 ######################################
 
@@ -72,16 +72,17 @@ inSpectrum = df.values
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(inSpectrum[:,0], inSpectrum[:,3], label=labstr)
+plt.semilogy(inSpectrum[:,0], inSpectrum[:,3]**2, 'r-', label=labstr)
 plt.title(r'Input Intensity Spectrum')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
+plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
 plt.xlim([0.0, np.max(inSpectrum[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/inSpectrum.png')
-#plt.show()
+plt.show()
 ######################################
 
 #%% Read in spectrum of transmitted pulse
@@ -94,17 +95,17 @@ print('dOmega = {:.2e}'.format(dOm))
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumT[:,0], eSpectrumT[:,3], label=labstr)
+plt.plot(eSpectrumT[:,0], eSpectrumT[:,3]**2, label=labstr)
 plt.title(r'Transmitted pulse spectrum')
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
-plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
 plt.xlim([0.0, np.max(eSpectrumT[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_transmitted.png')
-
+plt.show()
 
 
 #%% Read in spectrum of reflected pulse
@@ -115,16 +116,17 @@ eSpectrumR = df.values
 #%%
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumR[:,0], eSpectrumR[:,3], label=labstr)
+plt.plot(eSpectrumR[:,0], eSpectrumR[:,3]**2, label=labstr)
 plt.title(r'Reflected pulse spectrum')
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega$')
-plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
 plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_reflected.png')
+plt.show()
 
 ######################################
 
@@ -135,20 +137,20 @@ halfT = int(eSpectrumT.shape[0]/2)
 
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.semilogy(eSpectrumT[:halfT,0], eSpectrumT[:halfT,3], '-b', 
-    eSpectrumR[:halfR,0], eSpectrumR[:halfR,3], '-r',
+plt.semilogy(eSpectrumT[:halfT,0], eSpectrumT[:halfT,3]**2, '-b', 
+    eSpectrumR[:halfR,0], eSpectrumR[:halfR,3]**2, '-r',
     #inSpectrum[:halfR,0], inSpectrum[:halfR,3], '--k',
     )
 plt.title(r'Transmitted and reflected pulse spectra')
 plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
 plt.legend(['Transmitted', 'Reflected'])
 plt.xlabel(r'$\omega$')
-plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.margins(x=0)
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_both.png')
-#plt.show()
+plt.show()
 
 ####################################################################
 ####################################################################
@@ -180,10 +182,13 @@ for pointmon in pmon_li:
         names=['t [s]', 'Re(Ept) [V/m]', 'Im(Ept) [V/m]', 'Re(Emt) [V/m]', 'Im(Emt) [V/m]', 'Ne', 'Je']
         )
 
+    # Round the plasma density to make cleaner plots
+    neVec = df['Ne'].values
+    neVec = np.where(neVec < 1e-9, 1e-9, neVec)
     # Plot the plasma density
     plt.clf()
     plt.figure(figsize=(8, 6))
-    plt.semilogy(df['t [s]'], df['Ne'])
+    plt.semilogy(df['t [s]'], neVec)
     plt.title(r'Electron density at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
@@ -252,11 +257,11 @@ for pointmon in pmon_li:
 
     # Plot forward-prop spectrum
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen]), label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen])**2, label=labstr)
     plt.title(r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
     plt.xlabel(r'$\omega$')
-    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
     plt.xlim([0.0, np.max(omeg)])
@@ -267,25 +272,26 @@ for pointmon in pmon_li:
 
     # Plot forward spectrum in THz
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen]), 'b-o', label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen])**2, 'b-o', label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
     plt.xlabel(r'$\omega$')
-    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
     plt.xlim([0.0, 200e12])
+    plt.ylim([1e-6, 1])
     plt.margins(x=0)
     plt.tight_layout()
-    plt.savefig(pathhead + '/figs/Ew_fwd_THz_' + zm + '.png')
+    #plt.savefig(pathhead + '/figs/Ew_fwd_THz_' + zm + '.png')
 
     # Plot backward-prop spectrum
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmM[:halflen]), label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmM[:halflen])**2, label=labstr)
     plt.title(r'Backward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
     plt.xlabel(r'$\omega$')
-    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
     plt.xlim([0.0, np.max(omeg)])
@@ -296,11 +302,11 @@ for pointmon in pmon_li:
 
     # Plot total spectrum
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen])**2, label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
     plt.xlabel(r'$\omega$')
-    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
     plt.xlim([0.0, np.max(omeg)])
@@ -312,17 +318,54 @@ for pointmon in pmon_li:
 
     # Plot total spectrum in THz
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen]), 'b-o', label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen])**2, 'b-o', label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
     plt.xlabel(r'$\omega$')
-    plt.ylabel(r'$|E(\omega)|$ [V$\cdot$s/m]')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
     plt.xlim([0.0, 100e12])
+    plt.ylim([1e-6, 1])
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ew_total_THz_' + zm + '.png')
+    #plt.show()
+
+    # Plot the plasma density and EtP
+    fig, ax1 = plt.subplots(figsize=(8, 6))
+
+    ax2 = ax1.twinx()
+
+    ax1.semilogy(df['t [s]'], neVec)
+    ax1.set_title(r'Electron density and forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    ax1.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+    ax1.set_xlabel(r'$t$ [s]')
+    ax1.grid(which='major')
+    ax1.margins(x=0)
+
+    ax2.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-r')
+    ax2.set_ylabel(r'Re[$E(t)$] [V/m]')
+
+    plt.savefig(pathhead + '/figs/Ne_EtP_' + zm + 'nm.png')
+    plt.show()
+
+    # Plot total and forward spectrum in THz
+    plt.clf()
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmP[:halflen])**2, 'b-o', label='fwd; ' + labstr)
+    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen])**2, 'r-o', label='total; ' + labstr)
+    plt.title(r'Both spectra at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
+    plt.xlabel(r'$\omega$')
+    plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
+    plt.grid(which='major')
+    plt.legend()
+    plt.xlim([0.0, 100e12])
+    plt.ylim([1e-6, 1])
+    plt.margins(x=0)
+    plt.tight_layout()
+    plt.savefig(pathhead + '/figs/Ew_total_THz_' + zm + '.png')
+    #plt.show()
 
 
 #%% Read in forward-propagating pulse
