@@ -131,7 +131,7 @@ void doNonlinearPartofBPPE();
 complex<double> index_1(double omg, double kx, FILE*fp);
 complex<double> index_2(double omg, double kx);
 complex<double> index_3(double omg, double kx);
-param_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f);
+param_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
 void fill_omg_k(double*omg, double*kx, FILE*fp);
 void writeInputEfield(std::complex<double>* ee_p);
 void writeInputSpectrum(std::complex<double>* yp_init);
@@ -154,7 +154,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 void am_to_zero(double*y);
 int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral);
 int func(double z, const double y[], double f[], void *params);
-void integrate(double z, double zStep, double chi_2, double chi_3, complex<double>*k, double*omg, double*ne, complex<double>*j_e, double*y, complex<double>*integral, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan ep_b, fftw_plan em_b, fftw_plan nk_f, fftw_plan np_f);
+void integrate(double z, double zStep, param_type *params, double*y, complex<double>*integral);
 void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_out_ne(int j, double zPos, double* ne);
 void write_out_je(int j, complex<double>*j_e);
