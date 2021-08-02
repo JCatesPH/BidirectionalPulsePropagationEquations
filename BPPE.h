@@ -37,7 +37,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 // Simulation parameters
 
-const int num_Threads = 16; // numnber of OpenMP threads
+const int num_Threads = 4; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const double zStepMaterial1 = 0.1 * microns; // Step for integration
@@ -49,7 +49,7 @@ const int ode_nmax = 1e6;
 const double hstart = 1e-8;
 
 //pulse parameters
-const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
+const double I_0 = 1.0; // 50.0e16;  //initial peak intensity [W / m^2]
 const double twoColorSH_amplitude = 0.0;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
 const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
 const double tau = 50.0e-15; //pulse duration fwhm
@@ -70,7 +70,7 @@ const double FUDGE_FACTOR = 1.0;
 const double Znaught = FUDGE_FACTOR * (1.0 / (epsilon_0 * cLight));
 
 // domain parameters
-const int num_t = int(pow(2, 17)); //number of time points
+const int num_t = int(pow(2, 16)); //number of time points
 const int num_x = int(pow(2, 6)); //number of x points
 const double domain_t = 2000e-15; //time domain
 const double domain_x = 125.0e-6; //x domain
@@ -142,11 +142,8 @@ void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_i
 void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym0_init, double*y, complex<double>*integral);
 void writeSimParameters();
-void generateApp1MaterialsAndStructure(MaterialDB &myMaterialsDB, Structure &theStructure);
-void generateLayerTestMaterialsAndStructure(MaterialDB &myMaterialsDB, Structure &theStructure);
-void generateDefectMaterialsAndStructure(MaterialDB& myMaterialsDB, Structure& theStructure);
-void generatePlasmaTestMaterialsAndStructure(MaterialDB& myMaterialsDB, Structure& theStructure);
-void setupPointMonitorLocationsBasic(MaterialDB& myMaterialsDB, Structure& theStructure);
+void generateLayers(MaterialDB &myMaterialsDB, Structure &theStructure);
+void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructure);
 void setupPointMonitorLocationsPlasma(MaterialDB& myMaterialsDB, Structure& theStructure);
 void set_guess(complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , double* , fftw_plan , complex<double>* , fftw_plan , fftw_plan , complex<double>* );
 
