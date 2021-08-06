@@ -81,12 +81,17 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
 
-	Material plasmaMat("PlasmaMat", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
+	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	theMaterialDB.addMaterial(argon);
+
+	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(plasmaMat);
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
 	
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Argon"), sampleLayerThickness, zStepMaterial1);
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness, zStepMaterial1);
 	theStructure.addLayer(theMaterialDB.getMaterialByName("PlasmaMat"), sampleLayerThickness, zStepMaterial1);
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);

@@ -88,8 +88,8 @@ const double RHSbufferLayerThickness = 10.0 * microns; //distance from slab to r
 
 // Predefine a few common material parameters
 const double n0_Vacuum = 1.0; //central index in material 0
-const double n0_Argon = 1.000281;
-const double n2_Argon = 0.0; //1.0e-19; //nonlinear index in material 1
+const double n0_Argon = 1.00026436; // For 1.0 um, from https://refractiveindex.info/?shelf=main&book=Ar&page=Peck-15C
+const double n2_Argon = 5.0e-20; //nonlinear index in material 1
 const double chi3_Argon = (4 / 3) * epsilon_0 * cLight * pow(n0_Argon, 2) * n2_Argon;
 const double chi2_Argon = 0.0;
 const double n0_Material1 = 1.25; //1.5; //central index in material 1
@@ -125,11 +125,7 @@ typedef struct {
 	fftw_plan nk_f, ep_b, em_b, np_f;
 }param_type;
 
-complex<double> index_0(double omg, double kx);
 void doNonlinearPartofBPPE();
-complex<double> index_1(double omg, double kx, FILE*fp);
-complex<double> index_2(double omg, double kx);
-complex<double> index_3(double omg, double kx);
 param_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
 void fill_omg_k(double*omg, double*kx);
 void writeInputEfield(std::complex<double>* ee_p);
@@ -143,9 +139,7 @@ void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*y
 void writeSimParameters();
 void generateLayers(MaterialDB &myMaterialsDB, Structure &theStructure);
 void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructure);
-void setupPointMonitorLocationsPlasma(MaterialDB& myMaterialsDB, Structure& theStructure);
 void set_guess(complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , double* , fftw_plan , complex<double>* , fftw_plan , fftw_plan , complex<double>* );
-
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
 void am_to_zero(double*y);
 int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral);

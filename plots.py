@@ -5,6 +5,7 @@ import math
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+#%matplotlib widget
 
 if len(sys.argv) > 1:
     pathhead = str(sys.argv[1])
@@ -13,13 +14,15 @@ else:
 if len(sys.argv) > 2:
     itnum = str(sys.argv[2])
 else:
-    itnum = '5'
+    itnum = '4'
 
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     pathhead = 'DATA'
     itnum = '5'
+
+#plt.ion()
 ######################################
 
 
@@ -35,6 +38,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
+nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
 sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1]
 
 labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)
@@ -48,8 +52,8 @@ df = pd.read_table(pathhead + '/Structure.dat',
 structure = df.values
 
 #%% Plot structure indices
+plt.figure(1, figsize=(8, 6))
 plt.clf()
-plt.figure(figsize=(8, 6))
 plt.plot(structure[:,0], structure[:,2], label=r'n_0')
 plt.plot(structure[:,0], structure[:,3], label=r'n_2')
 plt.title(r'Structure')
@@ -64,22 +68,43 @@ plt.show()
 ######################################
 
 
+#%% Read in input pulse in time domain
+df = pd.read_table(pathhead + '/InputEfield_1D.dat', header=0)
+eFieldIn = df.values
+
+#%%
+plt.figure(2, figsize=(8, 6))
+plt.clf()
+plt.plot(eFieldIn[:,0], eFieldIn[:,1], 'b-o')
+plt.title(r'Incident pulse')
+plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.xlabel(r'$t$ [s]')
+plt.ylabel(r'$E(t)$ [V/m]')
+plt.grid(which='major')
+
+plt.tight_layout()
+plt.savefig(pathhead + '/figs/Input_Et.png')
+plt.show()
+
+
 #%% Read in input spectrum
 df = pd.read_table(pathhead + '/InputSpectrum_1D.dat', header=0)
 inSpectrum = df.values
 
+halfIn = int(inSpectrum.shape[0]/2)
 
 #%%
+plt.figure(3, figsize=(8, 6))
 plt.clf()
-plt.figure(figsize=(8, 6))
-plt.semilogy(inSpectrum[:,0], inSpectrum[:,3]**2, 'r-', label=labstr)
+plt.semilogy(inSpectrum[:halfIn,0]/omeg0, inSpectrum[:halfIn,3]**2, 'r-', label=labstr)
 plt.title(r'Input Intensity Spectrum')
-plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega$')
+#plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
-plt.xlim([0.0, np.max(inSpectrum[:,0])])
+plt.margins(x=0)
+plt.minorticks_on()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/inSpectrum.png')
 plt.show()
@@ -89,20 +114,24 @@ plt.show()
 df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Transmitted.dat', header=0)
 eSpectrumT = df.values
 
+halfT = int(eSpectrumT.shape[0]/2)
+
 dOm = abs(eSpectrumT[1,0] - eSpectrumT[0,0])
 print('dOmega = {:.2e}'.format(dOm))
 
 #%%
+plt.figure(4, figsize=(8, 6))
 plt.clf()
-plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumT[:,0], eSpectrumT[:,3]**2, label=labstr)
+plt.semilogy(eSpectrumT[:halfT,0]/omeg0, eSpectrumT[:halfT,3]**2, label=labstr)
 plt.title(r'Transmitted pulse spectrum')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega$')
+#plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
-plt.xlim([0.0, np.max(eSpectrumT[:,0])])
+plt.margins(x=0)
+plt.minorticks_on()
+#plt.xlim([0.0, np.max(eSpectrumT[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_transmitted.png')
 plt.show()
@@ -112,18 +141,21 @@ plt.show()
 df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Reflected.dat', header=0)
 eSpectrumR = df.values
 
+halfR = int(eSpectrumR.shape[0]/2)
 
 #%%
+plt.figure(5, figsize=(8, 6))
 plt.clf()
-plt.figure(figsize=(8, 6))
-plt.plot(eSpectrumR[:,0], eSpectrumR[:,3]**2, label=labstr)
+plt.semilogy(eSpectrumR[:halfR,0]/omeg0, eSpectrumR[:halfR,3]**2, label=labstr)
 plt.title(r'Reflected pulse spectrum')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega$')
+#plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.legend()
-plt.xlim([0.0, np.max(eSpectrumR[:,0])])
+plt.margins(x=0)
+plt.minorticks_on()
+#plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_reflected.png')
 plt.show()
@@ -132,22 +164,20 @@ plt.show()
 
 
 #%% Overlay transmitted and reflected spectra
-halfR = int(eSpectrumR.shape[0]/2)
-halfT = int(eSpectrumT.shape[0]/2)
-
+plt.figure(6, figsize=(8, 6))
 plt.clf()
-plt.figure(figsize=(8, 6))
-plt.semilogy(eSpectrumT[:halfT,0], eSpectrumT[:halfT,3]**2, '-b', 
-    eSpectrumR[:halfR,0], eSpectrumR[:halfR,3]**2, '-r',
+plt.semilogy(eSpectrumT[:halfT,0]/omeg0, eSpectrumT[:halfT,3]**2, '-b', 
+    eSpectrumR[:halfR,0]/omeg0, eSpectrumR[:halfR,3]**2, '-r',
     #inSpectrum[:halfR,0], inSpectrum[:halfR,3], '--k',
     )
 plt.title(r'Transmitted and reflected pulse spectra')
-plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
+#plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
 plt.legend(['Transmitted', 'Reflected'])
-plt.xlabel(r'$\omega$')
+plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
 plt.grid(which='major')
 plt.margins(x=0)
+plt.minorticks_on()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_both.png')
 plt.show()
@@ -186,14 +216,15 @@ for pointmon in pmon_li:
     neVec = df['Ne'].values
     neVec = np.where(neVec < 1e-9, 1e-9, neVec)
     # Plot the plasma density
+    plt.figure(7, figsize=(8, 6))
     plt.clf()
-    plt.figure(figsize=(8, 6))
     plt.semilogy(df['t [s]'], neVec)
     plt.title(r'Electron density at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.grid(which='major')
     plt.margins(x=0)
+    plt.minorticks_on()
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ne_' + zm + 'nm.png')
     #plt.show()
@@ -263,6 +294,7 @@ for pointmon in pmon_li:
     plt.xlabel(r'$\omega$')
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
+    plt.minorticks_on()
     plt.legend()
     plt.xlim([0.0, np.max(omeg)])
     plt.margins(x=0)
@@ -278,6 +310,7 @@ for pointmon in pmon_li:
     plt.xlabel(r'$\omega$')
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
+    plt.minorticks_on()
     plt.legend()
     plt.xlim([0.0, 200e12])
     plt.ylim([1e-6, 1])
@@ -293,6 +326,7 @@ for pointmon in pmon_li:
     plt.xlabel(r'$\omega$')
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
+    plt.minorticks_on()
     plt.legend()
     plt.xlim([0.0, np.max(omeg)])
     plt.margins(x=0)
@@ -302,14 +336,15 @@ for pointmon in pmon_li:
 
     # Plot total spectrum
     plt.clf()
-    plt.semilogy(eSpectrumT[:halflen,0], np.abs(eOmTotal[:halflen])**2, label=labstr)
+    plt.semilogy(eSpectrumT[:halflen,0]/omeg0, np.abs(eOmTotal[:halflen])**2, label=labstr)
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
-    plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
-    plt.xlabel(r'$\omega$')
+    #plt.ticklabel_format(axis='x', style='sci', scilimits=(15,15))
+    plt.xlabel(r'$\omega/\omega_0$')
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
+    plt.minorticks_on()
     plt.legend()
-    plt.xlim([0.0, np.max(omeg)])
+    #plt.xlim([0.0, np.max(omeg)])
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ew_total_' + zm + '.png')
@@ -322,6 +357,7 @@ for pointmon in pmon_li:
     plt.title(r'Total spectrum at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='x', style='sci', scilimits=(12,12))
     plt.xlabel(r'$\omega$')
+    plt.minorticks_on()
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
     plt.legend()
@@ -337,15 +373,16 @@ for pointmon in pmon_li:
 
     ax2 = ax1.twinx()
 
+    ax2.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-r')
+    ax2.set_ylabel(r'Re[$E(t)$] [V/m]')
+
     ax1.semilogy(df['t [s]'], neVec)
     ax1.set_title(r'Electron density and forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     ax1.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     ax1.set_xlabel(r'$t$ [s]')
+    ax1.set_ylabel(r'$N_e$')
     ax1.grid(which='major')
     ax1.margins(x=0)
-
-    ax2.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-r')
-    ax2.set_ylabel(r'Re[$E(t)$] [V/m]')
 
     plt.savefig(pathhead + '/figs/Ne_EtP_' + zm + 'nm.png')
     plt.show()
@@ -359,6 +396,7 @@ for pointmon in pmon_li:
     plt.xlabel(r'$\omega$')
     plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
     plt.grid(which='major')
+    plt.minorticks_on()
     plt.legend()
     plt.xlim([0.0, 100e12])
     plt.ylim([1e-6, 1])
@@ -385,21 +423,6 @@ plt.grid(which='major')
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Et_transmitted.png')
 
-#%%
-idx1 = int(eFieldT.shape[0] / 2 - eFieldT.shape[0] / 20)
-idx2 = int(eFieldT.shape[0] / 2 + eFieldT.shape[0] / 20)
-plt.clf()
-plt.figure(figsize=(8, 6))
-plt.plot(eFieldT[idx1:idx2,0], eFieldT[idx1:idx2,1])
-plt.title(r'Forward-propagating pulse')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$t$ [s]')
-plt.ylabel(r'$E(t)$ [V/m]')
-plt.grid(which='major')
-#plt.show()
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/Et_transmitted_zoomed.png')
-######################################
 
 
 #%% Read in backward-propagating pulse
@@ -419,22 +442,6 @@ plt.grid(which='major')
 plt.tight_layout()
 #plt.show()
 plt.savefig(pathhead + '/figs/Et_reflected.png')
-
-#%%
-idx1 = int(eFieldR.shape[0] / 2 - eFieldR.shape[0] / 20)
-idx2 = int(eFieldR.shape[0] / 2 + eFieldR.shape[0] / 20)
-plt.clf()
-plt.figure(figsize=(8, 6))
-plt.plot(eFieldR[idx1:idx2,0], eFieldR[idx1:idx2,1])
-plt.title(r'Backward-propagating pulse')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$t$ [s]')
-plt.ylabel(r'$E(t)$ [V/m]')
-plt.grid(which='major')
-#plt.show()
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/Et_reflected_zoomed.png')
-######################################
 
 
 

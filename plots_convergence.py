@@ -24,7 +24,7 @@ for itnum in z_it:
     #df = pd.read_table('DATA/Spectrum_iteration_' + str(itnum) + '_Transmitted.dat', header=0)
     eSpectrumT = df.values
     idx1 = 0
-    idx2 = int(eSpectrumT.shape[0] / 20)
+    idx2 = int(eSpectrumT.shape[0] / 5)
     ax.plot(eSpectrumT[idx1:idx2,0], np.log10(eSpectrumT[idx1:idx2,3]), zs=itnum, zdir='y')
     print('itnum = {:}, max(|E|) = {:.2f}'.format(itnum, np.max(eSpectrumT[:,3])))
 
@@ -37,6 +37,7 @@ ax.set_title('Transmitted spectrum convergence')
 plt.tight_layout()
 #plt.show()
 plt.savefig(pathhead + '/figs/EwT_convergence.png')
+plt.show()
 ######################################
 
 #%%
@@ -71,7 +72,7 @@ for itnum in z_it:
     #df = pd.read_table('DATA/Spectrum_iteration_' + str(itnum) + '_Transmitted.dat', header=0)
     eSpectrumT = df.values
     idx1 = 0
-    idx2 = int(eSpectrumT.shape[0] / 20)
+    idx2 = int(eSpectrumT.shape[0] / 5)
     ax.plot(eSpectrumT[idx1:idx2,0], np.log10(eSpectrumT[idx1:idx2,3]))
 
     ax.set_title(r'Transmitted $|E(\omega)|$, Iteration {:}'.format(itnum))
@@ -80,6 +81,8 @@ for itnum in z_it:
 
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/EwT_it{:}.png'.format(itnum))
+
+plt.show()
 
 ######################################
 

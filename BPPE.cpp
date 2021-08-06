@@ -11,9 +11,10 @@
 #include <omp.h>
 #include <vector>
 #include <float.h>
+#include <ctime>
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
-//#define FFTW_WISDOM_TYPE FFTW_PATIENT
+#define FFTW_WISDOM_TYPE FFTW_PATIENT
 
 double dtime = omp_get_wtime();
 using namespace std;
@@ -36,14 +37,19 @@ int delmeFLAG = 0;
 int main()
 {	
 	// feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#ifdef _WIN64
 #ifndef NDEBUG
 	_clearfp();
 	_controlfp(_controlfp(0, 0) & ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW),
 		_MCW_EM);
 #endif
+#endif 
+	time_t now = time(0);
+	char *datetime = ctime(&now);
 
 	if (VERBOSE >= 0) {
 		cout << "BPPE code - ACMS Ver.2" << endl;
+		cout << "The current date and time: " << datetime << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
 		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
 	}
@@ -66,15 +72,6 @@ int main()
 	//printf("!!!!!!!!!!!!!!!!WARNING!!!!!!!!!!!!!!!!: VERY Early Termination\n"); exit(-1);
 
 	printf("Structure generated and point monitor locations set..\n");
-
-	// k_0 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	//k_0 = myMaterialsDB.getMaterialByName("Vacuum")->mallocK(numActiveOmega);
-	//k_1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	//k_1 = myMaterialsDB.getMaterialByName("dieMat1")->mallocK(numActiveOmega);
-	//k_2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	//k_2 = myMaterialsDB.getMaterialByName("dieMat2")->mallocK(numActiveOmega);
-	//k_3 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	//k_3 = myMaterialsDB.getMaterialByName("Vacuum")->mallocK(numActiveOmega);
 	
 	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	ym0_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
@@ -87,6 +84,7 @@ int main()
 
 
 #ifndef _WIN64
+	fftw_import_system_wisdom();
 	char wisdomFilePath[STRING_BUFFER_SIZE];
 	snprintf(wisdomFilePath, sizeof(char) * STRING_BUFFER_SIZE, "%smywisdomfile", SIM_DATA_OUTPUT);
 	printf("\t\tREADING mywisdomfile: %s \n", wisdomFilePath);
@@ -94,7 +92,7 @@ int main()
 	if ((wisdomFile = fopen(wisdomFilePath, "r")) == NULL) { printf("WARNING: mywisdomfile not found\n"); }
 	else {
 		printf("mywisdomfile found importing wisdom...\n");
-		//fftw_import_wisdom_from_file(wisdomFile);
+		fftw_import_wisdom_from_file(wisdomFile);
 		fclose(wisdomFile);
 	}
 #endif
@@ -109,13 +107,13 @@ int main()
 		kx = (double*)malloc(sizeof(double)*numActiveOmega);
 		omegaArray = (double*)malloc(sizeof(double)*numActiveOmega);
 
-		nkForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		eFieldPlusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
-		eFieldPlusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		npForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		eFieldMinusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
-		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		intBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		nkForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		npForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		intBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	}
 	else {
 		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
@@ -139,13 +137,13 @@ int main()
 		omegaArray = (double*)malloc(sizeof(double)*num_t);
 		kx = NULL;
 	
-		nkForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		eFieldPlusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
-		eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		npForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		eFieldMinusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
-		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_ESTIMATE);
-		intBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_ESTIMATE);
+		nkForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		npForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		intBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	}
 
 
@@ -156,7 +154,7 @@ int main()
 		exit(-1);
 	}
 	else {
-		//fftw_export_wisdom_to_file(wisdomFile);
+		fftw_export_wisdom_to_file(wisdomFile);
 		fclose(wisdomFile);
 	}
 #endif
@@ -259,7 +257,10 @@ void doNonlinearPartofBPPE()
 					integrate(zPosition, zStepSize, params, y, integral);
 					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
 					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
-					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
+					
+					if (VERBOSE >= 6) {
+						printf("step # = %d,  z = %.5g\n", aZstep, zPosition);
+					}
 
 					if (GSLerrorFlag == GSL_EMAXITER) {
 						printf("######## ERROR #######: GSL driver returned GSL_EMAXITER. The maximum number of steps is set to %d.\n", ode_nmax);
@@ -277,7 +278,6 @@ void doNonlinearPartofBPPE()
 						printf("error: driver returned %d\n", GSLerrorFlag);
 						break;
 					}
-					if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
 					// PUT MONITOR OUTPUTS HERE
 					if (Iteration_number == num_iterations)
 					{
@@ -372,7 +372,6 @@ complex<double> index_3(double omg, double kx) {
 
 	return n0_Material3;
 }
-
 
 void fill_omg_k(double*omg, double*kx) {
 
@@ -504,12 +503,7 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
 			//fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));		// COLM export in one column format
 			//fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g\n", (M_PI / domain_t)* i, real(yp_init[i]), imag(yp_init[i]));		// COLM input spectrum output
-			if (i < numActiveOmega / 2) {
-				fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
-			}
-			else {
-				fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * (i - numActiveOmega), real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
-			}
+			fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
 			// COLM outputing abs(Sp) too
 #ifdef WRITE_OUT_REFLECTANCE																																						// COLM make a backup of input spectrum to calculate reflectance later on
 			eFieldPlusBACKUPCOLM[i] = yp_init[i];
@@ -665,7 +659,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 	for (int bb = 1; bb < 3; bb++)
 	{
 		if (VERBOSE >= 7) { cout << "bb = " << bb << endl; }
-		write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, ee_m, myMaterialsDB.getMaterialByName("Vacuum")->getK(), em_b);
+		write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, ee_m, myStructure.m_layers.front().getMaterial().getK(), em_b);
 
 #ifdef	USE_CPP_BOUNDARY
 		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers" << endl; }
@@ -858,20 +852,6 @@ void writeSimParameters()
 
 
 
-void setupPointMonitorLocationsPlasma(MaterialDB& theMaterialDB, Structure& theStructure)
-{
-	#ifdef BERGEREP
-	monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 5e-4); // 0.5 mm in plasma
-	monitorZlocations.push_back(LHSsourceLayerThickness + 1e-3); // 1 mm in plasma
-	#else
-		monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.5);
-		monitorZlocations.push_back(theStructure.getThickness() * 0.75);
-	#endif
-}
-
-
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b) {
 
 	char efieldFilePathName[STRING_BUFFER_SIZE];
@@ -924,10 +904,10 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		{
 			//fprintf(fp2, "%g \t %+.17g \t %+.17g\t %+.17g\n", (M_PI/domain_t)*i, real(ee[i]), imag(ee[i]), abs(ee[i]));		// COLM export in one column format
 			if (i < num_t / 2) {
-				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * i, real(ee[i]), imag(ee[i]), abs(ee[i]));
+				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * i, real(ee[i]), imag(ee[i]), abs(ee[i]));
 			}
 			else {
-				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (M_PI / domain_t) * (i - num_t), real(ee[i]), imag(ee[i]), abs(ee[i]));
+				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * (i - num_t), real(ee[i]), imag(ee[i]), abs(ee[i]));
 			}
 		}
 	}
@@ -1125,7 +1105,7 @@ int func(double z, const double y[], double f[], void *params) {
 	if (p->doPlasmaCalc == 2) {
 
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-		double ht = (2.0 * domain_t) / num_td;
+		double ht = domain_t / num_td;
 		double neutrals = num_atoms;                          // Neutral particles
 		double electrons = 0.0;                      // background Electrons
 		double change = 0.0;    
@@ -1329,7 +1309,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 	{
 		fprintf(fp, "# Algorithm iteration number %d  at Moitor zPosition %.17g[micron]  \n", iterationNo,  theZpos*1e6);
 		fprintf(fp, "# time [sec]\t\tReEtP[V/m]\t\tImEtP[V/m]\t\tReEtM[V/m]\t\tImEtM[V/m]\t\tNumberElectrons\t\tCurrent\n");
-		double dt = (2.0 * domain_t) / double(num_t);
+		double dt = domain_t / double(num_t);
 		for (int i = 0; i < num_t; i++)
 		{
 			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), imag(eep[i]), real(eem[i]), imag(eep[i]), ne[i], real(j_e[i]));
