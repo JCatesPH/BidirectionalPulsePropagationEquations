@@ -25,7 +25,7 @@ private:
 	int m_doPlasmaCalc = 0;
 	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0;
 
-	complex<double>* m_k=nullptr;
+	//complex<double>* m_k=nullptr;
 	int m_numActiveOmega = 0;
 public:
 	Material() : m_name("Undefined Material"), m_n0(0.0), m_n2(0.0), m_chi_2(666.666), m_chi_3(333.333) {}
@@ -39,6 +39,8 @@ public:
 		ss << " ]";
 		m_matInfoAsString.append(ss.str());
 	}
+
+	complex<double>* m_k=nullptr;
 
 	void setName(string aName) { m_name = aName; }
 	string getName() { return m_name; }

@@ -3,7 +3,7 @@
 #include "createLayers.h"
 #include "physicalConstants.h"
 
-double sampleLayerThickness = 15.1e-6;
+//double sampleLayerThickness = 1.4e-6;
 int numLayersInSample = 1;
 
 
@@ -78,14 +78,16 @@ void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& t
 
 void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
 {
+	cout << sampleLayerThickness << endl;
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
 
 	Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	argon.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	theMaterialDB.addMaterial(argon);
 
-	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
+	Material plasmaMat("PlasmaMat", 1.0, n2_Material1, chi2_Material1, chi3_Material1);
+	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	theMaterialDB.addMaterial(plasmaMat);
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
