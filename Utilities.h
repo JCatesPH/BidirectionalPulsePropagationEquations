@@ -1,31 +1,9 @@
 #pragma once
 
-#ifdef _WIN64
-#include <direct.h>
-#define GetCurrentDir _getcwd
-#else
-#include <unistd.h>
-#define GetCurrentDir getcwd
-#endif
-
-#include <iostream>
-
 using namespace std;
 
-
-#ifdef _WIN32
-const char *SIM_DATA_OUTPUT=".\\DATA\\";
-#endif
-
-#ifdef __unix__
-const char *SIM_DATA_OUTPUT="./DATA/";
-#endif
-
-int VERBOSE = 6;
-
-std::string get_current_dir() {
-	char buff[FILENAME_MAX]; //create string buffer to hold path
-	GetCurrentDir(buff, FILENAME_MAX);
-	string current_working_dir(buff);
-	return current_working_dir;
-}
+std::string get_current_dir();
+char *readParmetersFileToBuffer(char *paramFilePath);
+int getIntParameterValueByName(char *paramName);
+int getStringParameterValueByName(char *paramName, char *stringBuffer);
+double getDoubleParameterValueByName(char *paramName);

@@ -13,7 +13,7 @@ CPPFLAGS = -qopenmp -Wall -std=c++17 -fPIC -DMKL_ILP64 -m64 -I"${MKLROOT}/includ
 #LDFLAGS = -qopenmp -lfftw3 -liomp5 -L${MKLROOT}/lib/intel64 -lpthread -lm -ldl -lgsl
 LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -lgsl -lm -ldl
 
-OBJFILES = BPPE.o Materials.o Structure.o createLayers.o
+OBJFILES = BPPE.o Materials.o Structure.o createLayers.o Utilities.o
 TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
 
