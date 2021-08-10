@@ -16,7 +16,7 @@ class Material
 {
 private:
 	string m_name;
-	size_t m_idNum;
+	size_t m_idNum = -666;
 	string m_matInfoAsString;
 	double m_n0 = 0.0;
 	double m_n2;
