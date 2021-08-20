@@ -63,7 +63,7 @@ plt.grid(which='major')
 plt.legend()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Structure.png')
-plt.show()
+#plt.show()
 
 ######################################
 
@@ -84,7 +84,7 @@ plt.grid(which='major')
 
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Input_Et.png')
-plt.show()
+#plt.show()
 
 
 #%% Read in input spectrum
@@ -107,7 +107,7 @@ plt.margins(x=0)
 plt.minorticks_on()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/inSpectrum.png')
-plt.show()
+#plt.show()
 ######################################
 
 #%% Read in spectrum of transmitted pulse
@@ -134,7 +134,7 @@ plt.minorticks_on()
 #plt.xlim([0.0, np.max(eSpectrumT[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_transmitted.png')
-plt.show()
+#plt.show()
 
 
 #%% Read in spectrum of reflected pulse
@@ -158,7 +158,7 @@ plt.minorticks_on()
 #plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_reflected.png')
-plt.show()
+#plt.show()
 
 ######################################
 
@@ -180,7 +180,7 @@ plt.margins(x=0)
 plt.minorticks_on()
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/Ew_both.png')
-plt.show()
+#plt.show()
 
 ####################################################################
 ####################################################################
@@ -223,6 +223,7 @@ for pointmon in pmon_li:
     plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.grid(which='major')
+    plt.xlim([np.mean(df['t [s]']) - 2*taup, np.mean(df['t [s]']) + 2*taup])
     plt.margins(x=0)
     plt.minorticks_on()
     plt.tight_layout()
@@ -313,10 +314,10 @@ for pointmon in pmon_li:
     plt.minorticks_on()
     plt.legend()
     plt.xlim([0.0, 200e12])
-    plt.ylim([1e-6, 1])
+    #plt.ylim([1e-6, 1])
     plt.margins(x=0)
     plt.tight_layout()
-    #plt.savefig(pathhead + '/figs/Ew_fwd_THz_' + zm + '.png')
+    plt.savefig(pathhead + '/figs/Ew_fwd_THz_' + zm + '.png')
 
     # Plot backward-prop spectrum
     plt.clf()
@@ -373,19 +374,20 @@ for pointmon in pmon_li:
 
     ax2 = ax1.twinx()
 
-    ax2.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-r')
-    ax2.set_ylabel(r'Re[$E(t)$] [V/m]')
+    ax1.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-', color='lightcoral')
+    ax1.set_ylabel(r'Re[$E(t)$] [V/m]')
 
-    ax1.semilogy(df['t [s]'], neVec)
+    ax2.semilogy(df['t [s]'], neVec)
     ax1.set_title(r'Electron density and forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     ax1.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     ax1.set_xlabel(r'$t$ [s]')
-    ax1.set_ylabel(r'$N_e$')
+    ax2.set_ylabel(r'$N_e$')
+    ax1.set_xlim([np.mean(df['t [s]']) - 3*taup, np.mean(df['t [s]']) + 3*taup])
     ax1.grid(which='major')
     ax1.margins(x=0)
 
     plt.savefig(pathhead + '/figs/Ne_EtP_' + zm + 'nm.png')
-    plt.show()
+    #plt.show()
 
     # Plot total and forward spectrum in THz
     plt.clf()
