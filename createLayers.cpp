@@ -78,23 +78,26 @@ void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& t
 
 void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
 {
+	double U_Ar = 15.759; // Ionization potential of Argon [eV]
 	cout << sampleLayerThickness << endl;
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
 
 	Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	argon.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	//argon.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	argon.setAsPlasmaMaterial(1, U_Ar);
 	theMaterialDB.addMaterial(argon);
 
-	Material plasmaMat("PlasmaMat", 1.0, n2_Material1, chi2_Material1, chi3_Material1);
+	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
 	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
+	plasmaMat.setAsPlasmaMaterial(1, U_Ar);
 	theMaterialDB.addMaterial(plasmaMat);
 
-	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
 	
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Argon"), sampleLayerThickness, zStepMaterial1);
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Argon"), sampleLayerThickness, zStepMaterial1);
 	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), sampleLayerThickness, zStepMaterial1);
-	//theStructure.addLayer(theMaterialDB.getMaterialByName("PlasmaMat"), sampleLayerThickness, zStepMaterial1);
+	theStructure.addLayer(theMaterialDB.getMaterialByName("PlasmaMat"), sampleLayerThickness, zStepMaterial1);
 
-	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
+	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }

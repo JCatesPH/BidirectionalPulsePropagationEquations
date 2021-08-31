@@ -1327,7 +1327,84 @@ int func_correct(double z, const double y[], double f[], void *params) {
 
 		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
 		fftw_execute(p->np_f);
+	else if (p->doPlasmaCalc == 1){
+		double ht = domain_t / num_td;
+		double neutrals = num_atoms - rho_0;  // Neutral particles
+		double electrons = rho_0; 
+		double change = 0.0;    
+		double current = 0.0;                                       // Current to be exported to UPPE
+		double current_change = 0.0e0;                              // Current change for differential equation
+		double current_dc = 0.0;
+		double ve = 0.0; //1/tauCollision;
+		double fv1 = 0.0e0, fv2 = 0.0e0;
+		const double nu_a = 4.13e16; // [Hz]
+		const double E_a = 5.14e11; // [V/m]
+		const double U_H = 13.6; // Ionization potential of hydrogen [eV]
+		double potentialFrac = p->ionE / U_H;
+		double potFrac52 = pow(potentialFrac, 5.0/2.0);
+		double potFrac32 = pow(potentialFrac, 3.0/2.0);
+		double wQST, eField, eFieldRatio;
 
+		p->rho[0] = electrons;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			eField = real(p->ee_p[i] + p->ee_m[i]);
+			eFieldRatio = abs(eField / E_a);
+			if (eFieldRatio != 0) {
+				wQST = 4.0 * potFrac52 * nu_a / eFieldRatio * exp(-2.0/3.0 * potFrac32 / eFieldRatio);
+			}
+			else {
+				wQST = 0.0;
+			}
+			
+
+			change = ht * wQST * neutrals;
+			electrons += change;
+			neutrals -= change;
+			// Don't allow neutrals dip below zero
+			if (neutrals < 0.0) neutrals = 0.0;
+			if (electrons > num_atoms) electrons = num_atoms;
+
+			p->rho[i + 1] = electrons;
+
+
+			/* if (eField != 0) {
+				p->j_e[i + 1] = p->ionE * neutrals / eField;
+			}
+			else {
+				p->j_e[i + 1] = 0.0;
+			} */
+		}
+
+		p->j_e[0] = j_e0;
+		fv1 = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			//p->j_e[i + 1] = (1.0 - ht / tauCollision)*p->j_e[i] + ht * pow(charge_e, 2) / mass_e * p->rho[i] * real(p->eFieldPlus[i] + p->eFieldMinus[i]);
+			// Andrew original
+			//p->j_e[i + 1] = p->j_e[i] * exp(-1.0 * ht / tauCollision) + pow(charge_e, 2) / mass_e * 0.5 * ht * (p->rho[i] * real(p->ee_p[i] + p->ee_m[i]) * exp(-1.0 * ht / tauCollision) + p->rho[i + 1] * real(p->ee_p[i + 1] + p->ee_m[i + 1]));
+			
+			
+			// CALCULATING THE CURRENT for UPPE (based on Ewan's notes Jan-24 2018)
+			//  First order method	
+			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
+			// Second order method (Kolja)
+			fv2 = real(p->ee_p[i+1] + p->ee_m[i+1]);
+			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			fv1 = fv2;
+			current += current_change;
+			p->j_e[i + 1] = current;
+			current_dc += current;
+		}
+		current_dc = current_dc / num_t;
+
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			p->j_e[i + 1] = p->j_e[i+1] - current_dc;
+		}
+
+		fftw_execute(p->np_f);
+		normalizeFFT(nl_p, 1);
 	}
 	else if (p->doPlasmaCalc == 0){
 #pragma omp parallel for
