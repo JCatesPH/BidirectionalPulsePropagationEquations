@@ -13,58 +13,112 @@ if len(sys.argv) > 1:
 else:
     pathhead = 'DATA'
 
-
+transmitted_li = []
+reflected_li = []
 #%% Read in spectrum of transmitted pulse
 fig = plt.figure(figsize=(8,6))
 ax = fig.gca(projection='3d')
-z_it = [4, 3, 2, 1, 0]
+z_it = [5, 4, 3, 2, 1, 0]
 
 for itnum in z_it:
     df = pd.read_table(pathhead + '/Spectrum_iteration_' + str(itnum) + '_Transmitted.dat', header=0)
     #df = pd.read_table('DATA/Spectrum_iteration_' + str(itnum) + '_Transmitted.dat', header=0)
     eSpectrumT = df.values
+    transmitted_li.append(eSpectrumT)
+
     idx1 = 0
     idx2 = int(eSpectrumT.shape[0] / 5)
-    ax.plot(eSpectrumT[idx1:idx2,0], np.log10(eSpectrumT[idx1:idx2,3]), zs=itnum, zdir='y')
+    ax.plot(eSpectrumT[idx1:idx2,0], np.log10(eSpectrumT[idx1:idx2,3]**2), zs=itnum, zdir='y')
     print('itnum = {:}, max(|E|) = {:.2f}'.format(itnum, np.max(eSpectrumT[:,3])))
 
 ax.set_yticks(z_it)
 ax.set_xlabel(r'$\omega$')
 ax.set_ylabel('Iteration')
-ax.set_zlabel('Amplitude [log]')
+ax.set_zlabel('Intensity [log]')
 ax.set_title('Transmitted spectrum convergence')
 
 plt.tight_layout()
 #plt.show()
 plt.savefig(pathhead + '/figs/EwT_convergence.png')
-plt.show()
+#plt.show()
 ######################################
+#%%
+errVec = np.zeros((5,1))
+transmitted_li.reverse()
+fig, axs = plt.subplots(figsize=(11, 9))
+
+for i in range(1,6):
+    errVec[i-1] = np.linalg.norm(transmitted_li[i][idx1:idx2,3]-transmitted_li[i-1][idx1:idx2,3], ord=np.inf) / np.linalg.norm(transmitted_li[i-1][idx1:idx2,3], ord=np.inf)
+    axs.semilogy(transmitted_li[i][idx1:idx2,0], (transmitted_li[i][idx1:idx2,3]-transmitted_li[i-1][idx1:idx2,3])**2 + 1e-15, label='{}-{}'.format(i,i-1))
+
+axs.legend()
+axs.set_xlabel(r'$\omega$')
+axs.set_ylabel(r'$(\Delta A_+)^2$')
+
+plt.savefig(pathhead + '/figs/delta_EwT.png')
 
 #%%
-""" fig = plt.figure(figsize=(8,6))
+fig, axs = plt.subplots(figsize=(11, 9))
+axs.semilogy(np.arange(1,6), errVec)
+axs.set_xticks(np.arange(1,6))
+axs.set_title('Transmitted Convergence')
+plt.savefig(pathhead + '/figs/normErr_EwT.png')
+
+#%%
+
+######################################
+#%%
+fig = plt.figure(figsize=(8,6))
 ax = fig.gca(projection='3d')
-z_it = [4, 3, 2, 1]
+z_it = [5, 4, 3, 2, 1, 0]
 
 for itnum in z_it:
     df = pd.read_table(pathhead + '/Spectrum_iteration_' + str(itnum) + '_Reflected.dat', header=0)
     #df = pd.read_table('DATA/Spectrum_iteration_' + str(itnum) + '_Transmitted.dat', header=0)
     eSpectrumR = df.values
+    reflected_li.append(eSpectrumR)
+
     idx1 = 0
-    idx2 = int(eSpectrumR.shape[0] / 20)
-    ax.plot(eSpectrumR[idx1:idx2,0], np.log10(eSpectrumR[idx1:idx2,3]), zs=itnum, zdir='y')
+    idx2 = int(eSpectrumR.shape[0] / 5)
+    ax.plot(eSpectrumR[idx1:idx2,0], np.log10(eSpectrumR[idx1:idx2,3]**2), zs=itnum, zdir='y')
+    print('itnum = {:}, max(|E|) = {:.2f}'.format(itnum, np.max(eSpectrumR[:,3])))
 
 ax.set_yticks(z_it)
 ax.set_xlabel(r'$\omega$')
 ax.set_ylabel('Iteration')
 ax.set_zlabel('Intensity [log]')
+ax.set_title('Reflected spectrum convergence')
 
 plt.tight_layout()
 #plt.show()
 plt.savefig(pathhead + '/figs/EwR_convergence.png')
-###################################### """
+
 
 #%%
-z_it = [4, 3, 2, 1, 0]
+reflected_li.reverse()
+fig, axs = plt.subplots(figsize=(11, 9))
+
+for i in range(1,6):
+    errVec[i-1] = np.linalg.norm(reflected_li[i][idx1:idx2,3]-reflected_li[i-1][idx1:idx2,3], ord=np.inf) / np.linalg.norm(reflected_li[i-1][idx1:idx2,3], ord=np.inf)
+    axs.semilogy(reflected_li[i][idx1:idx2,0], (reflected_li[i][idx1:idx2,3]-reflected_li[i-1][idx1:idx2,3])**2 + 1e-15, label='{}-{}'.format(i,i-1))
+
+axs.legend()
+axs.set_xlabel(r'$\omega$')
+axs.set_ylabel(r'$(\Delta A_-)^2$')
+
+plt.savefig(pathhead + '/figs/delta_EwT.png')
+
+#%%
+fig, axs = plt.subplots(figsize=(11, 9))
+axs.semilogy(np.arange(1,6), errVec)
+axs.set_title('Reflected Convergence')
+axs.set_xticks(np.arange(1,6))
+plt.savefig(pathhead + '/figs/normErr_EwR.png')
+plt.show()
+
+#####################################
+#%%
+z_it = [5, 4, 3, 2, 1, 0]
 for itnum in z_it:
     fig = plt.figure(figsize=(8,6))
     ax = fig.gca()
@@ -82,7 +136,7 @@ for itnum in z_it:
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/EwT_it{:}.png'.format(itnum))
 
-plt.show()
+#plt.show()
 
 ######################################
 
@@ -109,7 +163,7 @@ ax.set_xlabel(r'$\omega$')
 
 plt.tight_layout()
 #plt.show()
-plt.savefig(pathhead + '/figs/EwT_test.png'.format(itnum))
+plt.savefig(pathhead + '/figs/Ew_test.png'.format(itnum))
 
 
 # %%
