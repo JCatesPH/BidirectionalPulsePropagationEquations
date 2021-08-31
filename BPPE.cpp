@@ -27,7 +27,11 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 
 // This block of vars were orignally inside main()
 double zPosition = 0.0;
-double sampleLayerThickness;
+double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
+double twoColorSH_amplitude, twoColorSH_phase;
+int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0;
+double domain_t, zStepMaterial1, alpha_tukey;
+double *window;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
 double *omegaArray, *timeValuesArray, *kx, *ne, *y;
@@ -42,9 +46,35 @@ int main(int argc, char *argv[])
 	// Setting parameters using input file.
 	paramFileBuffer = readParmetersFileToBuffer(argv[1]);
 	VERBOSE = getIntParameterValueByName("Verbosity");
-	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
 	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
 
+	// Load in pulse parameters
+	I_0 = getDoubleParameterValueByName("meanPumpIntensity");
+	twoColorSH_amplitude = getDoubleParameterValueByName("twoColorRelativeIntensity");
+	twoColorSH_phase = getDoubleParameterValueByName("twoColorPhase");
+	tau = getDoubleParameterValueByName("pulseDuration");
+	lambda_0 = getDoubleParameterValueByName("fundamentalWavelength");
+
+	A_0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
+	omega_0 = 2 * M_PI*cLight / lambda_0;
+
+	// Load in domain parameters
+	num_t = getIntParameterValueByName("numTimePoints");
+	//num_t = pow(2, 17);
+	domain_t = getDoubleParameterValueByName("timeDomainSize");
+
+	//freqUpperCutoff = num_t / 2;
+	freqLowerCutoff = getIntParameterValueByName("omegLowerCutoff");
+	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
+	numActiveOmega = num_t / 2 + 1;
+	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
+	l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
+
+	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
+	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");
+	
+	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
+	//alpha_tukey = 0.0;
 
 	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #ifdef _WIN64
@@ -91,7 +121,7 @@ int main(int argc, char *argv[])
 	f1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	integral = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
-
+	window = (double*)malloc(sizeof(double) * num_t);
 
 #ifndef _WIN64
 	fftw_import_system_wisdom();
@@ -175,8 +205,9 @@ int main(int argc, char *argv[])
 
 
 	fill_omg_k(omegaArray, kx);
-	DELME_ArgonDispersion(omegaArray);
+	//DELME_ArgonDispersion(omegaArray);
 	//DELME_AndrewPreformed(omegaArray);
+	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
 	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,f0,f1,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, integral);
 	
@@ -190,8 +221,12 @@ int main(int argc, char *argv[])
 	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
     printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
 
-	doNonlinearPartofBPPE();
-	//DELME_doNonlinearPartofBPPE_1Layer(); // Testing single layer simulation
+	if (myStructure.m_layers.size() > 1) {
+		doNonlinearPartofBPPE();
+	}
+	else {
+		DELME_doNonlinearPartofBPPE_1Layer(); // Testing single layer simulation
+	}
 
 	dtime = omp_get_wtime() - dtime;
 	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
@@ -203,15 +238,29 @@ int main(int argc, char *argv[])
 
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	
-	//monitorZlocations.push_back(3e-6); // 3 microns in plasma
-	//monitorZlocations.push_back(10e-6); // 10 microns in plasma
-	//monitorZlocations.push_back(15e-6); // 10 microns in plasma
-	//monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); // 100 microns in plasma
+
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 0.8e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 2.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 5.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 10.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 30.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 10e-6); // 10 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 20e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 30e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 40e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 50e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 75e-6);
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); 
 
 	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
-	monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
 	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+
+	int num10ums = (myStructure.getThickness() - RHSbufferLayerThickness) / 10e-6;
+	for (int n = 1; n < num10ums; n++){
+		monitorZlocations.push_back(LHSsourceLayerThickness + n*10e-6);
+	}
+	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness);
 
 }
 
@@ -221,23 +270,27 @@ void doNonlinearPartofBPPE()
 	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
 			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
 			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.front().getMaterial().getdoPlasmaCalc());
-	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
+	//gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
-	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
-	gsl_odeiv2_driver_set_nmax(d, ode_nmax);
+	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
+	//gsl_odeiv2_driver_set_nmax(d, ode_nmax);
 
-	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
-	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
-	gsl_odeiv2_control * mm = gsl_odeiv2_control_y_new(10.0, 10.0);
-	gsl_odeiv2_evolve * f = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
-	gsl_odeiv2_system sys = { func, NULL, 2 * num_t + 4, params };*/
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 2 * num_t + 4);
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
+	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 
-	double zRight;
-	double zStepSize;
+	double nonlinear_time_initial, nonlinear_time;
+
+	int numzReports, numZsteps = 0;
+	double zRight, zStepSize;
+	vector<double> endPoints;
 
 	for (int Iteration_number = 1; Iteration_number <= num_iterations; Iteration_number++)
 	{
 		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
+		nonlinear_time_initial = omp_get_wtime();
 		delmeFLAG = Iteration_number;
 		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
 
@@ -253,56 +306,54 @@ void doNonlinearPartofBPPE()
 				params->doPlasmaCalc = lit->getMaterial().getdoPlasmaCalc();
 				params->mpi_k = lit->getMaterial().getmpi_k();
 				params->mpi_sigmaK = lit->getMaterial().getmpi_sigmaK();
+				params->ionE = lit->getMaterial().getIonizationEnergy();
+				zStepSize = lit->getStepSize();
 				zPosition = lit->getStartZpos();
+				//zRight = lit->getEndZpos();
 
-				if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps" << endl; }
-				for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
-				{
-					// Make sure step size resets don't cause layers to grow
-					if (zPosition + lit->getStepSize() > lit->getEndZpos()) {
-						zRight = lit->getEndZpos();
-					}
-					else {
-						zRight = zPosition + lit->getStepSize();
-					}
-					zStepSize = zRight - zPosition;
-					
-					integrate(zPosition, zStepSize, params, y, integral);
-					//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
-					GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
-					
-					if (VERBOSE >= 6) {
-						printf("step # = %d,  z = %.5g\n", aZstep, zPosition);
-					}
-
-					if (GSLerrorFlag == GSL_EMAXITER) {
-						printf("######## ERROR #######: GSL driver returned GSL_EMAXITER. The maximum number of steps is set to %d.\n", ode_nmax);
-						printf("	Occurred at z = %e\n", zPosition);
-						// Reset the evolve and step objects.
-						gsl_odeiv2_driver_reset(d);
-						// Reset the step size to initial guess.
-						gsl_odeiv2_driver_reset_hstart(d, hstart);
-
-						// Decrement aZstep so the reset doesn't cause problems. MAY NOT BE NECESSARY!
-						aZstep--;
-					} 
-					else if (GSLerrorFlag != GSL_SUCCESS)
+				for (std::size_t atZpos = 0; atZpos < monitorZlocations.size(); ++atZpos) {
+					if (monitorZlocations[atZpos] > lit->getStartZpos() && monitorZlocations[atZpos] < lit->getEndZpos())
 					{
-						printf("error: driver returned %d\n", GSLerrorFlag);
-						break;
-					}
-					// PUT MONITOR OUTPUTS HERE
-					if (Iteration_number == num_iterations)
-					{
-						for (std::size_t atZpos = 0; atZpos < monitorZlocations.size(); ++atZpos) {
-							if (zPosition >= monitorZlocations[atZpos] && zPosition < monitorZlocations[atZpos] + myStructure.getZstepSizeAtZpos(monitorZlocations[atZpos]))
-							{
-								printf("Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
-								write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
-							}
-						}
+						endPoints.push_back(monitorZlocations[atZpos]);
 					}
 				}
+				endPoints.push_back(lit->getEndZpos());
+
+				numzReports = 0; 
+				//numZsteps = 0;
+
+				if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << lit->getlayerIDnum() << endl; }
+				for (std::size_t atZpos = 0; atZpos < endPoints.size(); ++atZpos)  {
+					zRight = endPoints[atZpos];
+					while (zPosition < zRight) 
+					{
+
+						GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
+						if (GSLerrorFlag == GSL_SUCCESS) {
+							integrate(zPosition, zStepSize, params, y, integral);
+							//printf("I = %d, step = %d, z = %.8g\n", Iteration_number, numZsteps, zPosition);
+							numZsteps++;
+						}
+						else {
+							printf("error: driver returned %d\n", GSLerrorFlag);
+							break;
+						}
+
+						nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
+						if ((int)(nonlinear_time / 20) > numzReports) {
+							printf("  I = %d, step = %d, z = %.8g, t = %d s\n", Iteration_number, numZsteps, zPosition, (int)nonlinear_time);
+							numzReports++;
+						}
+					}
+
+					printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
+					//write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
+					write_multicolumnMonitor_Jalen(Iteration_number, zPosition, y, params);
+					
+				}
+
+				endPoints.clear();
+
 				integrate(zPosition, zStepSize, params, y, integral);
 				if (VERBOSE >= 3) {
 					cout << "Layer #" << lit->getlayerIDnum() << " ending z position: " << zPosition << endl;
@@ -317,7 +368,7 @@ void doNonlinearPartofBPPE()
 
 		// Write out 
 		//if (Iteration_number == num_iterations)
-		    write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
 		am_to_zero(y);
 
@@ -325,6 +376,9 @@ void doNonlinearPartofBPPE()
 		myStructure.doBackwardPassThroughAllBoundaries(y);
 
 		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+
+		nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
+		printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
 
 		if (Iteration_number > 3) VERBOSE--;
 	}
@@ -335,27 +389,29 @@ void DELME_doNonlinearPartofBPPE_1Layer()
 	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
 			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
 			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.begin()->getMaterial().getdoPlasmaCalc());
-	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
+	//gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
-	gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
-	gsl_odeiv2_driver_set_nmax(d, ode_nmax);
+	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
+	//gsl_odeiv2_driver_set_nmax(d, ode_nmax);
 
-	/*const gsl_odeiv2_step_type * T = gsl_odeiv2_step_rk4;
-	gsl_odeiv2_step * v = gsl_odeiv2_step_alloc(T, 2 * num_t + 4);
-	gsl_odeiv2_control * mm = gsl_odeiv2_control_y_new(10.0, 10.0);
-	gsl_odeiv2_evolve * f = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
-	gsl_odeiv2_system sys = { func, NULL, 2 * num_t + 4, params };*/
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 2 * num_t + 4);
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
+	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 
 	double zRight;
-	double zStepSize;
+	
+	double nonlinear_time_initial, nonlinear_time;
 
 	for (int Iteration_number = 1; Iteration_number <= num_iterations; Iteration_number++)
 	{
 		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
+		nonlinear_time_initial = omp_get_wtime();
 		delmeFLAG = Iteration_number;
 		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, myStructure.m_layers.begin()->getMaterial().getK(), eFieldMinusBackwardFFT);
 
-		cout << "  Going FORWARD through layers" << endl;
+		//cout << "  Going FORWARD through layers" << endl;
 		// Skip the LHS layer and the RHS layers
 		params->k = myStructure.m_layers.begin()->getMaterial().getK();
 		params->chi_2 = myStructure.m_layers.begin()->getMaterial().getChi2();
@@ -363,57 +419,66 @@ void DELME_doNonlinearPartofBPPE_1Layer()
 		params->doPlasmaCalc = myStructure.m_layers.begin()->getMaterial().getdoPlasmaCalc();
 		params->mpi_k = myStructure.m_layers.begin()->getMaterial().getmpi_k();
 		params->mpi_sigmaK = myStructure.m_layers.begin()->getMaterial().getmpi_sigmaK();
+		params->ionE = myStructure.m_layers.begin()->getMaterial().getIonizationEnergy();
 		zPosition = myStructure.m_layers.begin()->getStartZpos();
 
-		if (VERBOSE >= 6) { cout << endl << " Doing Layer #" << myStructure.m_layers.begin()->getlayerIDnum() << " in " << myStructure.m_layers.begin()->getNumStepsInLayer() << " z Steps" << endl; }
-		for (int aZstep = 0; aZstep < myStructure.m_layers.begin()->getNumStepsInLayer(); aZstep++)
-	{
-			// Make sure step size resets don't cause layers to grow
-			if (zPosition + myStructure.m_layers.begin()->getStepSize() > myStructure.m_layers.begin()->getEndZpos()) {
-				zRight = myStructure.m_layers.begin()->getEndZpos();
-	}
-	else {
-				zRight = zPosition + myStructure.m_layers.begin()->getStepSize();
-	}
-			zStepSize = zRight - zPosition;
+		int numzReports = 0; 
+		int numZsteps = 0;
+		double zStepSize = myStructure.m_layers.begin()->getStepSize();
 
-			integrate(zPosition, zStepSize, params, y, integral);
-			//GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
-			GSLerrorFlag = gsl_odeiv2_driver_apply(d, &zPosition, zRight, y);
+		for (std::size_t atZpos = 0; atZpos < monitorZlocations.size(); ++atZpos) {
+			zRight = monitorZlocations[atZpos];
+
+			if (zRight > myStructure.m_layers.begin()->getEndZpos()) {
+				printf("ERROR: Point monitor set after end of structure.\n");
+				exit(-1);
+			}
+
+			while (zPosition < zRight) {
+				GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
+				
+				if (GSLerrorFlag == GSL_SUCCESS) {
+					integrate(zPosition, zStepSize, params, y, integral);
+					//printf("I = %d, step = %d, z = %.8g\n", Iteration_number, numZsteps, zPosition);
+					numZsteps++;
+				}
+				else {
+					printf("error: driver returned %d\n", GSLerrorFlag);
+					break;
+				}
+				nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
+				if ((int)(nonlinear_time / 20) > numzReports) {
+					printf("I = %d, step = %d, z = %.8g, t = %d s\n", Iteration_number, numZsteps, zPosition, (int)nonlinear_time);
+					numzReports++;
+				}
+			}
 			
-			if (VERBOSE >= 6) {
-				printf("step # = %d,  z = %.5g\n", aZstep, zPosition);
-}
+			printf("Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
+			//write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
+			write_multicolumnMonitor_Jalen(Iteration_number, zPosition, y, params);
 
-			if (GSLerrorFlag == GSL_EMAXITER) {
-				printf("######## ERROR #######: GSL driver returned GSL_EMAXITER. The maximum number of steps is set to %d.\n", ode_nmax);
-				printf("	Occurred at z = %e\n", zPosition);
-				// Reset the evolve and step objects.
-				gsl_odeiv2_driver_reset(d);
-				// Reset the step size to initial guess.
-				gsl_odeiv2_driver_reset_hstart(d, hstart);
+			
+		}
 
-				// Decrement aZstep so the reset doesn't cause problems. MAY NOT BE NECESSARY!
-				aZstep--;
-			} 
-			else if (GSLerrorFlag != GSL_SUCCESS)
-	{
-				printf("error: driver returned %d\n", GSLerrorFlag);
-				break;
-	}
-			// PUT MONITOR OUTPUTS HERE
-			if (Iteration_number == num_iterations)
-	{
-				for (std::size_t atZpos = 0; atZpos < monitorZlocations.size(); ++atZpos) {
-					if (zPosition >= monitorZlocations[atZpos] && zPosition < monitorZlocations[atZpos] + myStructure.getZstepSizeAtZpos(monitorZlocations[atZpos]))
-					{
-						printf("Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
-						write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
-	}
+		if (zPosition < myStructure.m_layers.begin()->getEndZpos()) {
+			zRight = myStructure.m_layers.begin()->getEndZpos();
+			while (zPosition < zRight) {
+				GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
+				if (GSLerrorFlag == GSL_SUCCESS) {
+					integrate(zPosition, zStepSize, params, y, integral);
+					//printf("I = %d, step = %d, z = %.8g\n", Iteration_number, numZsteps, zPosition);
+					numZsteps++;
+				}
+				else {
+					printf("error: driver returned %d\n", GSLerrorFlag);
+					break;
 				}
 			}
 		}
-		integrate(zPosition, zStepSize, params, y, integral);
+		nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
+		printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
+
+		//integrate(zPosition, zStepSize, params, y, integral);
 
 		// Write out 
 		//if (Iteration_number == num_iterations)
@@ -421,7 +486,7 @@ void DELME_doNonlinearPartofBPPE_1Layer()
 		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
 		am_to_zero(y);
 
-		cout << "  Going BACKWARD through BOUNDARIES" << endl;
+		//cout << "  Going BACKWARD through BOUNDARIES" << endl;
 		//myStructure.doBackwardPassThroughAllBoundaries(y);
 
 		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
@@ -518,7 +583,7 @@ void DELME_AndrewPreformed(double* omg) {
 	Material *plasmaMat;
 	plasmaMat = myMaterialsDB.getMaterialByName("PlasmaMat");
 
-	double preformedDensity = 4.3e25;
+	double preformedDensity = 4.0e25;
 	double omega_plasma = sqrt(pow(charge_e, 2) * preformedDensity / (epsilon_0 * mass_e));
 	printf("WARNING: Performing preformed plasma test with density %.1e.\n The plasma frequency is then: %.8e\n", preformedDensity, omega_plasma);
 
@@ -550,6 +615,8 @@ void DELME_ArgonDispersion(double* omg) {
 	Material *ArgonMat;
 	complex<double> n0;
 	double lambda;
+	double raylighFactor = 32.0 * pow(M_PI, 3) / (3.0 * pow(num_atoms,2)) * num_atoms;
+	double rayleighScattering = 0.0;
 	ArgonMat = myMaterialsDB.getMaterialByName("Argon");
 
 	char dispersionFile[STRING_BUFFER_SIZE];
@@ -565,19 +632,29 @@ void DELME_ArgonDispersion(double* omg) {
 
 		exit(-1);
 	}
-	for (int i = 0; i < numActiveOmega; i++)
-	{
-		lambda = 2 * M_PI*cLight / omg[i];
-		//n0 = 1+2.50141e-3/(91.012-pow(lambda,-2))+5.00283e-4/(87.892-pow(lambda,-2))+5.22343e-2/(214.02-pow(lambda,-2));
-		n0 = 1+6.432135E-5+2.8606021E-2/(144-pow(lambda,-2)); // From Peck and Fisher (1964), valid in range: 0.47-2.06 um
 
-		n0 += -1.0i * 1e-7 * omg[i] / (1+omg[i]);
-		if (i == 0) {
-			ArgonMat->m_k[i] = 0.0;
+	ArgonMat->m_k[0] = 0.0;
+	for (int i = 1; i < numActiveOmega; i++)
+	{
+		lambda = 2 * M_PI*cLight / omg[i] * 1e6;
+		//n0 = 1+2.50141e-3/(91.012-pow(lambda,-2))+5.00283e-4/(87.892-pow(lambda,-2))+5.22343e-2/(214.02-pow(lambda,-2));
+		//n0 = 1+6.432135E-5+2.8606021E-2/(144-pow(lambda,-2)); // From Peck and Fisher (1964), valid in range: 0.47-2.06 um
+
+		if (lambda < 0.47e-6) {
+			n0 = 1.0 + 2.50141e-3/(91.012-pow(lambda,-2)) + 5.00283e-4/(87.892-pow(lambda,-2)) + 5.22343e-2/(214.02-pow(lambda,-2));
 		}
 		else {
-			ArgonMat->m_k[i] = omg[i] * n0 / cLight;
+			n0 = 1.0 + 6.7867e-5 + 3.0182943e-2/(144.0-pow(lambda,-2)); // From Peck and Fisher (1964), valid in range: 0.47-2.06 um (0 deg C)
 		}
+
+		// Fitted dispersion (in Mathematica)
+		n0 = 1.00026 + 1.37647e-5 / lambda - 1.86046e-6 / pow(lambda,2) + 3.78465e-7 / pow(lambda,3);
+		
+		//n0 += 1.0i * 8.0 * pow(M_PI, 3) / (3 * num_atoms * pow(lambda,4)) * pow(pow(n0, 2) - 1.0, 2);
+		rayleighScattering = raylighFactor / pow(lambda*1e-6, 4) * pow(real(n0)-1.0, 2);
+		//n0 += 1.0i * rayleighScattering;
+
+		ArgonMat->m_k[i] = omg[i] * n0 / cLight;
 
 		fprintf(fp, "%.7g\t%.17g\t%.17g \n", lambda, real(n0), imag(n0));
 	}
@@ -663,24 +740,7 @@ void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_i
 	}
 }
 
-void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init)
-{
-	for (int i = 0; i < 4 * numActiveOmega; i++)
-	{
-		if (i < numActiveOmega) {
-			y[i] = real(yp_init[i]);
-		}
-		else if (i < 2 * numActiveOmega) {
-			y[i] = imag(yp_init[i - numActiveOmega]);
-		}
-		else if (i < 3 * numActiveOmega) {
-			y[i] = real(ym0_init[i - 2 * numActiveOmega]);
-		}
-		else {
-			y[i] = imag(ym0_init[i - 3 * numActiveOmega]);
-		}
-	}
-}
+
 
 void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init)
 {
@@ -698,6 +758,19 @@ void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<dou
 		else {
 			y[i] = imag(ym0_init[i - 3 * numActiveOmega]);
 		}
+	}
+
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
+	}
+	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
 	}
 }
 
@@ -721,6 +794,74 @@ void write2DtoFile(std::complex<double>* ee_p)
 	}
 }
 
+void createWindowFunc(double alpha){
+	// Implements a Tukey window
+	for (int i=0; i < (int)(alpha*num_t/2); i++) {
+		window[i] = 0.5 * (1.0 - cos(2.0*M_PI*i/(alpha*num_t))) + 1e-15;
+	}
+	for (int i=(int)(alpha*num_t/2); i <= num_t/2; i++) {
+		window[i] = 1.0 + 1e-15;
+	}
+	for (int i=1; i <= num_t/2; i++) {
+		window[num_t-i] = window[i];
+	}
+
+	char windowFile[STRING_BUFFER_SIZE];
+	snprintf(windowFile, sizeof(char) * STRING_BUFFER_SIZE, "%swindowFunc.dat", SIM_DATA_OUTPUT);
+	FILE* fp;
+	fp = fopen(windowFile, "w");
+	for (int i=0; i < num_t; i++){
+		fprintf(fp, "%.16f \t %.16f\n", i*domain_t/num_t, window[i]);
+	}
+	fclose(fp);
+}
+
+void createWindowFunc(){
+	// Implements a Hann/Hamming window
+	double a0 = 25.0/46.0;
+	for (int i = 0; i < num_t; i++) {
+		window[i] = a0 - (1.0 - a0) * cos(2.0*M_PI*i/num_t);
+	}
+
+	char windowFile[STRING_BUFFER_SIZE];
+	snprintf(windowFile, sizeof(char) * STRING_BUFFER_SIZE, "%swindowFunc.dat", SIM_DATA_OUTPUT);
+	FILE* fp;
+	fp = fopen(windowFile, "w");
+	for (int i=0; i < num_t; i++){
+		fprintf(fp, "%.16f \t %.16f\n", i*domain_t/num_t, window[i]);
+	}
+	fclose(fp);
+}
+
+
+void normalizeFFT(complex<double>* arr, int type) {
+	
+	double c = sqrt((double)num_t);
+	if (type == 1) {
+		for (int i=0; i < num_t; i++) {
+			arr[i] = arr[i] / c;
+		}
+	}
+	else if (type == 2) {
+		for (int i=0; i < num_t; i++) {
+			arr[i] = arr[i] * window[i] / c;
+		}
+	}
+	else {
+		printf("WARNING: Invalid option given to FFT normalization function.\n");
+		c = (double(num_t));
+		for (int i=0; i < num_t; i++) {
+			arr[i] = arr[i] / c;
+		}
+	}
+
+}
+
+void applyWindow(complex<double>* arr){
+	for (int i=0; i < num_t; i++) {
+		arr[i] = arr[i] * window[i];
+	}
+} 
 
 void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, complex<double>* f0, complex<double>* f1, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral) {
 
@@ -739,6 +880,8 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 		}
 		writeInputEfield(ee_p);
 		fftw_execute(ep_f);
+
+		normalizeFFT(ee_p, 1);
 
 		for (int i = 0; i < numActiveOmega; i++) yp_init[i] = ee_p[i];
 
@@ -825,8 +968,8 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 
 		int x;
 		if (myStructure.m_layers.size() > 1) {
-		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
-	}
+			x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+		}
 		else {
 			x = DELME_new_initial_data_1Layer(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
 		}
@@ -933,15 +1076,15 @@ void writeSimParameters()
 		fprintf(fp, "num_atoms       \t%.17g\t/*number of atoms in gas */\n", num_atoms);
 		fprintf(fp, "rho_0           \t%.17g\t/* initial electron density */\n", rho_0);
 		fprintf(fp, "j_e0            \t%.17g\t/* initial current density */\n", j_e0);
-		fprintf(fp, "freqUpperCutoff \t%.17g\t/* upper frequency cut-off */\n", (double)freqUpperCutoff);
-		fprintf(fp, "freqLowerCutoff \t%.17g\t/*lower frequency cut-off */\n", (double)freqLowerCutoff);
-		fprintf(fp, "num_iterations  \t%.17g\t/*number of BPPE iterations*/ */\n", (double)num_iterations);
+		fprintf(fp, "freqUpperCutoff \t%d\t/* upper frequency cut-off */\n", freqUpperCutoff);
+		fprintf(fp, "freqLowerCutoff \t%d\t/*lower frequency cut-off */\n", freqLowerCutoff);
+		fprintf(fp, "num_iterations  \t%d\t/*number of BPPE iterations*/ */\n", num_iterations);
 		fprintf(fp, "shift           \t%.17g\t/*FILL */\n", shift);
 		fprintf(fp, "numDimensionsMinusOne \t%.17g\t/*(1+1) dimension (0) or (2+1) dimension (1) */\n", (double)numDimensionsMinusOne);
-		fprintf(fp, "plasmaOnOff     \t%d\t/*plasma on (1) or off (0) */\n", plasmaOnOff);
+		//fprintf(fp, "plasmaOnOff     \t%d\t/*plasma on (1) or off (0) */\n", plasmaOnOff);
 		fprintf(fp, "l_0               \t%.17g\t/*FILL */\n", (double)l_0);
 		fprintf(fp, "numActiveOmega    \t%.17g\t/*FILL */\n", (double)numActiveOmega);
-		fprintf(fp, "numActiveOmega2   \t%.17g\t/*FILL */\n", (double)numActiveOmega2);
+		//fprintf(fp, "numActiveOmega2   \t%.17g\t/*FILL */\n", (double)numActiveOmega2);
 		fprintf(fp, "omegaPlasmaDamping \t%.17g\t/*plasma damping */\n", omegaPlasmaDamping);
 		fprintf(fp, "tauCollision       \t%.17g\t/*mean collision time */\n", tauCollision);
 		//fprintf(fp, "lengthSample       \t%.17g\t/*length of slab */\n", lengthSample);
@@ -963,7 +1106,7 @@ void writeSimParameters()
 		fprintf(fp, "n2_Material2           \t%.17g\t/*nonlinear index in material 2 */\n", n2_Material2);
 		fprintf(fp, "chi_2                  \t%.17g\t/*nonlinear chi_2 */\n", chi_2);
 		fprintf(fp, "A_0                    \t%.17g\t/*pulse peak amplitude */\n", A_0);
-		fprintf(fp, "Keldysh                \t%.17g\t/*keldysh parameter */\n", Keldysh);
+		fprintf(fp, "Keldysh                \t%.17g\t/*keldysh parameter */\n", omega_0 * sqrt(2.0 * u_Argon*charge_e) / A_0);
 		fprintf(fp, "omegaPlasma            \t%.17g\t/*fully-ionized plasma frequency */\n", omegaPlasma);
 		fprintf(fp, "Sellmeir_chi_1_1       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_1);
 		fprintf(fp, "Sellmeir_chi_1_2       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_2);
@@ -976,7 +1119,8 @@ void writeSimParameters()
 		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", epsabs);
 		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", epsrel);
 		fprintf(fp, "ode_nmax       \t%.2g\t/*maximum ode steps before reset */\n", (double)ode_nmax);
-		fprintf(fp, "hstart      \t%.17g\t/*initial guess of step size*/\n", hstart);
+
+		fprintf(fp, "alpha_tukey       \t%.8g\t/*value of parameter in Tukey window */\n", alpha_tukey);
 	}
 	else {
 		printf("Failed to open file '%s'\n", parametersFilePathName);
@@ -1005,13 +1149,13 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		for (int i = 0; i <= num_t / 2; i++)
 		{
 			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * (zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
+			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
 		}
 
 		for (int i = 1; i < num_t / 2; i++)
 		{
 			//ee[num_t - i] = (y[i] - 1.0i*y[i + num_t / 2 + 1])*exp(1.0i*conj(k[i])*(zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * conj(k[i]) * z);
+			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
 		}
 	}
 	else {
@@ -1037,7 +1181,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		for (int i = 0; i < num_t; i++)
 		{
 			//fprintf(fp2, "%g \t %+.17g \t %+.17g\t %+.17g\n", (M_PI/domain_t)*i, real(ee[i]), imag(ee[i]), abs(ee[i]));		// COLM export in one column format
-			if (i < num_t / 2) {
+			if (i <= num_t / 2) {
 				fprintf(fp2, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * i, real(ee[i]), imag(ee[i]), abs(ee[i]));
 			}
 			else {
@@ -1076,11 +1220,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 #endif
 
 	fftw_execute(e_b);
-
-	for (int i = 0; i < num_t; i++)
-	{
-		ee[i] = ee[i] / (double(num_t));
-	}
+	normalizeFFT(ee, 2);
 
 	FILE *fp;
 	//errno_t err;
@@ -1135,12 +1275,26 @@ void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*y
 		}
 
 	}
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
+	}
+	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
+	}
 	return;
 }
 
 int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral) {
 
 	int nExcRaised = 0;
+	double diffNorm = 0.0;
+	double vecNorm = 0.0;
 	for (int i = 0; i <= num_t / 2; i++)
 	{
 		f1[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
@@ -1156,17 +1310,32 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 		else {
 			// Added exception handling for case where field is not updated. 
 			if (abs(f1[i] - f0[i] - ym1_init[i] + ym0_init[i]) < DBL_MIN) {
-				if (nExcRaised == 0) {
-					cout << "Exception 21. Underflow of denominator in secant method. Further iterations may not be necessary!" << endl;
-					nExcRaised++;
-				}
 				ym1_init[i] = ym0_init[i];
 			}
 			else{
 				ym1_init[i] = ((ym0_init[i] * f1[i] - ym1_init[i] * f0[i]) / (f1[i] - f0[i] - ym1_init[i] + ym0_init[i]));
 			}		
 		}
+
+		// Calculate the norm of the change in backward-prop
+		if (normType == -1) {
+			// This is the inf-norm
+			if (vecNorm < abs(ym1_init[i])) {
+				vecNorm = abs(ym1_init[i]);
+			}
+			if (diffNorm < abs(ym1_init[i] - ym1_temp[i])) {
+				diffNorm = abs(ym1_init[i] - ym1_temp[i]);
+			}
+		}
+		else {
+			if (nExcRaised == 0) {
+				cout << "Exception 22. The norm specified in BPPE.h has not been implemented." << endl;
+				nExcRaised++;
+			}
+		}
 	}
+
+	printf("The %d-norm estimate of the rel. err.: %.3e\n", normType, diffNorm/vecNorm);
 
 	for (int i = 0; i < 2 * num_t + 4; i++)
 	{
@@ -1182,6 +1351,19 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 		else {
 			y[i] = imag(ym1_init[i - (3 * num_t / 2 + 3)]);
 		}
+	}
+
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
+	}
+	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2 * numActiveOmega] = 0.0;
+		y[i + 3 * numActiveOmega] = 0.0;
 	}
 
 	for (int i = 0; i <= num_t / 2; i++)
@@ -1227,7 +1409,7 @@ int DELME_new_initial_data_1Layer(complex<double>*ym0_init, complex<double>*ym1_
 }
 
 
-int func_correct(double z, const double y[], double f[], void *params) {
+int func(double z, const double y[], double f[], void *params) {
 
 	param_type *p = reinterpret_cast<param_type*>(params);
 
@@ -1238,18 +1420,25 @@ int func_correct(double z, const double y[], double f[], void *params) {
 #pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		//const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
-		const complex<double> phaseFactorP = exp(-1.0i * p->k[i] * z);
+		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
+		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+
+		/*const complex<double> phaseFactorP = exp(-1.0i * p->k[i] * z);
 		const complex<double> phaseFactorM = exp(1.0i * p->k[i] * z);
 		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
+		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;*/
 		// Jalen thinks this is off by 1 due to remainder in the above for loop dividing by 2 
 		//p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 		// Orignal Andrew was
-		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
+		
 
 		if (i > 0 && i < num_tOver2) {
-			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
-			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
+			const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
+			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+			//p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
+			//p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
 		}
 		
 	}
@@ -1265,17 +1454,20 @@ int func_correct(double z, const double y[], double f[], void *params) {
 
 	fftw_execute(p->ep_b);
 	fftw_execute(p->em_b);
+	normalizeFFT(p->ee_p, 2);
+	normalizeFFT(p->ee_m, 2);
 
 #pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
-		p->ee_p[i] = p->ee_p[i] / num_td;
-		p->ee_m[i] = p->ee_m[i] / num_td;
+		//p->ee_p[i] = p->ee_p[i] / num_td;
+		//p->ee_m[i] = p->ee_m[i] / num_td;
 		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
 	}
 
 
 	fftw_execute(p->nk_f);
+	normalizeFFT(nl_k, 1);
 	
 	if (p->doPlasmaCalc == 2) {
 
@@ -1286,12 +1478,13 @@ int func_correct(double z, const double y[], double f[], void *params) {
 		double change = 0.0;    
 		double current = 0.0;                                       // Current to be exported to UPPE
 		double current_change = 0.0e0;                              // Current change for differential equation
-		double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
+		double ve = 0.0; //1/tauCollision;
+		double fv1 = 0.0e0, fv2 = 0.0e0;
 
 		p->rho[0] = electrons;
 		for (int i = 0; i < num_t - 1; i++)
 		{
-			double fieldIntensity = (( pow(real(p->ee_p[i] + p->ee_m[i]),2) ) / Znaught );  // MIRO real+real
+			double fieldIntensity = ( pow(real(p->ee_p[i] + p->ee_m[i]),2) ) / Znaught ;  // MIRO real+real
 			change = neutrals * p->mpi_sigmaK * ht * pow(fieldIntensity, p->mpi_k);
 			electrons += change;
 			neutrals -= change;
@@ -1315,7 +1508,7 @@ int func_correct(double z, const double y[], double f[], void *params) {
 			//  First order method	
 			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
 			// Second order method (Kolja)
-			fv2 = real(p->ee_p[i+1] + p->ee_m[i+1]);
+			fv2 = real(p->ee_p[i + 1] + p->ee_m[i + 1]);
 			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
 			fv1 = fv2;
 			current += current_change;
@@ -1326,7 +1519,11 @@ int func_correct(double z, const double y[], double f[], void *params) {
 		
 
 		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
+		applyWindow(p->j_e);
 		fftw_execute(p->np_f);
+		normalizeFFT(nl_p, 1);
+
+	}
 	else if (p->doPlasmaCalc == 1){
 		double ht = domain_t / num_td;
 		double neutrals = num_atoms - rho_0;  // Neutral particles
@@ -1432,14 +1629,13 @@ int func_correct(double z, const double y[], double f[], void *params) {
 	}
 #pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
-		/* f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
-		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
-		f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
-		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z)); */
-		f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*p->k[i]*z));
-		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * p->k[i] * z));
-		f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * p->k[i] * z));
-		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * p->k[i] * z));
+		complex<double> deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		f[i] = real(deltazA);
+		f[i + num_tOver2 + 1] = imag(deltazA);
+		deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		f[i + num_t + 2] = real(deltazA);
+		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
+
 	}
 	
 
@@ -1449,95 +1645,6 @@ int func_correct(double z, const double y[], double f[], void *params) {
 
 void integrate(double z, double zStep, param_type *pars, double*y, complex<double>*integral) {
 	const int num_tOver2 = num_t / 2;
-
-/* #pragma omp parallel for	
-	for (int i = 0; i <= num_tOver2; i++)
-	{
-		pars->ee_p[i] = (y[i] + 1.0i*y[i + num_tOver2 + 1])*exp(-1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
-	}
-
-#pragma omp parallel for	
-	for (int i = 1; i < num_tOver2; i++)
-	{
-		pars->ee_p[num_t - i] = (y[i] - 1.0i*y[i + num_tOver2 + 1])*exp(1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
-	}
-
-#pragma omp parallel for	
-	for (int i = 0; i <= num_tOver2; i++)
-	{
-		pars->ee_m[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_tOver2 + 3])*exp(1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
-	}
-
-#pragma omp parallel for	
-	for (int i = 1; i < num_tOver2; i++)
-	{
-		pars->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i*y[i + 3 * num_tOver2 + 3])*exp(-1.0i*real(pars->k[i])*z)*exp(-1.0*abs(imag(pars->k[i]))*z);
-	}
-
-	fftw_execute(pars->ep_b);
-	fftw_execute(pars->em_b);
-
-#pragma omp parallel for	
-	for (int i = 0; i < num_t; i++)
-	{
-		pars->ee_p[i] = pars->ee_p[i] / (double(num_t));
-		pars->ee_m[i] = pars->ee_m[i] / (double(num_t));
-		pars->nl_k[i] = pars->chi_2 * pow(real(pars->ee_p[i] + pars->ee_m[i]), 2) + pars->chi_3 * pow(real(pars->ee_p[i] + pars->ee_m[i]), 3);
-		}
-
-	fftw_execute(pars->nk_f);
-	
-	if (pars->doPlasmaCalc == 2) {
-		double ht = (2.0 * domain_t) / double(num_t);
-		double neutrals = num_atoms;                          // Neutral particles
-		double electrons = 0.0; 
-		double change = 0.0;
-		double current = 0.0;                                       // Current to be exported to UPPE
-		double current_change = 0.0e0;                              // Current change for differential equation
-		double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
-
-		pars->rho[0] = electrons;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			double fieldIntensity = ((pow(real(pars->ee_p[i] + pars->ee_m[i]), 2)) / Znaught);
-			change = neutrals * pars->mpi_sigmaK * ht * pow(fieldIntensity, pars->mpi_k);
-			electrons += change;
-			neutrals -= change;
-			// Don't allow neutrals dip below zero
-			if (neutrals < 0.0) neutrals = 0.0;
-			if (electrons > num_atoms) electrons = num_atoms;
-
-			pars->rho[i + 1] = electrons;
-		}
-
-		j_e[0] = j_e0;
-		fv1 = j_e0;
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			// CALCULATING THE CURRENT for UPPE (based on Ewan's notes Jan-24 2018)
-			//  First order method	
-			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
-			// Second order method (Kolja)
-			fv2 = real(pars->ee_p[i + 1] + pars->ee_m[i + 1]);
-			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
-			fv1 = fv2;
-			current += current_change;
-			j_e[i + 1] = current;
-		}
-
-		fftw_execute(pars->np_f);
-	}
-	else if (pars->doPlasmaCalc == 0) {
-		for (int i = 0; i < num_t; i++)
-		{
-			nl_p[i] = 0.0;
-		}
-	}
-	else {
-		cout << "ERROR: Invalid option passed for plasma calculation." << endl;
-		exit(EXIT_FAILURE);
-	}
- */
 	for (int i = 0; i <= num_tOver2; i++)
 	{
 		if (i < freqLowerCutoff || i > freqUpperCutoff)
@@ -1546,7 +1653,7 @@ void integrate(double z, double zStep, param_type *pars, double*y, complex<doubl
 		}
 		else {
 			//integral[i] += (-1.0i*pow(pars->omega[i], 2) / (2.0*(pars->k[i])*pow(cLight, 2))*nl_k[i] - pars->omega[i] / (2.0*(pars->k[i])*pow(cLight, 2)*epsilon_0)*pars->nl_p[i])* exp(-1.0i*real(pars->k[i]) * z)*exp(-1.0*abs(imag(pars->k[i]))*z)*zStepMaterial1;
-			integral[i] += (-1.0i*pow(pars->omega[i], 2) / (2.0*(pars->k[i])*pow(cLight, 2))*nl_k[i] - pars->omega[i] / (2.0*(pars->k[i])*pow(cLight, 2)*epsilon_0)*pars->nl_p[i]) * exp(-1.0i * pars->k[i] * z) * zStep;
+			integral[i] += -(1.0i*pow(pars->omega[i], 2) / (2.0*(pars->k[i])*pow(cLight, 2))*pars->nl_k[i] + pars->omega[i] / (2.0*(pars->k[i])*pow(cLight, 2)*epsilon_0)*pars->nl_p[i]) * exp(-1.0i*real(pars->k[i]) * z)*exp(-1.0*abs(imag(pars->k[i]))*z) * zStep;
 		}
 	}
 	return;
@@ -1569,7 +1676,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 		double dt = domain_t / double(num_t);
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), imag(eep[i]), real(eem[i]), imag(eep[i]), ne[i], real(j_e[i]));
+			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), imag(eep[i]), real(eem[i]), imag(eem[i]), ne[i], real(j_e[i]));
 		}
 	}
 	else {
@@ -1581,7 +1688,55 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 	return;
 }
 
-int func(double z, const double y[], double f[], void *params) {
+void write_multicolumnMonitor_Jalen(int iterationNo, double theZpos, double *y, param_type *p) {
+
+	char buffer[STRING_BUFFER_SIZE];
+	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));
+	printf("\t\tWriting point monitor data to file: %s \n", buffer);
+
+	int num_tOver2 = num_t/2;
+	for (int i = 0; i <= num_tOver2; i++)
+	{
+		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * theZpos) * exp(-1.0 * abs(imag(p->k[i])) * theZpos);
+		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
+		p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+
+		if (i > 0 && i < num_tOver2) {
+			const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * theZpos) * exp(1.0 * abs(imag(p->k[i])) * theZpos);
+			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
+			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+		}
+		
+	}
+
+	fftw_execute(p->ep_b);
+	fftw_execute(p->em_b);
+	normalizeFFT(p->ee_p, 2);
+	normalizeFFT(p->ee_m, 2);
+
+	FILE* fp;
+	//errno_t err;
+	fp = fopen(buffer, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# Values at Monitor zPosition %.17g[micron]  \n", theZpos*1e6);
+		fprintf(fp, "# time [sec]\t\tReEtP[V/m]\t\tImEtP[V/m]\t\tReEtM[V/m]\t\tImEtM[V/m]\t\tNumberElectrons\t\tCurrent\n");
+		double dt = domain_t / double(num_t);
+		for (int i = 0; i < num_t; i++)
+		{
+			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(p->ee_p[i]), imag(p->ee_p[i]), real(p->ee_m[i]), imag(p->ee_m[i]), ne[i], real(j_e[i]));
+		}
+	}
+	else {
+		printf("The file %s was not opened\n", buffer);
+		exit(-1);
+	}
+	if (fp != NULL) { fclose(fp); }
+
+	return;
+}
+
+int func_drude(double z, const double y[], double f[], void *params) {
 	/*
 	================================
 			WARNING!!
@@ -1599,73 +1754,32 @@ int func(double z, const double y[], double f[], void *params) {
 	for (int i = 0; i <= num_tOver2; i++)
 	{
 		//const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
-		const complex<double> phaseFactorP = exp(1.0i * p->k[i] * z);
-		const complex<double> phaseFactorM = exp(-1.0i * p->k[i] * z);
-		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactorM;
+		const complex<double> phaseFactor = 1.0;
+		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
+		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+
+		/*const complex<double> phaseFactorP = exp(-1.0i * p->k[i] * z);
+		const complex<double> phaseFactorM = exp(1.0i * p->k[i] * z);
+		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
+		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;*/
 		// Jalen thinks this is off by 1 due to remainder in the above for loop dividing by 2 
 		//p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 		// Orignal Andrew was
-		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorP;
+		
 
 		if (i > 0 && i < num_tOver2) {
-			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
-			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
+			//const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+			const complex<double> phaseFactor2 = 1.0;
+			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
+			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+			//p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
+			//p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
 		}
 		
 	}
 
-/* #pragma omp  parallel for
-	for (int i = 1; i < num_tOver2; i++)
-	{
-		const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
-		p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
-		p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
-	} */
-
-
-	fftw_execute(p->ep_b);
-	fftw_execute(p->em_b);
-
-#pragma omp parallel for
-	for (int i = 0; i < num_t; i++)
-	{
-		p->ee_p[i] = p->ee_p[i] / num_td;
-		p->ee_m[i] = p->ee_m[i] / num_td;
-		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
-	}
-
-
-	fftw_execute(p->nk_f);
 	
-	// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
-	double ht = domain_t / num_td;
-	double change, w_QST;
-	const double U_i = 15.76; // Ionization potential of Argon [eV]
-	const double U_H = 13.6; // Ionization potential of Hydrgogen [eV]
-	const double E_a = 5.14e11; // ? [V/m]
-	const double mu_a = 4.13e16; // ? [Hz]
-	double ve = 0.0e0, fv1 = 0.0e0, fv2 = 0.0e0;
-	const double charge2 = pow(charge_e, 2);
-
-	p->rho[0] = rho_0;
-	for (int i = 0; i < num_t - 1; i++)
-	{
-		w_QST = 4 * mu_a * pow(U_i/U_H, 5/2) / abs(p->ee_p[i] / E_a) * exp(-2 * pow(U_i/U_H, 3/2) / (3 * abs(p->ee_p[i]/E_a)));
-		change = w_QST * (num_atoms - p->rho[i]);
-		p->rho[i + 1] = ht * change + p->rho[i];
-	}
-
-	for (int i = 0; i < num_t; i++)
-	{
-		p->j_e[i] = p->rho[i] * real(p->ee_p[i]);
-	}
-
-	fftw_execute(p->np_f);
-	for (int i = 0; i < num_t; i++)
-	{
-		p->nl_p[i] = mu_0 * charge2 / mass_e * p->nl_p[i];
-	}
-
+	double omega_pe2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0);
 		
 	for (int i = 0; i < freqLowerCutoff; i++) {
 		f[i] = 0.0;
@@ -1681,14 +1795,20 @@ int func(double z, const double y[], double f[], void *params) {
 	}
 #pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
-		/* f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z));
-		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
-		f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z));
-		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z)); */
+		//complex<double> deltazA = 1.0i * omega_pe2 / (2.0 * p->k[i] * clightSquared) * (p->ee_p[i] + p->ee_m[i] * exp(2.0i * p->k[i] * z));
+		complex<double> deltazA = -omega_pe2 * p->omega[i] / (2.0 * p->k[i] * clightSquared) / (1.0/tauCollision - 1.0i*p->omega[i]) * (p->ee_p[i] + p->ee_m[i] * exp(2.0i * p->k[i] * z));
+		f[i] = real(deltazA);
+		f[i + num_tOver2 + 1] = imag(deltazA);
+		//deltazA = -1.0i * omega_pe2 / (2.0 * p->k[i] * clightSquared) * (p->ee_p[i] * exp(-2.0i * p->k[i] * z) + p->ee_m[i]);
+		deltazA = omega_pe2 * p->omega[i] / (2.0 * p->k[i] * clightSquared) / (1.0/tauCollision - 1.0i*p->omega[i]) * (p->ee_p[i] * exp(-2.0i * p->k[i] * z) + p->ee_m[i]);
+		f[i + num_t + 2] = real(deltazA);
+		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
+		/*
 		f[i] = real((-1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] - p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*p->k[i]*z));
 		f[i + num_tOver2 + 1] = imag((-1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] - p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(1.0i * p->k[i] * z));
 		f[i + num_t + 2] = real((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * p->k[i] * z));
 		f[i + 3 * num_tOver2 + 3] = imag((1.0i * pow(p->omega[i], 2) / (2.0 * (p->k[i]) * clightSquared) * p->nl_k[i] + p->omega[i] / (2.0 * (p->k[i]) * clightSquared * epsilon_0) * p->nl_p[i]) * exp(-1.0i * p->k[i] * z));
+		*/
 	}
 	
 
