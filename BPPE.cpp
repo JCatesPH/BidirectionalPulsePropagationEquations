@@ -681,7 +681,22 @@ void write2DtoFile(std::complex<double>* ee_p)
 
 void createWindowFunc(double alpha){
 	// Implements a Tukey window
-	for (int i=0; i < (int)(alpha*num_t/2); i++) {
+	for (int i = 0; i < num_t/4; i++) {
+		window[i] = 0.0;
+	}
+	for (int i=num_t/4; i < (int)((1+alpha)*num_t/4); i++) {
+		window[i] = 0.5 * (1.0 - cos(4*M_PI*(i-num_t/4)/(alpha*num_t)));
+	}
+	for (int i=(int)((1+alpha)*num_t/4); i <= num_t/2; i++) {
+		window[i] = 1.0;
+	}
+	for (int i=num_t/4; i <= num_t/2; i++) {
+		window[num_t-i] = window[i];
+	}
+	for (int i = 3*num_t/4; i < num_t; i++) {
+		window[i] = 0.0;
+	}
+	/* for (int i=0; i < (int)(alpha*num_t/2); i++) {
 		window[i] = 0.5 * (1.0 - cos(2.0*M_PI*i/(alpha*num_t))) + 1e-15;
 	}
 	for (int i=(int)(alpha*num_t/2); i <= num_t/2; i++) {
@@ -689,7 +704,7 @@ void createWindowFunc(double alpha){
 	}
 	for (int i=1; i <= num_t/2; i++) {
 		window[num_t-i] = window[i];
-	}
+	} */
 
 	char windowFile[STRING_BUFFER_SIZE];
 	snprintf(windowFile, sizeof(char) * STRING_BUFFER_SIZE, "%swindowFunc.dat", SIM_DATA_OUTPUT);
