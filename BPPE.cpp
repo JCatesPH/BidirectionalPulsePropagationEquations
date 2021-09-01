@@ -1381,7 +1381,7 @@ int func(double z, const double y[], double f[], void *params) {
 		
 
 		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
-		applyWindow(p->j_e);
+		//applyWindow(p->j_e);
 		fftw_execute(p->np_f);
 		normalizeFFT(nl_p, 1);
 
@@ -1393,8 +1393,7 @@ int func(double z, const double y[], double f[], void *params) {
 		double change = 0.0;    
 		double current = 0.0;                                       // Current to be exported to UPPE
 		double current_change = 0.0e0;                              // Current change for differential equation
-		double current_dc = 0.0;
-		double ve = 0.0; //1/tauCollision;
+		double ve = 1/tauCollision;
 		double fv1 = 0.0e0, fv2 = 0.0e0;
 		const double nu_a = 4.13e16; // [Hz]
 		const double E_a = 5.14e11; // [V/m]
@@ -1416,7 +1415,6 @@ int func(double z, const double y[], double f[], void *params) {
 				wQST = 0.0;
 			}
 			
-
 			change = ht * wQST * neutrals;
 			electrons += change;
 			neutrals -= change;
@@ -1428,7 +1426,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 
 			/* if (eField != 0) {
-				p->j_e[i + 1] = p->ionE * neutrals / eField;
+				p->j_e[i + 1] = p->ionE * wQST * neutrals / eField;
 			}
 			else {
 				p->j_e[i + 1] = 0.0;
@@ -1449,19 +1447,13 @@ int func(double z, const double y[], double f[], void *params) {
 			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
 			// Second order method (Kolja)
 			fv2 = real(p->ee_p[i+1] + p->ee_m[i+1]);
-			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * real(p->j_e[i]);
 			fv1 = fv2;
-			current += current_change;
-			p->j_e[i + 1] = current;
-			current_dc += current;
+			p->j_e[i + 1] = p->j_e[i] + current_change;
 		}
-		current_dc = current_dc / num_t;
+		
 
-		for (int i = 0; i < num_t - 1; i++)
-		{
-			p->j_e[i + 1] = p->j_e[i+1] - current_dc;
-		}
-
+		//applyWindow(p->j_e);
 		fftw_execute(p->np_f);
 		normalizeFFT(nl_p, 1);
 	}
