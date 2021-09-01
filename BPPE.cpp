@@ -221,12 +221,7 @@ int main(int argc, char *argv[])
 	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
     printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
 
-	if (myStructure.m_layers.size() > 1) {
-		doNonlinearPartofBPPE();
-	}
-	else {
-		DELME_doNonlinearPartofBPPE_1Layer(); // Testing single layer simulation
-	}
+	doNonlinearPartofBPPE();
 
 	dtime = omp_get_wtime() - dtime;
 	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
@@ -384,116 +379,6 @@ void doNonlinearPartofBPPE()
 	}
 }
 
-void DELME_doNonlinearPartofBPPE_1Layer()
-{
-	param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
-			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
-			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.begin()->getMaterial().getdoPlasmaCalc());
-	//gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
-	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rk4, zStepMaterial1, epsabs, epsrel);
-	//gsl_odeiv2_driver* d = gsl_odeiv2_driver_alloc_y_new(&sys, gsl_odeiv2_step_rkf45, hstart, epsabs, epsrel);
-	//gsl_odeiv2_driver_set_nmax(d, ode_nmax);
-
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
-	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 2 * num_t + 4);
-	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
-	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
-	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
-
-	double zRight;
-	
-	double nonlinear_time_initial, nonlinear_time;
-
-	for (int Iteration_number = 1; Iteration_number <= num_iterations; Iteration_number++)
-	{
-		if (VERBOSE >= 3) { cout << endl << "Iteration number = " << Iteration_number << endl; }
-		nonlinear_time_initial = omp_get_wtime();
-		delmeFLAG = Iteration_number;
-		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, myStructure.m_layers.begin()->getMaterial().getK(), eFieldMinusBackwardFFT);
-
-		//cout << "  Going FORWARD through layers" << endl;
-		// Skip the LHS layer and the RHS layers
-		params->k = myStructure.m_layers.begin()->getMaterial().getK();
-		params->chi_2 = myStructure.m_layers.begin()->getMaterial().getChi2();
-		params->chi_3 = myStructure.m_layers.begin()->getMaterial().getChi3();
-		params->doPlasmaCalc = myStructure.m_layers.begin()->getMaterial().getdoPlasmaCalc();
-		params->mpi_k = myStructure.m_layers.begin()->getMaterial().getmpi_k();
-		params->mpi_sigmaK = myStructure.m_layers.begin()->getMaterial().getmpi_sigmaK();
-		params->ionE = myStructure.m_layers.begin()->getMaterial().getIonizationEnergy();
-		zPosition = myStructure.m_layers.begin()->getStartZpos();
-
-		int numzReports = 0; 
-		int numZsteps = 0;
-		double zStepSize = myStructure.m_layers.begin()->getStepSize();
-
-		for (std::size_t atZpos = 0; atZpos < monitorZlocations.size(); ++atZpos) {
-			zRight = monitorZlocations[atZpos];
-
-			if (zRight > myStructure.m_layers.begin()->getEndZpos()) {
-				printf("ERROR: Point monitor set after end of structure.\n");
-				exit(-1);
-			}
-
-			while (zPosition < zRight) {
-				GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
-				
-				if (GSLerrorFlag == GSL_SUCCESS) {
-					integrate(zPosition, zStepSize, params, y, integral);
-					//printf("I = %d, step = %d, z = %.8g\n", Iteration_number, numZsteps, zPosition);
-					numZsteps++;
-				}
-				else {
-					printf("error: driver returned %d\n", GSLerrorFlag);
-					break;
-				}
-				nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-				if ((int)(nonlinear_time / 20) > numzReports) {
-					printf("I = %d, step = %d, z = %.8g, t = %d s\n", Iteration_number, numZsteps, zPosition, (int)nonlinear_time);
-					numzReports++;
-				}
-			}
-			
-			printf("Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
-			//write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
-			write_multicolumnMonitor_Jalen(Iteration_number, zPosition, y, params);
-
-			
-		}
-
-		if (zPosition < myStructure.m_layers.begin()->getEndZpos()) {
-			zRight = myStructure.m_layers.begin()->getEndZpos();
-			while (zPosition < zRight) {
-				GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
-				if (GSLerrorFlag == GSL_SUCCESS) {
-					integrate(zPosition, zStepSize, params, y, integral);
-					//printf("I = %d, step = %d, z = %.8g\n", Iteration_number, numZsteps, zPosition);
-					numZsteps++;
-				}
-				else {
-					printf("error: driver returned %d\n", GSLerrorFlag);
-					break;
-				}
-			}
-		}
-		nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-		printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
-
-		//integrate(zPosition, zStepSize, params, y, integral);
-
-		// Write out 
-		//if (Iteration_number == num_iterations)
-		write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
-		if (VERBOSE >= 4) { cout << "Setting am_to_zero()" << endl; }
-		am_to_zero(y);
-
-		//cout << "  Going BACKWARD through BOUNDARIES" << endl;
-		//myStructure.doBackwardPassThroughAllBoundaries(y);
-
-		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
-
-		if (Iteration_number > 3) VERBOSE--;
-	}
-}
 
 void fill_omg_k(double*omg, double*kx) {
 
@@ -967,12 +852,7 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 #endif
 
 		int x;
-		if (myStructure.m_layers.size() > 1) {
-			x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
-		}
-		else {
-			x = DELME_new_initial_data_1Layer(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
-		}
+		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
 		
 	}
 
@@ -1374,39 +1254,6 @@ int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex
 	return 1;
 }
 
-int DELME_new_initial_data_1Layer(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral) {
-
-	for (int i = 0; i <= num_t / 2; i++)
-	{
-		f1[i] = (y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]) + integral[i];
-		integral[i] = 0.0;
-		ym1_temp[i] = ym1_init[i];
-		ym1_init[i] = 0.0;
-	}
-
-	for (int i = 0; i < 2 * num_t + 4; i++)
-	{
-		if (i <= num_t / 2) {
-			y[i] = real(yp_init[i]);
-		}
-		else if (i <= num_t + 1) {
-			y[i] = imag(yp_init[i - (num_t / 2 + 1)]);
-		}
-		else if (i <= 3 * num_t / 2 + 2) {
-			y[i] = real(ym1_init[i - (num_t + 2)]);
-		}
-		else {
-			y[i] = imag(ym1_init[i - (3 * num_t / 2 + 3)]);
-		}
-	}
-
-	for (int i = 0; i <= num_t / 2; i++)
-	{
-		f0[i] = f1[i];
-		ym0_init[i] = ym1_temp[i];
-	}
-	return 1;
-}
 
 
 int func(double z, const double y[], double f[], void *params) {

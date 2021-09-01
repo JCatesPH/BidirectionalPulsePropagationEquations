@@ -160,5 +160,3 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* 
 void write_multicolumnMonitor_Jalen(int iterationNo, double theZpos, double *y, param_type *p);
 void DELME_ArgonDispersion(double* omg);
 void DELME_AndrewPreformed(double* omg);
-void DELME_doNonlinearPartofBPPE_1Layer();
-int DELME_new_initial_data_1Layer(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral);
