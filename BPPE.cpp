@@ -343,9 +343,9 @@ void doNonlinearPartofBPPE()
 
 					printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
 					//write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
-					params->k = myStructure.m_layers.back().getMaterial().getK();
+					//params->k = myStructure.m_layers.back().getMaterial().getK();
 					write_multicolumnMonitor_Jalen(Iteration_number, zPosition, y, params);
-					params->k = lit->getMaterial().getK();
+					//params->k = lit->getMaterial().getK();
 					
 				}
 
