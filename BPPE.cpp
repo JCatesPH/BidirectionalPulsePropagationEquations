@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	char *datetime = ctime(&now);
 
 	if (VERBOSE >= 0) {
-		cout << "BPPE code - ACMS Ver.2" << endl;
+		cout << "GBPPE code - ACMS Ver.0" << endl;
 		cout << "The current date and time: " << datetime << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
 		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
@@ -99,7 +99,10 @@ int main(int argc, char *argv[])
 
 	#pragma omp parallel 
 	{
-		cout << omp_get_thread_num() << " ";
+		#pragma omp critical
+		{
+			cout << omp_get_thread_num() << " ";
+		}
 	}
 	cout << endl << endl;
 
@@ -209,7 +212,7 @@ int main(int argc, char *argv[])
 	//DELME_AndrewPreformed(omegaArray);
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
-	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,f0,f1,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, integral);
+	set_guess(eFieldPlus, yp_init, ym0_init, ym1_init,ym1_temp,y,eFieldPlusForwardFFT,eFieldMinus,eFieldMinusBackwardFFT,eFieldPlusBackwardFFT, integral);
 	
 	std::string reldatpath = SIM_DATA_OUTPUT;
 	myStructure.writeStructureLayoutToASCIIFile(reldatpath + "StructureLayout.txt");
@@ -372,7 +375,7 @@ void doNonlinearPartofBPPE()
 		cout << "  Going BACKWARD through BOUNDARIES" << endl;
 		myStructure.doBackwardPassThroughAllBoundaries(y);
 
-		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+		p = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, y, integral);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
 		printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
@@ -384,56 +387,6 @@ void doNonlinearPartofBPPE()
 
 void fill_omg_k(double*omg, double*kx) {
 
-/*	if (numDimensionsMinusOne == 1) {
-	
-		for (int j = 0; j <= num_x / 2; j++)
-		{
-			if (j == 0) {
-				for (int i = 0; i <= num_t / 2; i++)
-				{
-					kx[i] = (M_PI / domain_x)*j;
-					omg[i] = (M_PI / domain_t)*i;
-				}
-			}
-			else if (j == num_x / 2) {
-				for (int i = 0; i <= num_t / 2; i++)
-				{
-					kx[i + numActiveOmega2] = (M_PI / domain_x)*j;
-					omg[i + numActiveOmega2] = (M_PI / domain_t)*i;
-				}
-			}
-			else {
-				for (int i = 0; i < num_t; i++)
-				{
-					kx[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_x)*j;
-					if (i <= num_t / 2) {
-						omg[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_t)* (double)i;
-					}
-					else {
-						omg[i + (j - 1)*num_t + (num_t / 2 + 1)] = (M_PI / domain_t)*((double)i - num_t);
-					}
-
-				}
-			}
-		}
-		for (int j = 0; j < numActiveOmega; j++)
-		{
-			if (j == 0) {
-				k_0[j] = 0.0;
-				k_1[j] = 0.0;
-				k_2[j] = 0.0;
-				k_3[j] = 0.0;
-			}
-			else 
-			{
-				k_0[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_0(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
-				k_1[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_1(omg[j], kx[j], fp), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
-				k_2[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_2(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
-				k_3[j] = copysign(1.0, omg[j])*sqrt(pow(omg[j], 2) * pow(index_3(omg[j], kx[j]), 2) / (pow(cLight, 2)) - pow(kx[j], 2));
-			}		
-		} 
-	} */
-	//else {
 		for (int i = 0; i < num_t; i++)
 		{
 			if (i <= num_t / 2) {
@@ -445,23 +398,7 @@ void fill_omg_k(double*omg, double*kx) {
 		}
 		// COLM NEW this line replaces following comment block
 		myMaterialsDB.initAllMaterialKs(omg, numActiveOmega);
-		/* ANDREW ORIGNAL
-		for (int i = 0; i <= num_t / 2; i++)
-		{
-			if (i == 0) {
-				k_0[i] = 0.0;
-				k_1[i] = 0.0;
-				k_2[i] = 0.0;
-				k_3[i] = 0.0;
-			}
-			else {
-				k_0[i] = omg[i] * index_0(omg[i], 0.0) / cLight;
-				k_1[i] = omg[i] * index_1(omg[i], 0.0, err, fp) / cLight;
-				k_2[i] = omg[i] * index_2(omg[i], 0.0) / cLight;
-				k_3[i] = omg[i] * index_3(omg[i], 0.0) / cLight;
-			}
-		}*/
-	//}
+
 	return;
 }
 
@@ -765,7 +702,7 @@ void applyWindow(complex<double>* arr){
 	}
 } 
 
-void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, complex<double>* f0, complex<double>* f1, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral) {
+void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral) {
 
 	double ht = (1.0 * domain_t) / double(num_t);
 	int o;
@@ -794,38 +731,15 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 	fillYfromYpAndYm(y, yp_init, ym0_init); // was initalizeYarray(y, yp_init, ym0_init) BUT they have the same function body
 	std::cout << "In SetGuess FINISHED Initalizing stuff" << endl << endl;
 
-#ifdef	USE_CPP_BOUNDARY
 	if (VERBOSE >= 7) { cout << "  Going FORWARD through layers" << endl; }
 	myStructure.doForwardPassThroughAllBoundaries(y);
 	o = 1;
-#else
-	cout << "  Going FORWARD through layers USING ANDREW?" << endl;
-	//boundary(LHSsourceLayerThickness, k_0, k_1, y);
-	//for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
-	// Andrew orignal deleted stuff was here
-#endif
 
 	am_to_zero(y);
 	if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
 
-#ifdef	USE_CPP_BOUNDARY
 	if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers" << endl; }
 	myStructure.doBackwardPassThroughAllBoundaries(y);
-#else
-	cout << "  Going BACKWARD through layers USING ANDREW?" << endl;
-	//if (o == 1)
-	//{
-	//	boundary(LHSsourceLayerThickness + lengthSample, k_3, k_2, y);
-	//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
-	//		// Andrew orignal deleted stuff was here
-	//}
-	//else {
-	//	boundary(LHSsourceLayerThickness + lengthSample, k_3, k_1, y);
-	//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
-	// 	   	// Andrew orignal deleted stuff was here
-	//}
-	//boundary(LHSsourceLayerThickness, k_1, k_0, y);
-#endif
 
 	update_guess(yp_init, f0, ym1_init, y, integral);
 
@@ -834,42 +748,19 @@ void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>*
 		if (VERBOSE >= 7) { cout << "bb = " << bb << endl; }
 		write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, ee_m, myStructure.m_layers.front().getMaterial().getK(), em_b);
 
-#ifdef	USE_CPP_BOUNDARY
 		if (VERBOSE >= 7) { cout << "  Going FORWARD through layers" << endl; }
 		myStructure.doForwardPassThroughAllBoundaries(y);
 		o = 1;
-#else
-		//cout << "  Going FOREWARD through layers USING ANDREW??? o=" << o << endl;
-		//boundary(LHSsourceLayerThickness, k_0, k_1, y);
-		//for (int aLayer = 0; aLayer <= numLayersInSample - 1; aLayer++)
-			// Andrew orignal deleted stuff was here
-#endif
 
 		write_out_eFieldAndSpectrumAtZlocation(0, 1, y, myStructure.getThickness(), ee_p, myStructure.m_layers.back().getMaterial().getK(), ep_b);
 		am_to_zero(y);
 		if (VERBOSE >= 7) { cout << "Setting am_to_zero()" << endl; }
 
-#ifdef	USE_CPP_BOUNDARY
 		if (VERBOSE >= 7) { cout << "  Going BACKWARD through layers" << endl; }
 		myStructure.doBackwardPassThroughAllBoundaries(y);
-#else
-		//cout << "  Going BACKWARD through layers USING ANDREW??? o=" << o << endl;
-		//if (o == 1)
-		//{
-
-		//	boundary(LHSsourceLayerThickness + lengthSample, k_3, k_2, y);
-		//	for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
-		//	// Andrew orignal deleted stuff was here
-		else {
-			//boundary(LHSsourceLayerThickness + lengthSample, k_3, k_1, y);
-			//for (int aLayer = 0; aLayer < numLayersInSample - 1; aLayer++)
-			// 	// Andrew orignal deleted stuff was here
-		//}
-		//boundary(LHSsourceLayerThickness, k_1, k_0, y);
-#endif
 
 		int x;
-		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, f0, f1, y, integral);
+		x = new_initial_data(ym0_init, ym1_init, ym1_temp, yp_init, y, integral);
 		
 	}
 
@@ -1187,7 +1078,7 @@ void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*y
 	return;
 }
 
-int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral) {
+int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral) {
 
 	int nExcRaised = 0;
 	double diffNorm = 0.0;

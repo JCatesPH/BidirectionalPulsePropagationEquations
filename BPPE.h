@@ -150,10 +150,10 @@ void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructu
 void createWindowFunc(double alpha);
 void createWindowFunc();
 void normalizeFFT(complex<double>* arr, int type);
-void set_guess(complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , complex<double>* , double* , fftw_plan , complex<double>* , fftw_plan , fftw_plan , complex<double>* );
+void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral);
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
 void am_to_zero(double*y);
-int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, complex<double>*f0, complex<double>*f1, double*y, complex<double>*integral);
+int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral);
 int func(double z, const double y[], double f[], void *params);
 void integrate(double z, double zStep, param_type *params, double*y, complex<double>*integral);
 void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
