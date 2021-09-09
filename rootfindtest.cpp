@@ -10,7 +10,7 @@ struct rparams
   };
 
 int
-rosenbrock_f (const gsl_vector * x, void *params,
+map(const gsl_vector * x, void *params,
               gsl_vector * f)
 {
   double a = ((struct rparams *) params)->a;
@@ -51,7 +51,7 @@ main (void)
 
   const size_t n = 2;
   struct rparams p = {1.0, 10.0};
-  gsl_multiroot_function f = {&rosenbrock_f, n, &p};
+  gsl_multiroot_function f = {&map, n, &p};
 
   double x_init[2] = {-10.0, -5.0};
   gsl_vector *x = gsl_vector_alloc (n);

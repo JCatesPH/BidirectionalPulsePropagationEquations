@@ -21,10 +21,13 @@ TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
 
 # --- Rule 1 ---
-all: $(TARGET)
+test: $(TARGET)
 
 $(TARGET): $(OBJFILES) $(HEADERS)
 	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(LDFLAGS)
+
+rootfind: rootfindtest.cpp
+	$(CC) $(CPPFLAGS) -o testrootfind.out rootfindtest.cpp $(LDFLAGS)
 
 clean:
 	rm -f $(OBJFILES) $(TARGET) *~
