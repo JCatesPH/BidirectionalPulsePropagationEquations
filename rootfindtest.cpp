@@ -95,10 +95,9 @@ main (void)
   int status;
   size_t i, iter = 0;
 
-  const size_t n = 1;
-  struct rparams nlp = {6.0, 0.25};
-
-  gsl_multiroot_function f = {&map, n, &nlp};
+  const size_t n = 2;
+  struct rparams p = {1.0, 10.0};
+  gsl_multiroot_function f = {&map, n, &p};
 
   double x_init = 1.0;
   gsl_vector *x = gsl_vector_alloc (n);
