@@ -133,21 +133,33 @@ typedef struct {
 	double mpi_sigmaK, mpi_k, ionE;
 	complex<double> *k, *ee_p, *ee_m, *nl_k, *nl_p, *j_e;
 	fftw_plan nk_f, ep_b, em_b, np_f;
-}param_type;
+}odeparam_type;
 
 typedef struct {
-	double itnum;
+	int itnum;
 }rootparam_type;
 
-void doNonlinearPartofBPPE();
-param_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
+typedef struct {
+	double A0;
+	double relativeIntensity;
+	double relativePhase;
+	double pulseDuration;
+	double omega0;
+}pulseparam_type;
+
+
+//void doNonlinearPartofBPPE();
+void iterateBPPE();
+odeparam_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
 void fill_omg_k(double*omg, double*kx);
 void writeInputEfield(std::complex<double>* ee_p);
 void writeInputSpectrum(std::complex<double>* yp_init);
-void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
+void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams);
+//void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void write2DtoFile(std::complex<double>* ee_p);
-void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
-void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral);
+//void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
+//void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral);
+void initializeY();
 void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 //void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym0_init, double*y, complex<double>*integral);
 void writeSimParameters();
@@ -156,13 +168,13 @@ void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructu
 void createWindowFunc(double alpha);
 void createWindowFunc();
 void normalizeFFT(complex<double>* arr, int type);
-void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral);
+//void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral);
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
 //void am_to_zero(double*y);
 //int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral);
 int func(double z, const double y[], double f[], void *params);
-void integrate(double z, double zStep, param_type *params, double*y, complex<double>*integral);
-void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
-void write_multicolumnMonitor_Jalen(int iterationNo, double theZpos, double *y, param_type *p);
+//void integrate(double z, double zStep, param_type *params, double*y, complex<double>*integral);
+//void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
+void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odeparam_type *p);
 void DELME_ArgonDispersion(double* omg);
 void DELME_AndrewPreformed(double* omg);

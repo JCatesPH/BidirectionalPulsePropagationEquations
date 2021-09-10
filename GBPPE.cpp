@@ -35,7 +35,7 @@ double *window;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
 double *omegaArray, *timeValuesArray, *kx, *ne, *y;
-complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym0_init, *ym1_init, *ym1_temp, *f0, *f1, *integral, *nl_k, *nl_p, *j_e;
+complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init, *nl_k, *nl_p, *j_e;
 fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
 
@@ -76,6 +76,20 @@ int main(int argc, char *argv[])
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
 	//alpha_tukey = 0.0;
 
+	pulseparam_type* sourceLeft = (pulseparam_type*)malloc(sizeof(pulseparam_type));
+	pulseparam_type* sourceRight = (pulseparam_type*)malloc(sizeof(pulseparam_type));
+
+	sourceLeft->A0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
+	sourceLeft->omega0 = 2 * M_PI*cLight / lambda_0;
+	sourceLeft->relativeIntensity = twoColorSH_amplitude;
+	sourceLeft->relativePhase = twoColorSH_phase;
+	sourceLeft->pulseDuration = tau;
+
+	sourceRight->A0 = 0.0;
+	sourceRight->omega0 = 2 * M_PI*cLight / lambda_0;
+	sourceRight->relativeIntensity = twoColorSH_amplitude;
+	sourceRight->relativePhase = twoColorSH_phase;
+	sourceRight->pulseDuration = tau;
 	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #ifdef _WIN64
 #ifndef NDEBUG
@@ -117,12 +131,7 @@ int main(int argc, char *argv[])
 	printf("Structure generated and point monitor locations set..\n");
 	
 	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	ym0_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	ym1_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	ym1_temp = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	f0 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	f1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	integral = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	ym_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
 	window = (double*)malloc(sizeof(double) * num_t);
 
@@ -156,7 +165,7 @@ int main(int argc, char *argv[])
 		npForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
 		eFieldMinusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-		intBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		
 	}
 	else {
 		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
@@ -186,7 +195,7 @@ int main(int argc, char *argv[])
 		npForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
 		eFieldMinusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-		intBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&integral[0]), reinterpret_cast<fftw_complex*>(&integral[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		
 	}
 
 
@@ -209,10 +218,16 @@ int main(int argc, char *argv[])
 
 	fill_omg_k(omegaArray, kx);
 	//DELME_ArgonDispersion(omegaArray);
-	//DELME_AndrewPreformed(omegaArray);
+	DELME_AndrewPreformed(omegaArray);
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
-    generateTwoColorPulse(eFieldPlus, eFieldMinusForwardFFT);
+	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
+	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, ym_init, sourceRight);
+	if (VERBOSE >=3) printf("Generating the left-hand side source.\n");
+    generateTwoColorPulse(eFieldPlus, eFieldMinusForwardFFT, yp_init, sourceLeft);
+	writeInputSpectrum(yp_init);
+
+	initializeY();
 
 	std::string reldatpath = SIM_DATA_OUTPUT;
 	myStructure.writeStructureLayoutToASCIIFile(reldatpath + "StructureLayout.txt");
@@ -221,7 +236,7 @@ int main(int argc, char *argv[])
 	myStructure.writeBoundaryLayoutToASCIIFile(reldatpath + "BoundaryLayout.txt");
 
 	/// Early termination
-	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
+	printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
     printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
 
 	iterateBPPE();
@@ -265,14 +280,14 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
     rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
 
-    param_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
+    odeparam_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
 			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
 			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.front().getMaterial().getdoPlasmaCalc());
 
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
-	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 2 * num_t + 4);
+	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
-	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(2 * num_t + 4);
+	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
     double nonlinear_time_initial, nonlinear_time;
 
@@ -352,9 +367,18 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
         }
     }
 
+	myStructure.doBackwardPassThroughAllBoundaries(y);
+
+	for (int k = 0; k < numActiveOmega; k++){
+		gsl_vector_set(f, k, y[k + 2 * numActiveOmega] - real(ym_init[k]));
+		gsl_vector_set(f, k + numActiveOmega, y[k + 3 * numActiveOmega] - imag(ym_init[k]));
+	}
+
     // Write out 
     //if (Iteration_number == num_iterations)
     //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
+	printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
 
     gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
@@ -370,12 +394,35 @@ void iterateBPPE()
 
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
-    gsl_multiroot_function f = {&mapU, 4*num_t, &rparams};
+    gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, &rparams};
+
+	T = gsl_multiroot_fsolver_broyden;
+	s = gsl_multiroot_fsolver_alloc (T, 2 * numActiveOmega);
+	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
+	//u->data = y;
+	for (int k = 2*numActiveOmega; k < 4*numActiveOmega; k++){
+		gsl_vector_set(u, k, y[k]);
+	}
+
+	gsl_multiroot_fsolver_set (s, &f, u);
 
 	int status;
     size_t i;
 
-    
+	do
+	{
+		printf("Starting iteration %d\n", rparams->itnum);
+		rparams->itnum += 1;
+		status = gsl_multiroot_fsolver_iterate (s);
+
+		if (status) break;
+
+		status = gsl_multiroot_test_residual (s->f, 1e-7);
+	}
+	while (status == GSL_CONTINUE && rparams->itnum < 3);
+
+    gsl_multiroot_fsolver_free(s);
+	gsl_vector_free(u);
 }
 
 
@@ -482,6 +529,25 @@ void DELME_ArgonDispersion(double* omg) {
 //void copy_omg_k_ToMaterial(MaterialDB aMaterialDB, double* kx, complex<double>* k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3) {
 //
 //}
+void initializeY()
+{
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		y[i] = real(eFieldPlus[i]);
+		y[i + numActiveOmega] = imag(eFieldPlus[i]);
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
+	}
+
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+	}
+	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+	}
+}
 
 void writeInputEfield(std::complex<double>* ee_p)
 {
@@ -539,57 +605,6 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 		exit(-1);
 	}
 	if (fp_spectrum != NULL) { fclose(fp_spectrum); }
-}
-
-void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral)
-{
-	for (int i = 0; i < numActiveOmega; i++)
-	{
-		if (i == 0) {
-			ym1_init[i] = 0.0;
-			ym0_init[i] = 0.0;
-			integral[i] = 0.0;
-		}
-		else {
-			ym1_init[i] = INITIAL_GUESS_SEED_VALUE; //exact_linear(k_0, k_1, k_2, k_0, k_0, i)*yp_init[i];
-			ym0_init[i] = 0.0;  //-1.0*yp_init[i] * exp(-1.0i*k_0[i] * 2.0*LHSsourceLayerThickness);
-			integral[i] = 0.0;
-		}
-	}
-}
-
-
-
-void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init)
-{
-	for (int i = 0; i < 4 * numActiveOmega; i++)
-	{
-		if (i < numActiveOmega) {
-			y[i] = real(yp_init[i]);
-		}
-		else if (i < 2 * numActiveOmega) {
-			y[i] = imag(yp_init[i - numActiveOmega]);
-		}
-		else if (i < 3 * numActiveOmega) {
-			y[i] = real(ym0_init[i - 2 * numActiveOmega]);
-		}
-		else {
-			y[i] = imag(ym0_init[i - 3 * numActiveOmega]);
-		}
-	}
-
-	for (int i = 0; i < freqLowerCutoff; i++) {
-		y[i] = 0.0;
-		y[i + numActiveOmega] = 0.0;
-		y[i + 2 * numActiveOmega] = 0.0;
-		y[i + 3 * numActiveOmega] = 0.0;
-	}
-	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
-		y[i] = 0.0;
-		y[i + numActiveOmega] = 0.0;
-		y[i + 2 * numActiveOmega] = 0.0;
-		y[i + 3 * numActiveOmega] = 0.0;
-	}
 }
 
 void createWindowFunc(double alpha){
@@ -676,27 +691,32 @@ void applyWindow(complex<double>* arr){
 	}
 } 
 
-void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f) {
+void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams) {
     double ht = (1.0 * domain_t) / double(num_t);
 	int o;
 
     for (int i = 0; i < num_t; i++) {
         double s = (-domain_t/2.0) + ht * ((double)i + 1);
-        ee[i] = A_0 * (sqrt(1.0 - twoColorSH_amplitude) * exp(-2.0 * log(2.0) * pow(s, 2) / (pow(tau, 2))) * cos(omega_0 * s)
-                        + sqrt(twoColorSH_amplitude) *       exp(-8.0 * log(2.0) * pow(s, 2) / (pow(tau, 2))) * cos(2.0 * omega_0 * s + twoColorSH_phase));
-    }
+        ee[i] = pparams->A0 * (sqrt(1.0 - pparams->relativeIntensity) * exp(-2.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(pparams->omega0 * s)
+                        + sqrt(pparams->relativeIntensity) *       exp(-8.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(2.0 * pparams->omega0 * s + pparams->relativePhase));
+		//ee[i] = 0.0;
+	}
     writeInputEfield(ee);
-    fftw_execute(e_f);
 
+    fftw_execute(e_f);
     normalizeFFT(ee, 1);
+
+	for (int i = 0; i < numActiveOmega; i++) {
+		source[i] = ee[i];
+	}
 
 }
 
 
 
-param_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, double* ne, complex<double>* j_e, complex<double>* k, complex<double>* ee_p, complex<double>* ee_m, complex<double>* nl_k, complex<double>* nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool) {
+odeparam_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, double* ne, complex<double>* j_e, complex<double>* k, complex<double>* ee_p, complex<double>* ee_m, complex<double>* nl_k, complex<double>* nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool) {
 
-	param_type* r = (param_type*)malloc(sizeof(param_type));
+	odeparam_type* r = (odeparam_type*)malloc(sizeof(odeparam_type));
 	if (r != NULL)
 	{
 	r->chi_2 = chi_2;
@@ -948,9 +968,9 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 
 
 
-int func(double z, const double y[], double f[], void *params) {
+int func(double z, const double y[], double f[], void *odep) {
 
-	param_type *p = reinterpret_cast<param_type*>(params);
+	odeparam_type *p = reinterpret_cast<odeparam_type*>(odep);
 
 	const int num_tOver2 = num_t / 2;
 	const double clightSquared = pow(cLight, 2);
@@ -1175,36 +1195,7 @@ int func(double z, const double y[], double f[], void *params) {
 
 
 
-
-void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e) {
-
-	char buffer[STRING_BUFFER_SIZE];
-	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));
-	printf("\t\tWriting point monitor data to file: %s \n", buffer);
-
-	FILE* fp;
-	//errno_t err;
-	fp = fopen(buffer, "w");
-	if (fp != NULL)
-	{
-		fprintf(fp, "# Algorithm iteration number %d  at Moitor zPosition %.17g[micron]  \n", iterationNo,  theZpos*1e6);
-		fprintf(fp, "# time [sec]\t\tReEtP[V/m]\t\tImEtP[V/m]\t\tReEtM[V/m]\t\tImEtM[V/m]\t\tNumberElectrons\t\tCurrent\n");
-		double dt = domain_t / double(num_t);
-		for (int i = 0; i < num_t; i++)
-		{
-			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(eep[i]), imag(eep[i]), real(eem[i]), imag(eem[i]), ne[i], real(j_e[i]));
-		}
-	}
-	else {
-		printf("The file %s was not opened\n", buffer);
-		exit(-1);
-	}
-	if (fp != NULL) { fclose(fp); }
-
-	return;
-}
-
-void write_multicolumnMonitor_Jalen(int iterationNo, double theZpos, double *y, param_type *p) {
+void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odeparam_type *p) {
 
 	char buffer[STRING_BUFFER_SIZE];
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));

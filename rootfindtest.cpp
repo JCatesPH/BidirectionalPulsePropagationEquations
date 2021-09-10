@@ -93,20 +93,22 @@ main (void)
   gsl_multiroot_fsolver *s;
 
   int status;
-  size_t i, iter = 0;
+  size_t iter = 0;
 
-  const size_t n = 2;
-  struct rparams p = {1.0, 10.0};
+  const size_t n = 1;
+  double v0 = 5.0;
+  double xf = 0.25;
+  struct rparams p = {v0, xf};
   gsl_multiroot_function f = {&map, n, &p};
 
-  double x_init = 1.0;
-  gsl_vector *x = gsl_vector_alloc (n);
+  gsl_vector *u = gsl_vector_alloc (n);
+  const double theta0 = 1.0;
 
-  gsl_vector_set (x, 0, x_init);
+  gsl_vector_set (u, 0, theta0);
 
   T = gsl_multiroot_fsolver_hybrids;
   s = gsl_multiroot_fsolver_alloc (T, n);
-  gsl_multiroot_fsolver_set (s, &f, x);
+  gsl_multiroot_fsolver_set (s, &f, u);
 
   print_state (iter, s);
 
@@ -128,6 +130,6 @@ main (void)
   printf ("status = %s\n", gsl_strerror (status));
 
   gsl_multiroot_fsolver_free (s);
-  gsl_vector_free (x);
+  gsl_vector_free (u);
   return 0;
 }

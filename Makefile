@@ -16,7 +16,7 @@ LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_in
 LDFLAGS += -L"/home/jalen/.local/lib" 
 #LDFLAGS += -liomp5 -lpthread
 
-OBJFILES = BPPE.o Materials.o Structure.o createLayers.o Utilities.o
+OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o
 TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
 

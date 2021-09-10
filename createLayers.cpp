@@ -90,7 +90,7 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 
 	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);
 	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
-	plasmaMat.setAsPlasmaMaterial(1, U_Ar);
+	//plasmaMat.setAsPlasmaMaterial(1, U_Ar);
 	theMaterialDB.addMaterial(plasmaMat);
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
