@@ -1,43 +1,89 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_odeiv2.h>
+#include <gsl/gsl_math.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_multiroots.h>
 
 struct rparams
   {
-    double a;
-    double b;
+    double v0;
+    double xf;
   };
 
+typedef struct{
+  double g;
+} odeparam_type;
+
+int func(double t, const double y[], double dydt[], void *odep) {
+  odeparam_type *p = reinterpret_cast<odeparam_type*>(odep);
+  dydt[0] = y[2];
+  dydt[1] = y[3];
+  dydt[2] = 0.0;
+  dydt[3] = -(p->g);
+  return GSL_SUCCESS;
+}
+
 int
-rosenbrock_f (const gsl_vector * x, void *params,
+map (const gsl_vector * x, void *params,
               gsl_vector * f)
 {
-  double a = ((struct rparams *) params)->a;
-  double b = ((struct rparams *) params)->b;
+  odeparam_type* odep = (odeparam_type*)malloc(sizeof(odeparam_type));
+  odep->g = 10.0;
+  const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4);
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(1e-5, 1e-4);
+	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4);
+	gsl_odeiv2_system sys = { func, NULL, (size_t)(4), odep};
 
-  const double x0 = gsl_vector_get (x, 0);
-  const double x1 = gsl_vector_get (x, 1);
+  double v0 = ((struct rparams *) params)->v0;
+  double xf = ((struct rparams *) params)->xf;
+  const double theta = gsl_vector_get(x, 0);
+  double tolh = 1e-12;
+  double dt = 0.1, t = 0.0;
+  int GSLerrorFlag;
 
-  const double y0 = a * (1 - x0);
-  const double y1 = b * (x1 - x0 * x0);
+  double y[4] = {0.0, 0.0, v0*cos(theta), v0*sin(theta)};
+  double ytmp[4], ttmp;
+  GSLerrorFlag = gsl_odeiv2_evolve_apply_fixed_step(gslEvolve, gslControl, gslStep, &sys, &t, dt, y);
+  while (y[1] > tolh) {
+    GSLerrorFlag = gsl_odeiv2_evolve_apply_fixed_step(gslEvolve, gslControl, gslStep, &sys, &t, dt, y);
+    if (y[1] < 0.0) {
+      dt = dt / 2.0;
+      t = ttmp;
+      y[0] = ytmp[0];
+      y[1] = ytmp[1];
+      y[2] = ytmp[2];
+      y[3] = ytmp[3];
 
-  gsl_vector_set (f, 0, y0);
-  gsl_vector_set (f, 1, y1);
+    }
+    ytmp[0] = y[0];
+    ytmp[1] = y[1];
+    ytmp[2] = y[2];
+    ytmp[3] = y[3];
+    ttmp = t;
+    //printf("%.3f, %.3f\n", y[0], y[1]);
+  }
+  
+  const double f0 = y[0] - xf;
+  gsl_vector_set(f, 0, f0);
 
+  free(odep);
+  gsl_odeiv2_evolve_free(gslEvolve);
+  gsl_odeiv2_control_free(gslControl);
+  gsl_odeiv2_step_free(gslStep);
   return GSL_SUCCESS;
 }
 
 int
 print_state (size_t iter, gsl_multiroot_fsolver * s)
 {
-  printf ("iter = %3u x = % .3f % .3f "
-          "f(x) = % .3e % .3e\n",
+  printf("iter = %3u x = % .6f  "
+          "f(x) = % .6e \n",
           iter,
           gsl_vector_get (s->x, 0),
-          gsl_vector_get (s->x, 1),
-          gsl_vector_get (s->f, 0),
-          gsl_vector_get (s->f, 1));
+          gsl_vector_get (s->f, 0));
 }
 
 int
@@ -49,18 +95,18 @@ main (void)
   int status;
   size_t i, iter = 0;
 
-  const size_t n = 2;
-  struct rparams p = {1.0, 10.0};
-  gsl_multiroot_function f = {&rosenbrock_f, n, &p};
+  const size_t n = 1;
+  struct rparams nlp = {6.0, 0.25};
 
-  double x_init[2] = {-10.0, -5.0};
+  gsl_multiroot_function f = {&map, n, &nlp};
+
+  double x_init = 1.0;
   gsl_vector *x = gsl_vector_alloc (n);
 
-  gsl_vector_set (x, 0, x_init[0]);
-  gsl_vector_set (x, 1, x_init[1]);
+  gsl_vector_set (x, 0, x_init);
 
   T = gsl_multiroot_fsolver_hybrids;
-  s = gsl_multiroot_fsolver_alloc (T, 2);
+  s = gsl_multiroot_fsolver_alloc (T, n);
   gsl_multiroot_fsolver_set (s, &f, x);
 
   print_state (iter, s);
