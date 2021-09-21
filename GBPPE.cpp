@@ -223,8 +223,11 @@ int main(int argc, char *argv[])
 	//if (fp != NULL) { fclose(fp);  }
 	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
 	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, ym_init, sourceRight);
+	for (int i = 0; i < numActiveOmega; i++) {
+		ym_init[i] = 0.0;
+	}
 	if (VERBOSE >=3) printf("Generating the left-hand side source.\n");
-    generateTwoColorPulse(eFieldPlus, eFieldMinusForwardFFT, yp_init, sourceLeft);
+    generateTwoColorPulse(eFieldPlus, eFieldPlusForwardFFT, yp_init, sourceLeft);
 	writeInputSpectrum(yp_init);
 
 	initializeY();
@@ -236,7 +239,7 @@ int main(int argc, char *argv[])
 	myStructure.writeBoundaryLayoutToASCIIFile(reldatpath + "BoundaryLayout.txt");
 
 	/// Early termination
-	printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
+	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
     printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
 
 	iterateBPPE();
@@ -367,18 +370,18 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
         }
     }
 
-	myStructure.doBackwardPassThroughAllBoundaries(y);
-
 	for (int k = 0; k < numActiveOmega; k++){
 		gsl_vector_set(f, k, y[k + 2 * numActiveOmega] - real(ym_init[k]));
 		gsl_vector_set(f, k + numActiveOmega, y[k + 3 * numActiveOmega] - imag(ym_init[k]));
 	}
 
+	myStructure.doBackwardPassThroughAllBoundaries(y);
+
     // Write out 
     //if (Iteration_number == num_iterations)
     //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-	printf("Iteration completed in %.2f seconds with %d steps.\n", nonlinear_time, numZsteps);
+	printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
 
     gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
@@ -392,34 +395,42 @@ void iterateBPPE()
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
     rparams->itnum = 0;
 
+	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
-    gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, &rparams};
+	T = gsl_multiroot_fsolver_hybrid;
+	s = gsl_multiroot_fsolver_alloc(T, 2 * numActiveOmega);
 
-	T = gsl_multiroot_fsolver_broyden;
-	s = gsl_multiroot_fsolver_alloc (T, 2 * numActiveOmega);
+	printf("Allocating initial guess\n");
 	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
 	//u->data = y;
-	for (int k = 2*numActiveOmega; k < 4*numActiveOmega; k++){
-		gsl_vector_set(u, k, y[k]);
+	for (int k = 0; k < 2*numActiveOmega; k++){
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega]);
 	}
 
-	gsl_multiroot_fsolver_set (s, &f, u);
+	printf("Setting multiroot function\n");
+	gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, &rparams};
+	gsl_multiroot_fsolver_set(s, &f, u);
+	printf("Finished setting multiroot function\n");
 
 	int status;
-    size_t i;
+    size_t i = 0;
 
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
-		rparams->itnum += 1;
-		status = gsl_multiroot_fsolver_iterate (s);
+		rparams->itnum = rparams->itnum + 1;
+		i++;
+		status = gsl_multiroot_fsolver_iterate(s);
 
 		if (status) break;
 
-		status = gsl_multiroot_test_residual (s->f, 1e-7);
+		status = gsl_multiroot_test_residual(s->f, 1e-4);
 	}
-	while (status == GSL_CONTINUE && rparams->itnum < 3);
+	while (status == GSL_CONTINUE && i < 3);
+
+	//gsl_vector *f = gsl_vector_alloc(2*numActiveOmega);
+	//mapU(u, rparams, f);
 
     gsl_multiroot_fsolver_free(s);
 	gsl_vector_free(u);
@@ -533,19 +544,23 @@ void initializeY()
 {
 	for (int i = 0; i < numActiveOmega; i++)
 	{
-		y[i] = real(eFieldPlus[i]);
-		y[i + numActiveOmega] = imag(eFieldPlus[i]);
-		y[i + 2*numActiveOmega] = 0.0;
-		y[i + 3*numActiveOmega] = 0.0;
+		y[i] = real(yp_init[i]);
+		y[i + numActiveOmega] = imag(yp_init[i]);
+		y[i + 2*numActiveOmega] = real(ym_init[i]);
+		y[i + 3*numActiveOmega] = imag(ym_init[i]);
 	}
 
 	for (int i = 0; i < freqLowerCutoff; i++) {
 		y[i] = 0.0;
 		y[i + numActiveOmega] = 0.0;
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
 	}
 	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
 		y[i] = 0.0;
 		y[i + numActiveOmega] = 0.0;
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
 	}
 }
 
@@ -609,19 +624,19 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 
 void createWindowFunc(double alpha){
 	// Implements a Tukey window
-	for (int i = 0; i < num_t/4; i++) {
+	for (int i = 0; i < num_t/8; i++) {
 		window[i] = 0.0;
 	}
-	for (int i=num_t/4; i < (int)((1+alpha)*num_t/4); i++) {
+	for (int i=num_t/8; i < (int)((1+alpha)*num_t/8); i++) {
 		window[i] = 0.5 * (1.0 - cos(4*M_PI*(i-num_t/4)/(alpha*num_t)));
 	}
-	for (int i=(int)((1+alpha)*num_t/4); i <= num_t/2; i++) {
+	for (int i=(int)((1+alpha)*num_t/8); i <= num_t/2; i++) {
 		window[i] = 1.0;
 	}
-	for (int i=num_t/4; i <= num_t/2; i++) {
+	for (int i=num_t/8; i <= num_t/2; i++) {
 		window[num_t-i] = window[i];
 	}
-	for (int i = 3*num_t/4; i < num_t; i++) {
+	for (int i = 7*num_t/8; i < num_t; i++) {
 		window[i] = 0.0;
 	}
 	/* for (int i=0; i < (int)(alpha*num_t/2); i++) {
