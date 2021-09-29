@@ -381,7 +381,8 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
     //if (Iteration_number == num_iterations)
     //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-	printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+	//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+	cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
