@@ -6,6 +6,9 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_multiroots.h>
 
+gsl_matrix *Jac0, *Jac1;
+gsl_vector *x0, *x1, *f0, *f1;
+
 struct rparams
   {
     double v0;
@@ -84,6 +87,34 @@ print_state (size_t iter, gsl_multiroot_fsolver * s)
           iter,
           gsl_vector_get (s->x, 0),
           gsl_vector_get (s->f, 0));
+}
+
+
+int roots_alloc(int n) {
+  Jac0 = gsl_matrix_alloc(n, n);
+  if (Jac0 == 0) return 0;
+  Jac1 = gsl_matrix_alloc(n, n);
+  if (Jac1 == 0) return 0;
+  x0 = gsl_vector_alloc(n);
+  if (x0 == 0) return 0;
+  x1 = gsl_vector_alloc(n);
+  if (x1 == 0) return 0;
+  f0 = gsl_vector_alloc(n);
+  if (f0 == 0) return 0;
+  f1 = gsl_vector_alloc(n);
+  if (f1 == 0) return 0;
+  
+  return 1;
+}
+
+int roots_initialize(int n, gsl_vector xinit, rparams p) {
+  
+  map(x0, p, f0);
+  map(x1, p, f1);
+}
+
+int roots_iterate(int n, rparams p) {
+
 }
 
 int

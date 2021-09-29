@@ -375,13 +375,15 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 		gsl_vector_set(f, k + numActiveOmega, y[k + 3 * numActiveOmega] - imag(ym_init[k]));
 	}
 
-	myStructure.doBackwardPassThroughAllBoundaries(y);
+	
 
     // Write out 
     //if (Iteration_number == num_iterations)
     //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
 	printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+
+	myStructure.doBackwardPassThroughAllBoundaries(y);
 
     gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
@@ -405,7 +407,7 @@ void iterateBPPE()
 	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
 	//u->data = y;
 	for (int k = 0; k < 2*numActiveOmega; k++){
-		gsl_vector_set(u, k, y[k + 2*numActiveOmega]);
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + 100.0);
 	}
 
 	printf("Setting multiroot function\n");
@@ -426,14 +428,23 @@ void iterateBPPE()
 		if (status) break;
 
 		status = gsl_multiroot_test_residual(s->f, 1e-4);
+
+		printf("\n\nOutputting spectra..\n");
+
+		write_out_eFieldAndSpectrumAtZlocation(i, 0, y, 0.0, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+		myStructure.doForwardPassThroughAllBoundaries(y);
+		write_out_eFieldAndSpectrumAtZlocation(i, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 	}
 	while (status == GSL_CONTINUE && i < 3);
+
+	
 
 	//gsl_vector *f = gsl_vector_alloc(2*numActiveOmega);
 	//mapU(u, rparams, f);
 
-    gsl_multiroot_fsolver_free(s);
-	gsl_vector_free(u);
+	//printf("Freeing solver memory.\n");
+    //gsl_multiroot_fsolver_free(s);
+	//gsl_vector_free(u);
 }
 
 

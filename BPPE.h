@@ -41,7 +41,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 // Simulation parameters
 
-const int num_Threads = 6; // numnber of OpenMP threads
+const int num_Threads = 1; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
@@ -90,8 +90,8 @@ const double shift = 1.0e-9;
 //const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 //const int l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
 
-const double LHSsourceLayerThickness = 0.0 * microns; //distance from laser source to slab
-const double RHSbufferLayerThickness = 0.0 * microns; //distance from slab to receiver
+const double LHSsourceLayerThickness = 10.0 * microns; //distance from laser source to slab
+const double RHSbufferLayerThickness = 10.0 * microns; //distance from slab to receiver
 extern double sampleLayerThickness;
 
 // material parameters
