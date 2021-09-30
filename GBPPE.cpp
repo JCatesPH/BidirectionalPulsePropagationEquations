@@ -91,13 +91,7 @@ int main(int argc, char *argv[])
 	sourceRight->relativePhase = twoColorSH_phase;
 	sourceRight->pulseDuration = tau;
 	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-#ifdef _WIN64
-#ifndef NDEBUG
-	_clearfp();
-	_controlfp(_controlfp(0, 0) & ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW),
-		_MCW_EM);
-#endif
-#endif 
+
 	time_t now = time(0);
 	char *datetime = ctime(&now);
 
@@ -299,7 +293,9 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 	vector<double> endPoints;
 
     nonlinear_time_initial = omp_get_wtime();
-    //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+	}
 
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
@@ -351,11 +347,11 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
                     }
                 }
 
-                //printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
-                //write_multicolumnMonitor(Iteration_number, zPosition, eFieldPlus, eFieldMinus, ne, j_e);
-                //params->k = myStructure.m_layers.back().getMaterial().getK();
-                //write_multicolumnMonitor_Jalen(Iteration_number, zPosition, y, params);
-                //params->k = lit->getMaterial().getK();
+				if (rparams->output == 1) {
+					printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
+					write_multicolumnMonitor(rparams->itnum, zPosition, y, params);
+
+				}
                 
             }
 
@@ -375,14 +371,14 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 		gsl_vector_set(f, k + numActiveOmega, y[k + 3 * numActiveOmega] - imag(ym_init[k]));
 	}
 
-	
 
-    // Write out 
-    //if (Iteration_number == num_iterations)
-    //write_out_eFieldAndSpectrumAtZlocation(Iteration_number, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+	}
+    
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
 	//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
-	cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
+	//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
@@ -397,6 +393,7 @@ void iterateBPPE()
 {
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
     rparams->itnum = 0;
+	rparams->output = 0;
 
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
@@ -412,40 +409,43 @@ void iterateBPPE()
 	}
 
 	printf("Setting multiroot function\n");
-	gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, &rparams};
+	gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, rparams};
 	gsl_multiroot_fsolver_set(s, &f, u);
 	printf("Finished setting multiroot function\n");
 
 	int status;
-    size_t i = 0;
+	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
+	nonlinear_time_initial = omp_get_wtime();
+	nonlinear_time_tmp = nonlinear_time_initial;
 
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
-		rparams->itnum = rparams->itnum + 1;
-		i++;
+		nonlinear_time_tmp = omp_get_wtime();
 		status = gsl_multiroot_fsolver_iterate(s);
 
 		if (status) break;
 
 		status = gsl_multiroot_test_residual(s->f, 1e-4);
 
-		printf("\n\nOutputting spectra..\n");
-
-		write_out_eFieldAndSpectrumAtZlocation(i, 0, y, 0.0, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
-		myStructure.doForwardPassThroughAllBoundaries(y);
-		write_out_eFieldAndSpectrumAtZlocation(i, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
+		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
+		rparams->itnum = rparams->itnum + 1;
 	}
-	while (status == GSL_CONTINUE && i < 3);
+	while (status == GSL_CONTINUE && rparams->itnum < 2);
 
 	
+	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
+	printf("  Multiroot solver completed in %.2f seconds.\n", nonlinear_time_total);
 
-	//gsl_vector *f = gsl_vector_alloc(2*numActiveOmega);
-	//mapU(u, rparams, f);
+	printf("Performing final iteration with output enabled..");
+	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
+	mapU(u, rparams, tmpf);
 
-	//printf("Freeing solver memory.\n");
-    //gsl_multiroot_fsolver_free(s);
-	//gsl_vector_free(u);
+	printf("Freeing solver memory.\n");
+    gsl_multiroot_fsolver_free(s);
+	gsl_vector_free(u);
+	gsl_vector_free(tmpf);
 }
 
 

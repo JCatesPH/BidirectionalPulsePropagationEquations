@@ -137,6 +137,7 @@ typedef struct {
 
 typedef struct {
 	int itnum;
+	int output;
 }rootparam_type;
 
 typedef struct {
