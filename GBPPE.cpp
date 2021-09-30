@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
 
 	fill_omg_k(omegaArray, kx);
 	//DELME_ArgonDispersion(omegaArray);
-	DELME_AndrewPreformed(omegaArray);
+	//DELME_AndrewPreformed(omegaArray);
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
 	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
@@ -395,6 +395,11 @@ void iterateBPPE()
     rparams->itnum = 0;
 	rparams->output = 0;
 
+	int status;
+	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
+	nonlinear_time_initial = omp_get_wtime();
+	nonlinear_time_tmp = nonlinear_time_initial;
+
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
@@ -413,10 +418,6 @@ void iterateBPPE()
 	gsl_multiroot_fsolver_set(s, &f, u);
 	printf("Finished setting multiroot function\n");
 
-	int status;
-	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
-	nonlinear_time_initial = omp_get_wtime();
-	nonlinear_time_tmp = nonlinear_time_initial;
 
 	do
 	{
@@ -432,13 +433,14 @@ void iterateBPPE()
 		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
 		rparams->itnum = rparams->itnum + 1;
 	}
-	while (status == GSL_CONTINUE && rparams->itnum < 2);
+	while (status == GSL_CONTINUE && rparams->itnum < 1);
 
 	
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("  Multiroot solver completed in %.2f seconds.\n", nonlinear_time_total);
 
 	printf("Performing final iteration with output enabled..");
+	rparams->output = 1;
 	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
 	mapU(u, rparams, tmpf);
 
