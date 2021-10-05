@@ -41,7 +41,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 // Simulation parameters
 
-const int num_Threads = 12; // numnber of OpenMP threads
+const int num_Threads = 16; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;

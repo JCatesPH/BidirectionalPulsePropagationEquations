@@ -88,7 +88,7 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	argon.setAsPlasmaMaterial(1, U_Ar);
 	theMaterialDB.addMaterial(argon);
 
-	Material plasmaMat("PlasmaMat", 1.5, 0.0, 0.0, 0.0);
+	Material plasmaMat("PlasmaMat", 4.0, 0.0, 0.0, 0.0);
 	//plasmaMat.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	//plasmaMat.setAsPlasmaMaterial(1, U_Ar);
 	theMaterialDB.addMaterial(plasmaMat);

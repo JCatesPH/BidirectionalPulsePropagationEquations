@@ -274,18 +274,26 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 }
 
+
+
+
 int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
     rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
 
+	
+	// Set the ODE params and set system up
     odeparam_type* params = fill_params(chi2_Material1, chi3_Material1, omegaArray, kx, 
 			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
 			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.front().getMaterial().getdoPlasmaCalc());
-
+	
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
 	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
+	//gsl_odeiv2_evolve_reset(gslEvolve);
+
+
     double nonlinear_time_initial, nonlinear_time;
 
 	int numzReports, numZsteps = 0;
@@ -293,10 +301,7 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 	vector<double> endPoints;
 
     nonlinear_time_initial = omp_get_wtime();
-	if (rparams->output == 1) {
-		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
-	}
-
+	
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
         // Skip the LHS layer and the RHS layers
@@ -332,7 +337,8 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
                 {
 
                     GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, y);
-                    if (GSLerrorFlag == GSL_SUCCESS) {
+                    
+					if (GSLerrorFlag == GSL_SUCCESS) {
                         numZsteps++;
                     }
                     else {
@@ -381,11 +387,15 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 	//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 
 	myStructure.doBackwardPassThroughAllBoundaries(y);
+	
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+	}
 
-    gsl_odeiv2_control_free(gslControl);
+	gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
     gsl_odeiv2_step_free(gslStep);
-
+    
     return GSL_SUCCESS;
 }
 
@@ -410,7 +420,7 @@ void iterateBPPE()
 	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
 	//u->data = y;
 	for (int k = 0; k < 2*numActiveOmega; k++){
-		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + 100.0);
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + INITIAL_GUESS_SEED_VALUE);
 	}
 
 	printf("Setting multiroot function\n");
@@ -427,19 +437,19 @@ void iterateBPPE()
 
 		if (status) break;
 
-		status = gsl_multiroot_test_residual(s->f, 1e-4);
+		status = gsl_multiroot_test_residual(s->f, 1e-8);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
 		rparams->itnum = rparams->itnum + 1;
 	}
-	while (status == GSL_CONTINUE && rparams->itnum < 1);
+	while (status == GSL_CONTINUE && rparams->itnum < 25000);
 
 	
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
-	printf("  Multiroot solver completed in %.2f seconds.\n", nonlinear_time_total);
+	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
-	printf("Performing final iteration with output enabled..");
+	printf("Performing final iteration with output enabled..\n");
 	rparams->output = 1;
 	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
 	mapU(u, rparams, tmpf);
@@ -448,6 +458,8 @@ void iterateBPPE()
     gsl_multiroot_fsolver_free(s);
 	gsl_vector_free(u);
 	gsl_vector_free(tmpf);
+
+
 }
 
 
