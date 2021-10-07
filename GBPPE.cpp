@@ -13,6 +13,7 @@
 #include <float.h>
 #include <ctime>
 #include <fenv.h>
+#include <random>
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
@@ -215,16 +216,18 @@ int main(int argc, char *argv[])
 	//DELME_AndrewPreformed(omegaArray);
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
+	
 	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
 	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, ym_init, sourceRight);
 	for (int i = 0; i < numActiveOmega; i++) {
 		ym_init[i] = 0.0;
-	}
+	} 
 	if (VERBOSE >=3) printf("Generating the left-hand side source.\n");
     generateTwoColorPulse(eFieldPlus, eFieldPlusForwardFFT, yp_init, sourceLeft);
 	writeInputSpectrum(yp_init);
-
+	
 	initializeY();
+	doLinearProblem();
 
 	std::string reldatpath = SIM_DATA_OUTPUT;
 	myStructure.writeStructureLayoutToASCIIFile(reldatpath + "StructureLayout.txt");
@@ -277,7 +280,7 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 
 
-int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
+int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
 
 	
@@ -301,7 +304,17 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 	vector<double> endPoints;
 
     nonlinear_time_initial = omp_get_wtime();
-	
+
+	for (int k = 0; k < numActiveOmega; k++){
+		y[k] = real(yp_init[k]);
+		y[k + numActiveOmega] = imag(yp_init[k]);
+		y[k + 2*numActiveOmega] = gsl_vector_get(ym_guess, k);
+		y[k + 3*numActiveOmega] = gsl_vector_get(ym_guess, k + numActiveOmega);
+	}
+		
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+	}
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
         // Skip the LHS layer and the RHS layers
@@ -387,10 +400,7 @@ int mapU(const gsl_vector *x, void *rootparams, gsl_vector *f) {
 	//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 
 	myStructure.doBackwardPassThroughAllBoundaries(y);
-	
-	if (rparams->output == 1) {
-		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
-	}
+
 
 	gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
@@ -419,8 +429,13 @@ void iterateBPPE()
 	printf("Allocating initial guess\n");
 	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
 	//u->data = y;
+	// Create pseudo-random number generator for initial guess
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_real_distribution<double> dis(-1.0, 1.0);
+
 	for (int k = 0; k < 2*numActiveOmega; k++){
-		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + INITIAL_GUESS_SEED_VALUE);
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
 	}
 
 	printf("Setting multiroot function\n");
@@ -572,8 +587,8 @@ void initializeY()
 	{
 		y[i] = real(yp_init[i]);
 		y[i + numActiveOmega] = imag(yp_init[i]);
-		y[i + 2*numActiveOmega] = real(ym_init[i]);
-		y[i + 3*numActiveOmega] = imag(ym_init[i]);
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
 	}
 
 	for (int i = 0; i < freqLowerCutoff; i++) {
@@ -588,6 +603,58 @@ void initializeY()
 		y[i + 2*numActiveOmega] = 0.0;
 		y[i + 3*numActiveOmega] = 0.0;
 	}
+
+}
+
+void doLinearProblem() {
+	for (int its = 0; its < 3; its++) {
+		// Pass forward through boundaries 
+		myStructure.doForwardPassThroughAllBoundaries(y);
+
+		// Set right source
+		for (int i = 0; i < numActiveOmega; i++)
+		{
+			y[i + 2*numActiveOmega] = real(ym_init[i]);
+			y[i + 3*numActiveOmega] = imag(ym_init[i]);
+		}
+
+		// Pass backward through boundaries
+		myStructure.doBackwardPassThroughAllBoundaries(y);
+
+		// Reset left source to ensure consistency
+		for (int i = 0; i < numActiveOmega; i++)
+		{
+			y[i] = real(yp_init[i]);
+			y[i + numActiveOmega] = imag(yp_init[i]);
+		}
+	}
+	
+	// Output the reflected spectrum
+	write_out_eFieldAndSpectrumAtZlocation(0, 0, y, 0.0, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+
+	// Pass forward through boundaries 
+	myStructure.doForwardPassThroughAllBoundaries(y);
+
+	// Output the transmitted spectrum 
+	write_out_eFieldAndSpectrumAtZlocation(0, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
+
+	// Set right source
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		y[i + 2*numActiveOmega] = real(ym_init[i]);
+		y[i + 3*numActiveOmega] = imag(ym_init[i]);
+	}
+
+	// Pass backward through boundaries
+	myStructure.doBackwardPassThroughAllBoundaries(y);
+
+	// Reset left source to ensure consistency
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		y[i] = real(yp_init[i]);
+		y[i + numActiveOmega] = imag(yp_init[i]);
+	}
+
 }
 
 void writeInputEfield(std::complex<double>* ee_p)
@@ -615,7 +682,7 @@ void writeInputEfield(std::complex<double>* ee_p)
 	if (fp != NULL) { fclose(fp); }
 }
 
-void writeInputSpectrum(std::complex<double>* yp_init)
+void writeInputSpectrum(std::complex<double>* y_init)
 {
 	char inputEfieldFilePathName2[STRING_BUFFER_SIZE];
 	snprintf(inputEfieldFilePathName2, sizeof(char) * STRING_BUFFER_SIZE, "%sInputSpectrum_1D.dat", SIM_DATA_OUTPUT);
@@ -633,7 +700,7 @@ void writeInputSpectrum(std::complex<double>* yp_init)
 			//fprintf(fp, "%.10lf \n", real(eFieldPlus[i]));							//PARIS	formated in single column file
 			//fprintf(fp, "%.7g\t%.17g \n", i * domain_t / num_t, real(ee_p[i]));		// COLM export in one column format
 			//fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g\n", (M_PI / domain_t)* i, real(yp_init[i]), imag(yp_init[i]));		// COLM input spectrum output
-			fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * i, real(yp_init[i]), imag(yp_init[i]), abs(yp_init[i]));
+			fprintf(fp_spectrum, "%g \t %+.17g \t %+.17g \t %+.17g\n", (2 * M_PI / domain_t) * i, real(y_init[i]), imag(y_init[i]), abs(y_init[i]));
 			// COLM outputing abs(Sp) too
 #ifdef WRITE_OUT_REFLECTANCE																																						// COLM make a backup of input spectrum to calculate reflectance later on
 			eFieldPlusBACKUPCOLM[i] = yp_init[i];

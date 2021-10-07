@@ -25,7 +25,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE  1.0e1 // orignal Andrew Value = 1.0e5
+#define INITIAL_GUESS_SEED_VALUE  2.0e1 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -161,6 +161,7 @@ void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* 
 //void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral);
 void initializeY();
+void doLinearProblem();
 void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 //void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym0_init, double*y, complex<double>*integral);
 void writeSimParameters();
