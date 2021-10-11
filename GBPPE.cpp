@@ -856,7 +856,7 @@ odeparam_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, 
 void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 
 	complex<double> sp, sm;
-	for (int i = 1; i <= num_t / 2; i++)
+	for (int i = 1; i < numActiveOmega; i++)
 	{
 		if (i >= freqLowerCutoff && i <= freqUpperCutoff) {
 			double k_0_r = real(k_0[i]);
@@ -864,9 +864,12 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 			double k_1_r = real(k_1[i]);
 			double k_1_i = imag(k_1[i]);
 
-			sp = (exp(-1.0i*((k_0_r + 1.0i*k_0_i) - (k_1_r + 1.0i*k_1_i))*z)*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i] + 1.0i*y[i + num_t / 2 + 1]) + exp(1.0i*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i))*z)*((k_1_r + 1.0i*k_1_i) - (k_0_r + 1.0i*k_0_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]));
+			complex<double> aPlus = y[i] + 1.0i*y[i + numActiveOmega];
+			complex<double> aMinus = y[i + 2 * numActiveOmega] + 1.0i*y[i + 3 * numActiveOmega];
 
-			sm = (exp(-1.0i*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i))*z)*((k_1_r + 1.0i*k_1_i) - (k_0_r + 1.0i*k_0_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i] + 1.0i*y[i + num_t / 2 + 1]) + exp(1.0i*((k_0_r + 1.0i*k_0_i) - (k_1_r + 1.0i*k_1_i))*z)*((k_0_r + 1.0i*k_0_i) + (k_1_r + 1.0i*k_1_i)) / (2.0*(k_1_r + 1.0i*k_1_i))*(y[i + num_t + 2] + 1.0i*y[i + 3 * num_t / 2 + 3]));
+			sp = (exp(-1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aPlus + exp(1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aMinus);
+
+			sm = (exp(-1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aPlus + exp(1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aMinus);
 
 			y[i] = real(sp);
 			y[i + num_t / 2 + 1] = imag(sp);
