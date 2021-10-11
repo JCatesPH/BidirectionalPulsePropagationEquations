@@ -18,8 +18,8 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = 'DATA1'
-    itnum = '2'
+    pathhead = '../DATA1'
+    itnum = '3'
 ######################################
 #%%
 def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$'):
@@ -105,7 +105,7 @@ plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0],
 plt.show()
 
 #%%
-tcoef = np.abs(eOmT[:halflen]) / Ez[:-1]
+tcoef = (np.abs(eOmT[:halflen]) / Ez[:-1])**2
 
 plt.clf()
 plt.plot(omeg[:halflen], tcoef)
@@ -120,7 +120,7 @@ plt.tight_layout()
 plt.savefig(pathhead + '/figs/TransmissionCoef.png')
 #plt.show()
 
-rcoef = np.abs(eOmR[:halflen]) / Ez[:-1]
+rcoef = (np.abs(eOmR[:halflen]) / Ez[:-1])**2
 
 plt.clf()
 plt.plot(omeg[:halflen], rcoef)
@@ -141,13 +141,13 @@ print('avg rf = {:}'.format(np.mean(rcoef)))
 
 # %% Using Griffiths method naively
 n1 = 1.0
-n2 = 1.5
+n2 = 2.0
 n3 = 1.0
 
 R12 = np.abs((n1-n2) / (n1 + n2))**2
 R23 = np.abs((n2-n3) / (n2 + n3))**2
-T12 = 1 - R12
-T23 = 1 - R23
+T12 = 4*n1*n2/(n1+n2)**2
+T23 = 4*n2*n3/(n2+n3)**2
 
 print("n_d = {:.2f}".format(n2))
 print("R12 = {:.4f}".format(R12))
