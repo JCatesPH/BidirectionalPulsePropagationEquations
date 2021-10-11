@@ -191,44 +191,6 @@ public:
         }
     }
 
-    //void doForwardPassThroughAllLayers(double* y, param_type* params, int VERBOSE) {
-    //    cout << "  Going FORWARD through layers using ANDREW?" << endl;
-    //    double zPosition = 0.0;
-    //    for (std::list<Layer>::iterator lit = m_layers.begin(); lit != m_layers.end(); ++lit) {
-    //        if (lit->getLowSideBoundary() != NULL)
-    //        {
-    //            boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), y);
-    //            params->k = lit->getMaterial().getK();
-    //            params->chi_2 = lit->getMaterial().getChi2();
-    //            params->chi_3 = lit->getMaterial().getChi3();
-    //            zPosition = lit->getStartZpos();
-
-    //            if (VERBOSE >= 6) { cout << endl << " Doing Layer# " << lit->getlayerIDnum() << " in " << lit->getNumStepsInLayer() << " z Steps in material with k_1=" << real(lit->getMaterial().getK()[1]) << endl; }
-    //            for (int aZstep = 0; aZstep < lit->getNumStepsInLayer(); aZstep++)
-    //            {
-    //                //integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-    //                integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK());
-    //                GSLerrorFlag = gsl_odeiv2_driver_apply_fixed_step(d, &zPosition, lit->getStepSize(), 1, y);
-    //                if (VERBOSE >= 7) { printf("First Iteration, Position (Even half period) zPosition = %.5e\n", zPosition); }
-    //                // COLM write even layer data to Structure.dat file
-    //                //fprintf(fpStruct, "%+E\t%+E\t%+E\n", zPosition, chi2_Material1, chi3_Material1);		// COLM print to file
-
-    //                if (GSLerrorFlag != GSL_SUCCESS)
-    //                {
-    //                    printf("error: driver returned %d\n", GSLerrorFlag);
-    //                    break;
-    //                }
-    //            }
-    //            // integrate(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK(), omegaArray, ne, j_e, y, integral, eFieldPlus, eFieldMinus, nl_k, nl_p, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, nkForwardFFT, npForwardFFT);
-    //            integrateStub(zPosition, lit->getMaterial().getChi2(), lit->getMaterial().getChi3(), lit->getMaterial().getK() );
-
-    //            if (lit->getHiSideBoundary() != NULL) {
-    //                boundary(lit->getHiSideBoundary()->m_zPos, lit->getHiSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getHiSideBoundary()->hiSideLayer->getMaterial().getK(), y);
-    //            }
-    //        }
-    //    }
-    //}
-
     void doBackwardPassThroughAllBoundaries(double* y) {
         if (m_boundaries.size() > 0) {
             for (std::list<Boundary>::reverse_iterator it = m_boundaries.rbegin(); it != m_boundaries.rend(); ++it) {
