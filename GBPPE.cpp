@@ -313,7 +313,7 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	}
 		
 	if (rparams->output == 1) {
-		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, zPosition, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, 0.0, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
 	}
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
@@ -399,6 +399,10 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
 	//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 
+	for (int k = 0; k < numActiveOmega; k++){
+		y[k + 2*numActiveOmega] = real(ym_init[k]);
+		y[k + 3*numActiveOmega] = imag(ym_init[k]);
+	}
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
 
@@ -642,11 +646,11 @@ void doLinearProblem() {
 	write_out_eFieldAndSpectrumAtZlocation(0, 1, y, myStructure.getThickness(), eFieldPlus, myStructure.m_layers.back().getMaterial().getK(), eFieldPlusBackwardFFT);
 
 	// Set right source
-	for (int i = 0; i < numActiveOmega; i++)
+	/* for (int i = 0; i < numActiveOmega; i++)
 	{
 		y[i + 2*numActiveOmega] = real(ym_init[i]);
 		y[i + 3*numActiveOmega] = imag(ym_init[i]);
-	}
+	} */
 
 	// Pass backward through boundaries
 	myStructure.doBackwardPassThroughAllBoundaries(y);
@@ -956,8 +960,8 @@ void writeSimParameters()
 		fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
 
 		// Print the GSL ODE parameters
-		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", epsabs);
-		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", epsrel);
+		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", ode_epsabs);
+		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", ode_epsrel);
 		fprintf(fp, "ode_nmax       \t%.2g\t/*maximum ode steps before reset */\n", (double)ode_nmax);
 
 		fprintf(fp, "alpha_tukey       \t%.8g\t/*value of parameter in Tukey window */\n", alpha_tukey);
@@ -1130,7 +1134,7 @@ int func(double z, const double y[], double f[], void *odep) {
 	normalizeFFT(p->ee_p, 2);
 	normalizeFFT(p->ee_m, 2);
 
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
 		//p->ee_p[i] = p->ee_p[i] / num_td;
