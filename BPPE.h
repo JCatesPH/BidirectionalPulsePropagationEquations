@@ -25,7 +25,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE  2.0e1 // orignal Andrew Value = 1.0e5
+#define INITIAL_GUESS_SEED_VALUE  10.0 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -49,8 +49,8 @@ const int normType = -1;
 extern double zStepMaterial1;
 
 // GSL ODE API parameters
-const double epsabs = 1e-4;
-const double epsrel = 1e-3;
+const double ode_epsabs = 1e-4;
+const double ode_epsrel = 1e-3;
 const int ode_nmax = 1e5;
 
 //pulse parameters

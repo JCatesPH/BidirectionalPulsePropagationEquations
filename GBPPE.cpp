@@ -291,7 +291,7 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
 	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
-	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(epsabs, epsrel);
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
 	//gsl_odeiv2_evolve_reset(gslEvolve);
