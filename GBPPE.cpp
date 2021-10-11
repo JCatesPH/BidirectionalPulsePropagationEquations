@@ -425,6 +425,8 @@ void iterateBPPE()
     gsl_multiroot_fsolver *s;
 	T = gsl_multiroot_fsolver_hybrid;
 	s = gsl_multiroot_fsolver_alloc(T, 2 * numActiveOmega);
+	double root_epsabs = 1e-9;
+	double root_epsrel = 1e-7;
 
 	printf("Allocating initial guess\n");
 	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
@@ -443,7 +445,7 @@ void iterateBPPE()
 	gsl_multiroot_fsolver_set(s, &f, u);
 	printf("Finished setting multiroot function\n");
 
-
+	rparams->output = 1;
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
@@ -452,7 +454,8 @@ void iterateBPPE()
 
 		if (status) break;
 
-		status = gsl_multiroot_test_residual(s->f, 1e-8);
+		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
+		status = gsl_multiroot_test_delta(s->dx, s->x, root_epsabs, root_epsrel);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
@@ -467,7 +470,7 @@ void iterateBPPE()
 	printf("Performing final iteration with output enabled..\n");
 	rparams->output = 1;
 	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
-	mapU(u, rparams, tmpf);
+	mapU(s->x, rparams, tmpf);
 
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
