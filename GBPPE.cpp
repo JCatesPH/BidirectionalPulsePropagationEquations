@@ -396,13 +396,16 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	}
     
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-	//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
-	//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
+	if (rparams->output == 1) {
+		printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+		//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
+	}
 
 	for (int k = 0; k < numActiveOmega; k++){
 		y[k + 2*numActiveOmega] = real(ym_init[k]);
 		y[k + 3*numActiveOmega] = imag(ym_init[k]);
 	}
+
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
 
@@ -416,7 +419,7 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 void iterateBPPE()
 {
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
-    rparams->itnum = 0;
+    rparams->itnum = 1;
 	rparams->output = 0;
 
 	int status;
@@ -427,7 +430,7 @@ void iterateBPPE()
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
-	T = gsl_multiroot_fsolver_hybrid;
+	T = gsl_multiroot_fsolver_hybrids;
 	s = gsl_multiroot_fsolver_alloc(T, 2 * numActiveOmega);
 	double root_epsabs = 1e-9;
 	double root_epsrel = 1e-7;
@@ -834,22 +837,22 @@ odeparam_type* fill_params(double chi_2, double chi_3, double* omg, double* kx, 
 	odeparam_type* r = (odeparam_type*)malloc(sizeof(odeparam_type));
 	if (r != NULL)
 	{
-	r->chi_2 = chi_2;
-	r->chi_3 = chi_3;
-	r->omega = omg;
-	r->kx = kx;
-	r->rho = ne;
-	r->j_e = j_e;
-	r->k = k;
-	r->ee_p = ee_p;
-	r->ee_m = ee_m;
-	r->nl_k = nl_k;
-	r->nl_p = nl_p;
-	r->nk_f = nk_f;
-	r->ep_b = ep_b;
-	r->em_b = em_b;
-	r->np_f = np_f;
-}
+		r->chi_2 = chi_2;
+		r->chi_3 = chi_3;
+		r->omega = omg;
+		r->kx = kx;
+		r->rho = ne;
+		r->j_e = j_e;
+		r->k = k;
+		r->ee_p = ee_p;
+		r->ee_m = ee_m;
+		r->nl_k = nl_k;
+		r->nl_p = nl_p;
+		r->nk_f = nk_f;
+		r->ep_b = ep_b;
+		r->em_b = em_b;
+		r->np_f = np_f;
+	}
 	else {
 		printf("Could not maloc space in fill_params()\n");
 		exit(-1);
