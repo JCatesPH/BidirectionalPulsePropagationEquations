@@ -49,8 +49,8 @@ const int normType = -1;
 extern double zStepMaterial1;
 
 // GSL ODE API parameters
-const double ode_epsabs = 1e-4;
-const double ode_epsrel = 1e-3;
+const double ode_epsabs = 1e-8;
+const double ode_epsrel = 1e-6;
 const int ode_nmax = 1e5;
 
 //pulse parameters
@@ -65,10 +65,10 @@ const double waist_x = 40.0e-6; //pulse-waist fwhm
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
 const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
-const double rho_0 = 1e-9; // = num_atoms; // initial electron density
+const double rho_0 = 4.0e25; // = num_atoms; // initial electron density
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
-const double tauCollision = 190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
+const double tauCollision = 1.0e-6; //190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
 const double mpi_sigmaK = 3.4e-128;
 const double mpi_k = 8.0;
 const double FUDGE_FACTOR = 1.0;
