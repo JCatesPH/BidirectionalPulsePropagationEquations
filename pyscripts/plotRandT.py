@@ -19,7 +19,7 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     pathhead = '../DATA1'
-    itnum = '3'
+    itnum = '0'
 ######################################
 #%%
 def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$'):
@@ -73,13 +73,14 @@ k0arr = omeg / 3e8
 #%% Plot input spectrum
 plt.clf()
 plt.figure(figsize=(8, 6))
-plt.plot(omeg, Ez, label=labstr)
+plt.semilogy(omeg/omeg0, Ez**2, label=labstr)
 plt.title(r'Input Amplitude Spectrum')
-plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega$')
+#plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+plt.xlabel(r'$\omega/\omega_0$')
 plt.grid(which='major')
 plt.legend()
-plt.xlim([0.0, np.max(inSpectrum[:,0])])
+#plt.xlim([0.0, np.max(inSpectrum[:,0])])
+plt.margins(x=0)
 plt.tight_layout()
 plt.savefig(pathhead + '/figs/inSpectrum.png')
 #plt.show()
@@ -102,14 +103,19 @@ plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0],
     ['Transmitted', 'Reflected'], 
     filePath=pathhead + '/figs/BothSpectra.png',
     titleStr='Transmitted and Reflected Spectra')
-plt.show()
+#plt.show()
 
 #%%
-tcoef = (np.abs(eOmT[:halflen]) / Ez[:-1])**2
+sighat = np.sqrt(4*np.log(2)/taup**2)
+#lowerInd = np.count_nonzero(omeg[:halflen] < omeg0-8*sighat)
+#upperInd = np.count_nonzero(omeg[:halflen] < omeg0+8*sighat)
+lowerInd = 1
+upperInd = 1904
+tcoef = (np.abs(eOmT[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
 plt.clf()
-plt.plot(omeg[:halflen], tcoef)
-plt.xlabel(r'$\omega$')
+plt.plot(omeg[lowerInd:upperInd]/omeg0, tcoef)
+plt.xlabel(r'$\omega/\omega_0$')
 plt.grid(which='major')
 plt.legend()
 #plt.xlim([0.8*omeg0, 1.2*omeg0])
@@ -120,11 +126,11 @@ plt.tight_layout()
 plt.savefig(pathhead + '/figs/TransmissionCoef.png')
 #plt.show()
 
-rcoef = (np.abs(eOmR[:halflen]) / Ez[:-1])**2
+rcoef = (np.abs(eOmR[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
 plt.clf()
-plt.plot(omeg[:halflen], rcoef)
-plt.xlabel(r'$\omega$')
+plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef)
+plt.xlabel(r'$\omega/\omega_0$')
 plt.grid(which='major')
 plt.legend()
 #plt.xlim([0.8*omeg0, 1.2*omeg0])
@@ -146,8 +152,8 @@ n3 = 1.0
 
 R12 = np.abs((n1-n2) / (n1 + n2))**2
 R23 = np.abs((n2-n3) / (n2 + n3))**2
-T12 = 4*n1*n2/(n1+n2)**2
-T23 = 4*n2*n3/(n2+n3)**2
+T12 = 1 - R12
+T23 = 1 - R23  #4*n2*n3/(n2+n3)**2
 
 print("n_d = {:.2f}".format(n2))
 print("R12 = {:.4f}".format(R12))
