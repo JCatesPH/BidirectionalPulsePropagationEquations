@@ -367,7 +367,7 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                 }
 
 				if (rparams->output == 1) {
-					printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
+					//printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
 					write_multicolumnMonitor(rparams->itnum, zPosition, y, params);
 
 				}
@@ -399,6 +399,7 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	if (rparams->output == 1) {
 		printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
 		//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
+		fflush(stdout);
 	}
 
 	for (int k = 0; k < numActiveOmega; k++){
@@ -456,6 +457,7 @@ void iterateBPPE()
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
+		fflush(stdout);
 		nonlinear_time_tmp = omp_get_wtime();
 		status = gsl_multiroot_fsolver_iterate(s);
 
@@ -467,6 +469,7 @@ void iterateBPPE()
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
 		rparams->itnum = rparams->itnum + 1;
+		fflush(stdout);
 	}
 	while (status == GSL_CONTINUE && rparams->itnum < 25000);
 
