@@ -866,18 +866,13 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 	for (int i = 1; i < numActiveOmega; i++)
 	{
 		if (i >= freqLowerCutoff && i <= freqUpperCutoff) {
-			double k_0_r = real(k_0[i]);
-			double k_0_i = imag(k_0[i]);
-			double k_1_r = real(k_1[i]);
-			double k_1_i = imag(k_1[i]);
-
 			complex<double> aPlus = y[i] + 1.0i*y[i + numActiveOmega];
 			complex<double> aMinus = y[i + 2 * numActiveOmega] + 1.0i*y[i + 3 * numActiveOmega];
 
-			sp = (exp(-1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aPlus + exp(1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aMinus);
+			sp = (exp(1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aPlus + exp(-1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aMinus);
 
-			sm = (exp(-1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aPlus + exp(1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aMinus);
-
+			sm = (exp(1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aPlus + exp(-1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aMinus);
+			
 			y[i] = real(sp);
 			y[i + num_t / 2 + 1] = imag(sp);
 			y[i + num_t + 2] = real(sm);
@@ -996,13 +991,15 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		for (int i = 0; i <= num_t / 2; i++)
 		{
 			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * (zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * k[i] * z);
 		}
 
 		for (int i = 1; i < num_t / 2; i++)
 		{
 			//ee[num_t - i] = (y[i] - 1.0i*y[i + num_t / 2 + 1])*exp(1.0i*conj(k[i])*(zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			//ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
 		}
 	}
 	else {
@@ -1097,28 +1094,19 @@ int func(double z, const double y[], double f[], void *odep) {
 	const double clightSquared = pow(cLight, 2);
 	const double num_td = (double)num_t;
 
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		const complex<double> phaseFactor = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		//const complex<double> phaseFactor = exp(1.0i * p->k[i] * z);
 		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
 		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 
-		/*const complex<double> phaseFactorP = exp(-1.0i * p->k[i] * z);
-		const complex<double> phaseFactorM = exp(1.0i * p->k[i] * z);
-		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
-		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;*/
-		// Jalen thinks this is off by 1 due to remainder in the above for loop dividing by 2 
-		//p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
-		// Orignal Andrew was
-		
-
 		if (i > 0 && i < num_tOver2) {
-			const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+			const complex<double> phaseFactor2 = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+			//const complex<double> phaseFactor2 = exp(-1.0i * p->k[i] * z);
 			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
 			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
-			//p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactorP;
-			//p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactorM;
 		}
 		
 	}
@@ -1299,12 +1287,12 @@ int func(double z, const double y[], double f[], void *odep) {
 		f[i + num_t + 2] = 0.0;
 		f[i + 3 * num_tOver2 + 3] = 0.0;
 	}
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
-		complex<double> deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		complex<double> deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
 		f[i] = real(deltazA);
 		f[i + num_tOver2 + 1] = imag(deltazA);
-		deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
 		f[i + num_t + 2] = real(deltazA);
 		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
 
@@ -1325,12 +1313,12 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odepar
 	int num_tOver2 = num_t/2;
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		const complex<double> phaseFactor = exp(-1.0i * real(p->k[i]) * theZpos) * exp(-1.0 * abs(imag(p->k[i])) * theZpos);
+		const complex<double> phaseFactor = exp(1.0i * real(p->k[i]) * theZpos) * exp(-1.0 * abs(imag(p->k[i])) * theZpos);
 		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
 		p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 
 		if (i > 0 && i < num_tOver2) {
-			const complex<double> phaseFactor2 = exp(1.0i * real(p->k[i]) * theZpos) * exp(1.0 * abs(imag(p->k[i])) * theZpos);
+			const complex<double> phaseFactor2 = exp(-1.0i * real(p->k[i]) * theZpos) * exp(1.0 * abs(imag(p->k[i])) * theZpos);
 			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
 			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
 		}
