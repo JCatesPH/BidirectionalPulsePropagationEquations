@@ -1114,16 +1114,7 @@ int func(double z, const double y[], double f[], void *odep) {
 		
 	}
 
-	// DELETE ME : Drude model
-	double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
-	#pragma omp parallel for
-	for (int i = 0; i < num_t; i++)
-	{
-		//p->nl_p[i] = sig0 / (1.0 - 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
-		const double w = sig0 / (1.0 + pow(p->omega[i]*tauCollision, 2));
-		p->nl_p[i] = w * (1.0 + 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
-	}
-	// ---------------------------------
+	
 
 	fftw_execute(p->ep_b);
 	fftw_execute(p->em_b);
@@ -1269,11 +1260,21 @@ int func(double z, const double y[], double f[], void *odep) {
 		normalizeFFT(nl_p, 1);
 	}
 	else if (p->doPlasmaCalc == 0){
-	/* #pragma omp parallel for
+		/* // DELETE ME : Drude model
+		double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
+		#pragma omp parallel for
+		for (int i = 0; i < num_t; i++)
+		{
+			//p->nl_p[i] = sig0 / (1.0 - 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
+			const double w = sig0 / (1.0 + pow(p->omega[i]*tauCollision, 2));
+			p->nl_p[i] = w * (1.0 + 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
+		}
+		// --------------------------------- */
+		#pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
 			p->nl_p[i] = 0.0;
-		} */
+		}
 	}
 	else {
 		cout << "ERROR: Invalid plasma parameter passed to func." << endl;
