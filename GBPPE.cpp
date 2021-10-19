@@ -17,6 +17,8 @@
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
+#define DO_DRUDE_MODEL
+//#define DO_CONSTPLASMA
 
 double dtime = omp_get_wtime();
 using namespace std;
@@ -30,7 +32,7 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 double zPosition = 0.0;
 double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
 double twoColorSH_amplitude, twoColorSH_phase;
-int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0;
+int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, sizeRoot;
 double domain_t, zStepMaterial1, alpha_tukey;
 double *window;
 vector<double> monitorZlocations;
@@ -194,7 +196,7 @@ int main(int argc, char *argv[])
 	}
 
 
-#ifndef _WIN64
+	#ifndef _WIN64
 	printf(" SAVING mywisdomfile...\n");
 	if ((wisdomFile = fopen(wisdomFilePath, "w")) == NULL){
 		printf("ERROR: CANNOT OPEN/ACCESS FILE - mywisdomfile\n");
@@ -204,7 +206,7 @@ int main(int argc, char *argv[])
 		fftw_export_wisdom_to_file(wisdomFile);
 		fclose(wisdomFile);
 	}
-#endif
+	#endif
 
 	//FILE *fp;
 	////errno_t err;
@@ -213,7 +215,9 @@ int main(int argc, char *argv[])
 
 	fill_omg_k(omegaArray, kx);
 	//DELME_ArgonDispersion(omegaArray);
-	//DELME_AndrewPreformed(omegaArray);
+	#ifdef DO_CONSTPLASMA
+	DELME_AndrewPreformed(omegaArray);
+	#endif
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
 	
@@ -277,8 +281,9 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 }
 
-
-
+gsl_odeiv2_step * gslStep;
+gsl_odeiv2_control * gslControl;
+gsl_odeiv2_evolve * gslEvolve;
 
 int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
@@ -289,12 +294,12 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 			ne, j_e, myStructure.m_layers.begin()->getMaterial().getK(), eFieldPlus, eFieldMinus, nl_k, nl_p, 
 			nkForwardFFT, eFieldPlusBackwardFFT, eFieldMinusBackwardFFT, npForwardFFT, myStructure.m_layers.front().getMaterial().getdoPlasmaCalc());
 	
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
-	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
-	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
-	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
+	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	//gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
+	//gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
+	//gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), params };
-	//gsl_odeiv2_evolve_reset(gslEvolve);
+	gsl_odeiv2_evolve_reset(gslEvolve);
 
 
     double nonlinear_time_initial, nonlinear_time;
@@ -305,13 +310,16 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
     nonlinear_time_initial = omp_get_wtime();
 
+	// Reset the left source and update guess
 	for (int k = 0; k < numActiveOmega; k++){
 		y[k] = real(yp_init[k]);
 		y[k + numActiveOmega] = imag(yp_init[k]);
-		y[k + 2*numActiveOmega] = gsl_vector_get(ym_guess, k);
-		y[k + 3*numActiveOmega] = gsl_vector_get(ym_guess, k + numActiveOmega);
 	}
-		
+	for (int k = 0; k < sizeRoot/2; k++){
+		y[k + 2*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k);
+		y[k + 3*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k + sizeRoot/2);
+	}
+
 	if (rparams->output == 1) {
 		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, y, 0.0, eFieldMinus, myStructure.m_layers.front().getMaterial().getK(), eFieldMinusBackwardFFT);
 	}
@@ -385,9 +393,9 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         }
     }
 
-	for (int k = 0; k < numActiveOmega; k++){
-		gsl_vector_set(f, k, y[k + 2 * numActiveOmega] - real(ym_init[k]));
-		gsl_vector_set(f, k + numActiveOmega, y[k + 3 * numActiveOmega] - imag(ym_init[k]));
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(f, k, y[k + 2 * numActiveOmega + freqLowerCutoff] - real(ym_init[k + freqLowerCutoff]));
+		gsl_vector_set(f, k + sizeRoot/2, y[k + 3 * numActiveOmega + freqLowerCutoff] - imag(ym_init[k + freqLowerCutoff]));
 	}
 
 
@@ -396,11 +404,11 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	}
     
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-	if (rparams->output == 1) {
-		printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+	//if (rparams->output == 1) {
+		//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
 		//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
-		fflush(stdout);
-	}
+		//fflush(stdout);
+	//}
 
 	for (int k = 0; k < numActiveOmega; k++){
 		y[k + 2*numActiveOmega] = real(ym_init[k]);
@@ -410,46 +418,61 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	myStructure.doBackwardPassThroughAllBoundaries(y);
 
 
-	gsl_odeiv2_control_free(gslControl);
-    gsl_odeiv2_evolve_free(gslEvolve);
-    gsl_odeiv2_step_free(gslStep);
+	//gsl_odeiv2_control_free(gslControl);
+    //gsl_odeiv2_evolve_free(gslEvolve);
+    //gsl_odeiv2_step_free(gslStep);
     
     return GSL_SUCCESS;
 }
 
 void iterateBPPE()
 {
+	// Find the size of the problem with omega cutoffs
+	sizeRoot = 2*(freqUpperCutoff - freqLowerCutoff + 1);
+
+	// Initialize param struct for root solver
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
     rparams->itnum = 1;
 	rparams->output = 0;
 
+	// Initialize time and status variables
 	int status;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 	nonlinear_time_initial = omp_get_wtime();
 	nonlinear_time_tmp = nonlinear_time_initial;
 
+	// Initialize multiroot objects
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
 	T = gsl_multiroot_fsolver_hybrids;
-	s = gsl_multiroot_fsolver_alloc(T, 2 * numActiveOmega);
-	double root_epsabs = 1e-9;
-	double root_epsrel = 1e-7;
+	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
+	double root_epsabs = 1e-5;
+	double root_epsrel = 1e-3;
 
 	printf("Allocating initial guess\n");
-	gsl_vector *u = gsl_vector_alloc(2*numActiveOmega);
+	gsl_vector *u = gsl_vector_alloc(sizeRoot);
 	//u->data = y;
+
 	// Create pseudo-random number generator for initial guess
 	random_device rd;
 	mt19937 gen(rd());
 	uniform_real_distribution<double> dis(-1.0, 1.0);
-
-	for (int k = 0; k < 2*numActiveOmega; k++){
-		gsl_vector_set(u, k, y[k + 2*numActiveOmega] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+	// Set the initial guess with y and uniform r.v.
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
 	}
 
+	// Initialize GSL ODE objects
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
+	gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
+	gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
+
+	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
-	gsl_multiroot_function f = {&mapU, 2 * numActiveOmega, rparams};
+	gsl_multiroot_function f = {&mapU, sizeRoot, rparams};
 	gsl_multiroot_fsolver_set(s, &f, u);
 	printf("Finished setting multiroot function\n");
 
@@ -477,11 +500,18 @@ void iterateBPPE()
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
+	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
 	rparams->output = 1;
 	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
 	mapU(s->x, rparams, tmpf);
 
+	// Freeing ODE memory
+	gsl_odeiv2_control_free(gslControl);
+    gsl_odeiv2_evolve_free(gslEvolve);
+    gsl_odeiv2_step_free(gslStep);
+
+	// Free solver memory
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
 	gsl_vector_free(u);
@@ -513,7 +543,7 @@ void DELME_AndrewPreformed(double* omg) {
 	Material *plasmaMat;
 	plasmaMat = myMaterialsDB.getMaterialByName("PlasmaMat");
 
-	double preformedDensity = 4.0e25;
+	double preformedDensity = rho_0;
 	double omega_plasma = sqrt(pow(charge_e, 2) * preformedDensity / (epsilon_0 * mass_e));
 	printf("WARNING: Performing preformed plasma test with density %.1e.\n The plasma frequency is then: %.8e\n", preformedDensity, omega_plasma);
 
@@ -535,7 +565,9 @@ void DELME_AndrewPreformed(double* omg) {
 	fprintf(fp, "%.7g\t%.17g\t%.17g \n", 0.0, real(plasmaMat->m_k[0]), imag(plasmaMat->m_k[0]));
 	for (int i = 1; i < numActiveOmega; i++)
 	{
-		plasmaMat->m_k[i] = omg[i] / cLight * sqrt(complex<double>(1.0 - pow(omega_plasma / omg[i], 2)));
+		complex<double> k0 = omg[i] / cLight;
+		//plasmaMat->m_k[i] = k0 * sqrt(complex<double>(1.0 - pow(omega_plasma / omg[i], 2)));
+		plasmaMat->m_k[i] = k0 * sqrt(1.0 - pow(omega_plasma, 2) / (pow(omg[i], 2) + 1.0i * omg[i] / tauCollision));
 		fprintf(fp, "%.7g\t%.17g\t%.17g \n", omg[i], real(plasmaMat->m_k[i]), imag(plasmaMat->m_k[i]));
 	}
 	if (fp != NULL) { fclose(fp); }
@@ -994,15 +1026,15 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		for (int i = 0; i <= num_t / 2; i++)
 		{
 			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * (zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
-			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * k[i] * z);
+			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * k[i] * z);
 		}
 
 		for (int i = 1; i < num_t / 2; i++)
 		{
 			//ee[num_t - i] = (y[i] - 1.0i*y[i + num_t / 2 + 1])*exp(1.0i*conj(k[i])*(zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
-			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
-			//ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
+			//ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
+			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
 		}
 	}
 	else {
@@ -1100,14 +1132,14 @@ int func(double z, const double y[], double f[], void *odep) {
 	#pragma omp parallel for
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		const complex<double> phaseFactor = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
-		//const complex<double> phaseFactor = exp(1.0i * p->k[i] * z);
+		//const complex<double> phaseFactor = exp(1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+		const complex<double> phaseFactor = exp(1.0i * p->k[i] * z);
 		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
 		p->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 
 		if (i > 0 && i < num_tOver2) {
-			const complex<double> phaseFactor2 = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
-			//const complex<double> phaseFactor2 = exp(-1.0i * p->k[i] * z);
+			//const complex<double> phaseFactor2 = exp(-1.0i * real(p->k[i]) * z) * exp(-1.0 * abs(imag(p->k[i])) * z);
+			const complex<double> phaseFactor2 = exp(-1.0i * p->k[i] * z);
 			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
 			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
 		}
@@ -1115,11 +1147,36 @@ int func(double z, const double y[], double f[], void *odep) {
 	}
 
 	
+	// DELETE ME : Drude model
+	#ifdef DO_DRUDE_MODEL
+	const double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
+	const double omeg_p2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0); 
+	#pragma omp parallel for
+	for (int i = 0; i < num_t; i++)
+	{	
+		// Calculate the current density
+		//p->nl_p[i] = sig0 / (1.0 - 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
+		//const double w = sig0 / (1.0 + pow(p->omega[i]*tauCollision, 2));
+		//p->nl_p[i] = w * (1.0 + 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
+		p->nl_p[i] = 0.0;
+
+		// Calculate the polarization
+		//p->nl_k[i] = (1.0 - omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i]+p->ee_m[i]);
+		p->nl_k[i] = (-omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i] + p->ee_m[i]);
+		//p->nl_k[i] = p->nl_k[i] / sqrt((double)num_t);
+		//p->nl_k[i] = p->nl_k[i] / sqrt(2.0*M_PI);
+	}
+
+	//fftw_execute(p->nk_f);
+	//normalizeFFT(nl_k, 1);
+
+	// ---------------------------------
+	#else
 
 	fftw_execute(p->ep_b);
 	fftw_execute(p->em_b);
-	normalizeFFT(p->ee_p, 2);
-	normalizeFFT(p->ee_m, 2);
+	normalizeFFT(p->ee_p, 1);
+	normalizeFFT(p->ee_m, 1);
 
 	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
@@ -1128,10 +1185,10 @@ int func(double z, const double y[], double f[], void *odep) {
 		//p->ee_m[i] = p->ee_m[i] / num_td;
 		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
 	}
-
-
+	
 	fftw_execute(p->nk_f);
 	normalizeFFT(nl_k, 1);
+
 	
 	if (p->doPlasmaCalc == 2) {
 
@@ -1260,26 +1317,18 @@ int func(double z, const double y[], double f[], void *odep) {
 		normalizeFFT(nl_p, 1);
 	}
 	else if (p->doPlasmaCalc == 0){
-		/* // DELETE ME : Drude model
-		double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
-		#pragma omp parallel for
-		for (int i = 0; i < num_t; i++)
-		{
-			//p->nl_p[i] = sig0 / (1.0 - 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
-			const double w = sig0 / (1.0 + pow(p->omega[i]*tauCollision, 2));
-			p->nl_p[i] = w * (1.0 + 1.0i * p->omega[i] * tauCollision) * (p->ee_p[i]+p->ee_m[i]);
-		}
-		// --------------------------------- */
 		#pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
 			p->nl_p[i] = 0.0;
 		}
+
 	}
 	else {
 		cout << "ERROR: Invalid plasma parameter passed to func." << endl;
 		exit(EXIT_FAILURE);
 	}
+	#endif
 		
 	for (int i = 0; i < freqLowerCutoff; i++) {
 		f[i] = 0.0;
@@ -1295,10 +1344,12 @@ int func(double z, const double y[], double f[], void *odep) {
 	}
 	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
-		complex<double> deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		//complex<double> deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		complex<double> deltazA = (1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(-1.0i*(p->k[i])*z);
 		f[i] = real(deltazA);
 		f[i + num_tOver2 + 1] = imag(deltazA);
-		deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		//deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*real(p->k[i])*z)*exp(-1.0*abs(imag(p->k[i]))*z);
+		deltazA = -(1.0i*pow(p->omega[i], 2) / (2.0*(p->k[i])*clightSquared)*p->nl_k[i] + p->omega[i] / (2.0*(p->k[i])*clightSquared*epsilon_0)*p->nl_p[i])*exp(1.0i*(p->k[i])*z);
 		f[i + num_t + 2] = real(deltazA);
 		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
 
