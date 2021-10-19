@@ -61,6 +61,22 @@ labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$
 
 ######################################
 
+#%% Plot the structure
+df = pd.read_table(pathhead + '/Structure.dat', header=0, index_col=False)
+structureDat = df.values
+
+plt.clf()
+plt.plot(structureDat[:,0], structureDat[:,2])
+plt.title('Structure Indices of Refraction')
+plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+plt.xlabel(r'$z$ [m]')
+plt.ylabel(r'$n_0$')
+plt.margins(x=0)
+plt.savefig(pathhead + '/figs/Structure.png')
+plt.show()
+
+######################################
+
 
 #%% Read in input spectrum
 df = pd.read_table(pathhead + '/InputSpectrum_1D.dat', header=0)
@@ -116,6 +132,7 @@ tcoef = (np.abs(eOmT[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 plt.clf()
 plt.plot(omeg[lowerInd:upperInd]/omeg0, tcoef)
 plt.xlabel(r'$\omega/\omega_0$')
+plt.ylabel(r'$T$')
 plt.grid(which='major')
 plt.legend()
 #plt.xlim([0.8*omeg0, 1.2*omeg0])
@@ -131,9 +148,10 @@ rcoef = (np.abs(eOmR[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 plt.clf()
 plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef)
 plt.xlabel(r'$\omega/\omega_0$')
+plt.ylabel(r'$R$')
 plt.grid(which='major')
 plt.legend()
-#plt.xlim([0.8*omeg0, 1.2*omeg0])
+plt.xlim([0.5, 1.5])
 #plt.ylim([0, 2])
 plt.margins(x=0)
 plt.title('Reflection Coefficient')
@@ -142,8 +160,8 @@ plt.savefig(pathhead + '/figs/ReflectionCoef.png')
 plt.show()
 
 #%% Print mean coefficients
-print('avg tr = {:}'.format(np.mean(tcoef)))
-print('avg rf = {:}'.format(np.mean(rcoef)))
+print('avg tr = {:}'.format(np.nanmean(np.where(np.isfinite(tcoef), tcoef, 0))))
+print('avg rf = {:}'.format(np.nanmean(np.where(np.isfinite(rcoef), rcoef, 0))))
 
 # %% Using Griffiths method naively
 n1 = 1.0

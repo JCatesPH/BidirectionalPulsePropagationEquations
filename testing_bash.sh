@@ -12,7 +12,7 @@ printf "\n\n\n"
 printf "========================================\n"
 
 
-for i in 1 #2 3 4 5 #6 7 8 9 10
+for i in 1 2 3 4 #5 #6 7 8 9 10
 do
     echo "Using paramfile$i.in as input."
     # Make directories for output if they do not exist
@@ -24,7 +24,7 @@ do
     echo "Simulation complete."
     
 
-    python ./plots_Berge.py "DATA$i"
+    #python ./plots_Berge.py "DATA$i"
     #cp "DATA$i/figs/Ew_both_amp.png" "AndrewFigs/ampSpectrum$i.png"
     #python ./plots.py "DATA$i"
     #cp "DATA$i/figs/Ew_both.png" "AndrewFigs/ampSpectrum$i.png"

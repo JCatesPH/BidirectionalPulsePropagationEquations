@@ -4,13 +4,13 @@
 #include "physicalConstants.h"
 
 //double sampleLayerThickness = 1.4e-6;
-int numLayersInSample = 1;
+int numLayersInSample = 20;
 
 
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
-	generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
+	generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
+	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
 }
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
@@ -60,19 +60,24 @@ void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& t
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
 	theMaterialDB.addMaterial(mat2);
 
+	const double lamb0 = 630.0e-9; // Wavelength (MAKE SURE CORRESPONDS TO ACTUAL WAVELENGTH)
+	const double thickness1 = n0_Material1 * lamb0 / 4.0;
+	const double thickness2 = n0_Material2 * lamb0 / 4.0;
+
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
 	for (int i = 0; i < (numLayersInSample / 4); i++)
 	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), thickness1, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), thickness2, zStepMaterial1);
 	}
 
-	theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness + sampleLayerThickness/3.0, zStepMaterial1);
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness + sampleLayerThickness/3.0, zStepMaterial1);
 
 	for (int i = 0; i < (numLayersInSample / 4); i++)
 	{
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
-		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), thickness1, zStepMaterial1);
+		theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), thickness2, zStepMaterial1);
+		//theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), thickness2, zStepMaterial1);
 	}
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }
