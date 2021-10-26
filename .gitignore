@@ -64,6 +64,8 @@ DATA*
 *.png
 figs/
 n.dat
+*.dat
+*.txt
 
 Makefile
 *.py

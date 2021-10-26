@@ -25,7 +25,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE  10.0 // orignal Andrew Value = 1.0e5
+#define INITIAL_GUESS_SEED_VALUE 1.0e5 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -50,8 +50,13 @@ extern double zStepMaterial1;
 
 // GSL ODE API parameters
 const double ode_epsabs = 1e-8;
-const double ode_epsrel = 1e-6;
-const int ode_nmax = 1e5;
+const double ode_epsrel = 1e-5;
+const int ode_nmax = 1e6;
+
+
+// GSL Quasi-Newton API parameters
+const double root_epsabs = 1e-7;
+const double root_epsrel = 1e-4;
 
 //pulse parameters
 //const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
@@ -65,7 +70,7 @@ const double waist_x = 40.0e-6; //pulse-waist fwhm
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
 const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
-const double rho_0 = 4.0e25; // = num_atoms; // initial electron density
+const double rho_0 = 9.0e24; // = num_atoms; // initial electron density
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
 const double tauCollision = 100.0e-15; //190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
@@ -179,4 +184,4 @@ int func(double z, const double y[], double f[], void *params);
 //void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odeparam_type *p);
 void DELME_ArgonDispersion(double* omg);
-void DELME_AndrewPreformed(double* omg);
+void DELME_AndrewPreformed(double* omg, Material* mat);

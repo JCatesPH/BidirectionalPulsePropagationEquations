@@ -447,9 +447,7 @@ void iterateBPPE()
     gsl_multiroot_fsolver *s;
 	T = gsl_multiroot_fsolver_hybrids;
 	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
-	double root_epsabs = 1e-5;
-	double root_epsrel = 1e-3;
-
+	
 	printf("Allocating initial guess\n");
 	gsl_vector *u = gsl_vector_alloc(sizeRoot);
 	//u->data = y;
@@ -909,9 +907,9 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 			sm = (exp(1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aPlus + exp(-1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aMinus);
 			
 			y[i] = real(sp);
-			y[i + num_t / 2 + 1] = imag(sp);
-			y[i + num_t + 2] = real(sm);
-			y[i + 3 * num_t / 2 + 3] = imag(sm);
+			y[i + numActiveOmega] = imag(sp);
+			y[i + 2 * numActiveOmega] = real(sm);
+			y[i + 3 * numActiveOmega] = imag(sm);
 		}
 	}
 	if (VERBOSE >= 5) { cout << "       Done Boundary() for z = " << z << endl;}
@@ -1365,8 +1363,10 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odepar
 
 	char buffer[STRING_BUFFER_SIZE];
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));
-	printf("\t\tWriting point monitor data to file: %s \n", buffer);
-
+	if (VERBOSE >= 7) {
+		printf("\t\tWriting point monitor data to file: %s \n", buffer);
+	}
+	
 	int num_tOver2 = num_t/2;
 	for (int i = 0; i <= num_tOver2; i++)
 	{
