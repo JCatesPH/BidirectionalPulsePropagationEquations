@@ -573,12 +573,13 @@ void DELME_AndrewPreformed(double* omg) {
 
 void DELME_ArgonDispersion(double* omg) {
 	Material *ArgonMat;
+	ArgonMat = myMaterialsDB.getMaterialByName("Argon");
+
 	complex<double> n0;
 	double lambda;
 	double raylighFactor = 32.0 * pow(M_PI, 3) / (3.0 * pow(num_atoms,2)) * num_atoms;
 	double rayleighScattering = 0.0;
-	ArgonMat = myMaterialsDB.getMaterialByName("Argon");
-
+	
 	char dispersionFile[STRING_BUFFER_SIZE];
 	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Argon.dat", SIM_DATA_OUTPUT);
 	FILE* fp;
@@ -601,24 +602,30 @@ void DELME_ArgonDispersion(double* omg) {
 		//n0 = 1+6.432135E-5+2.8606021E-2/(144-pow(lambda,-2)); // From Peck and Fisher (1964), valid in range: 0.47-2.06 um
 
 		if (lambda < 0.47e-6) {
-			n0 = 1.0 + 2.50141e-3/(91.012-pow(lambda,-2)) + 5.00283e-4/(87.892-pow(lambda,-2)) + 5.22343e-2/(214.02-pow(lambda,-2));
+			n0 = 1.0 + 2.50141e-3/(91.012-pow(lambda,-2)) + 5.00283e-4/(87.892-pow(lambda,-2)) + 5.22343e-2/(214.02-pow(lambda,-2)); // From Bideau-Mehu (1981), valid in range: 0.140-0.568 um
 		}
 		else {
 			n0 = 1.0 + 6.7867e-5 + 3.0182943e-2/(144.0-pow(lambda,-2)); // From Peck and Fisher (1964), valid in range: 0.47-2.06 um (0 deg C)
 		}
 
 		// Fitted dispersion (in Mathematica)
-		n0 = 1.00026 + 1.37647e-5 / lambda - 1.86046e-6 / pow(lambda,2) + 3.78465e-7 / pow(lambda,3);
-		
+		//  n0 = 1.00026 + 1.37647e-5 / lambda - 1.86046e-6 / pow(lambda,2) + 3.78465e-7 / pow(lambda,3);
+		// NEW FIT (Using Cauchy equation)
+		n0 = 1.00027 + 2.37091e-6 / pow(lambda, 2) + 1.19746e-9 / pow(lambda, 4);
+
+
 		//n0 += 1.0i * 8.0 * pow(M_PI, 3) / (3 * num_atoms * pow(lambda,4)) * pow(pow(n0, 2) - 1.0, 2);
 		rayleighScattering = raylighFactor / pow(lambda*1e-6, 4) * pow(real(n0)-1.0, 2);
 		//n0 += 1.0i * rayleighScattering;
+
+		//n0 = 1.00026; // COMMENT OUT! THIS USED FOR TESTING
 
 		ArgonMat->m_k[i] = omg[i] * n0 / cLight;
 
 		fprintf(fp, "%.7g\t%.17g\t%.17g \n", lambda, real(n0), imag(n0));
 	}
 	if (fp != NULL) { fclose(fp); }
+
 }
 
 //void copy_omg_k_ToMaterial(MaterialDB aMaterialDB, double* kx, complex<double>* k_0, complex<double>* k_1, complex<double>* k_2, complex<double>* k_3) {
