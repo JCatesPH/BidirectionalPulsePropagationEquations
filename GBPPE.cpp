@@ -19,6 +19,7 @@
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
 #define DO_DRUDE_MODEL
 //#define DO_CONSTPLASMA
+//#define DO_ARGON_PLASMA
 
 double dtime = omp_get_wtime();
 using namespace std;
@@ -214,9 +215,12 @@ int main(int argc, char *argv[])
 
 
 	fill_omg_k(omegaArray, kx);
-	//DELME_ArgonDispersion(omegaArray);
+	DELME_ArgonDispersion(omegaArray);
 	#ifdef DO_CONSTPLASMA
-	DELME_AndrewPreformed(omegaArray);
+		DELME_AndrewPreformed(omegaArray, myMaterialsDB.getMaterialByName("PlasmaMat"));
+	#endif
+	#ifdef DO_ARGON_PLASMA
+		DELME_AndrewPreformed(omegaArray, myMaterialsDB.getMaterialByName("Argon"));
 	#endif
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
@@ -537,9 +541,9 @@ void fill_omg_k(double*omg, double*kx) {
 }
 
 #define ANDREW_PREFORMED_METHOD1
-void DELME_AndrewPreformed(double* omg) {
-	Material *plasmaMat;
-	plasmaMat = myMaterialsDB.getMaterialByName("PlasmaMat");
+void DELME_AndrewPreformed(double* omg, Material* mat) {
+	//Material *plasmaMat;
+	//plasmaMat = myMaterialsDB.getMaterialByName("PlasmaMat");
 
 	double preformedDensity = rho_0;
 	double omega_plasma = sqrt(pow(charge_e, 2) * preformedDensity / (epsilon_0 * mass_e));
@@ -559,14 +563,17 @@ void DELME_AndrewPreformed(double* omg) {
 		exit(-1);
 	}
 
-	plasmaMat->m_k[0] = 0.0;
-	fprintf(fp, "%.7g\t%.17g\t%.17g \n", 0.0, real(plasmaMat->m_k[0]), imag(plasmaMat->m_k[0]));
+	complex<double> n0;
+	//plasmaMat->m_k[0] = 0.0;
+	//fprintf(fp, "%.7g\t%.17g\t%.17g \n", 0.0, real(plasmaMat->m_k[0]), imag(plasmaMat->m_k[0]));
+	mat->m_k[0] = 0.0;
+	fprintf(fp, "%.7g\t%.17g\t%.17g \n", 0.0, real(mat->m_k[0]), imag(mat->m_k[0]));
 	for (int i = 1; i < numActiveOmega; i++)
 	{
-		complex<double> k0 = omg[i] / cLight;
-		//plasmaMat->m_k[i] = k0 * sqrt(complex<double>(1.0 - pow(omega_plasma / omg[i], 2)));
-		plasmaMat->m_k[i] = k0 * sqrt(1.0 - pow(omega_plasma, 2) / (pow(omg[i], 2) + 1.0i * omg[i] / tauCollision));
-		fprintf(fp, "%.7g\t%.17g\t%.17g \n", omg[i], real(plasmaMat->m_k[i]), imag(plasmaMat->m_k[i]));
+		n0 = mat->m_k[i] * cLight / omg[i];
+		//mat->m_k[i] = omg[i] / cLight * sqrt(complex<double>(1.0 - pow(omega_plasma / omg[i], 2)));
+		mat->m_k[i] = omg[i] / cLight * sqrt(1.0 - pow(omega_plasma / omg[i], 2) / (1.0 + 1.0i / (omg[i] * tauCollision)));
+		fprintf(fp, "%.7g\t%.17g\t%.17g \n", omg[i], real(mat->m_k[i]), imag(mat->m_k[i]));
 	}
 	if (fp != NULL) { fclose(fp); }
 }
@@ -1167,7 +1174,9 @@ int func(double z, const double y[], double f[], void *odep) {
 
 		// Calculate the polarization
 		//p->nl_k[i] = (1.0 - omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i]+p->ee_m[i]);
-		p->nl_k[i] = (-omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i] + p->ee_m[i]);
+		//p->nl_k[i] = (-omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i] + p->ee_m[i]);
+		p->nl_k[i] = ( -omeg_p2 / (p->omega[i] * (p->omega[i] + 1.0i / tauCollision)) ) * (p->ee_p[i] + p->ee_m[i]);
+		//p->nl_k[i] = (-omeg_p2 * tauCollision / (pow(p->omega[i], 2) * tauCollision + 1.0i * p->omega[i])) * (p->ee_p[i] + p->ee_m[i]);
 		//p->nl_k[i] = p->nl_k[i] / sqrt((double)num_t);
 		//p->nl_k[i] = p->nl_k[i] / sqrt(2.0*M_PI);
 	}
