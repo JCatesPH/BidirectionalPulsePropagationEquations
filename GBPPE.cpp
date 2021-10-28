@@ -443,7 +443,6 @@ void iterateBPPE()
 	int status;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 	nonlinear_time_initial = omp_get_wtime();
-	nonlinear_time_tmp = nonlinear_time_initial;
 
 	// Initialize multiroot objects
 	printf("Allocating multiroot solver\n");
@@ -459,7 +458,7 @@ void iterateBPPE()
 	// Create pseudo-random number generator for initial guess
 	random_device rd;
 	mt19937 gen(rd());
-	uniform_real_distribution<double> dis(-1.0, 1.0);
+	uniform_real_distribution<double> dis(0.0, 1.0);
 	// Set the initial guess with y and uniform r.v.
 	for (int k = 0; k < sizeRoot/2; k++){
 		gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
@@ -475,10 +474,12 @@ void iterateBPPE()
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
 	gsl_multiroot_function f = {&mapU, sizeRoot, rparams};
+	nonlinear_time_tmp = omp_get_wtime();
 	gsl_multiroot_fsolver_set(s, &f, u);
-	printf("Finished setting multiroot function\n");
+	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
+	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
-	rparams->output = 1;
+	rparams->output = 0;
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
@@ -495,18 +496,31 @@ void iterateBPPE()
 		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
 		rparams->itnum = rparams->itnum + 1;
 		fflush(stdout);
+
+		if (status == GSL_EBADFUNC) {
+			printf("\nERROR: GSL fsolver returned GSL_EBADFUNC. The iteration scheme encountered a singular point.\n");
+		}
+		if (status == GSL_ENOPROG) {
+			printf("\nERROR: GSL fsolver returned GSL_ENOPROG. The iteration scheme is not making progress.\n");
+		}
 	}
 	while (status == GSL_CONTINUE && rparams->itnum < 25000);
 
-	
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
+
+	double dxnorm = gsl_blas_dasum(s->dx);
+	double xnorm = gsl_blas_dasum(s->x);
+	double fnorm = gsl_blas_dasum(s->f);
+	printf("  dx norm = %.7e\n", dxnorm);
+	printf("  x norm = %.7e\n", xnorm);
+	printf("  f norm = %.7e\n\n", fnorm);
+
 
 	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
 	rparams->output = 1;
-	gsl_vector *tmpf = gsl_vector_alloc(2*numActiveOmega);
-	mapU(s->x, rparams, tmpf);
+	mapU(s->x, rparams, s->f);
 
 	// Freeing ODE memory
 	gsl_odeiv2_control_free(gslControl);
@@ -517,9 +531,6 @@ void iterateBPPE()
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
 	gsl_vector_free(u);
-	gsl_vector_free(tmpf);
-
-
 }
 
 

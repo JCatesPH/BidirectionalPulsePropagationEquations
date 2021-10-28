@@ -152,3 +152,12 @@ double getDoubleParameterValueByName(char *paramName) {
   
   return paramValue;	
 }
+
+
+double vnorm(const double *v, const int n) {
+	double norm = 0;
+	for (int k = 0; k < n; k++) {
+		norm += abs(v[k]);
+	}
+	return norm;
+}

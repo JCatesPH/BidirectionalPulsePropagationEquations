@@ -17,6 +17,7 @@
 #include <gsl/gsl_odeiv2.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_multiroots.h>
+#include <gsl/gsl_blas.h>
 #include <gsl/gsl_math.h>
 #include <string>
 #include"physicalConstants.h"
