@@ -56,8 +56,8 @@ const int ode_nmax = 1e6;
 
 
 // GSL Quasi-Newton API parameters
-const double root_epsabs = 1e-7;
-const double root_epsrel = 1e-4;
+const double root_epsabs = 1e-9;
+const double root_epsrel = 1e-6;
 
 //pulse parameters
 //const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]

@@ -539,10 +539,10 @@ void fill_omg_k(double*omg, double*kx) {
 		for (int i = 0; i < num_t; i++)
 		{
 			if (i <= num_t / 2) {
-				omg[i] = (M_PI / domain_t)*i;
+				omg[i] = (2.0 * M_PI / domain_t)*i;
 			}
 			else {
-				omg[i] = (M_PI / domain_t)*((double)i - num_t);
+				omg[i] = (2.0 * M_PI / domain_t)*((double)i - num_t);
 			}
 		}
 		// COLM NEW this line replaces following comment block
