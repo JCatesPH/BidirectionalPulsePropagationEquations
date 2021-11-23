@@ -27,7 +27,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-//#define INITIAL_GUESS_SEED_VALUE 1.0e6 // orignal Andrew Value = 1.0e5
+#define NOISE_MAGNITUDE 1.0e-6
 
 // CODE parameters
 #define USE_CPP_BOUNDARY

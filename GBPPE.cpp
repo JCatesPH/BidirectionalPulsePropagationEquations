@@ -39,7 +39,7 @@ double *window;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
 double *omegaArray, *timeValuesArray, *kx, *ne, *y;
-complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init, *nl_k, *nl_p, *j_e;
+complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init, *nl_k, *nl_p, *j_e, *integral1, *integral2, *Am_guess1, *Am_guess2;
 fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
 
@@ -130,6 +130,10 @@ int main(int argc, char *argv[])
 	
 	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	ym_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	Am_guess1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	Am_guess2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
 	window = (double*)malloc(sizeof(double) * num_t);
 
@@ -289,7 +293,7 @@ gsl_odeiv2_step * gslStep;
 gsl_odeiv2_control * gslControl;
 gsl_odeiv2_evolve * gslEvolve;
 
-int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
+int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
 
 	
@@ -376,6 +380,13 @@ int mapU(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                         printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rparams->itnum, numZsteps, zPosition, (int)nonlinear_time);
                         numzReports++;
                     }
+
+					if (rparams->intCondition == 1) {
+						integrate(zPosition, zStepSize, params, y, integral1);
+					}
+					else if (rparams->intCondition == 2) {
+						integrate(zPosition, zStepSize, params, y, integral2);
+					}
                 }
 
 				if (rparams->output == 1) {
@@ -436,13 +447,17 @@ void iterateBPPE()
 
 	// Initialize param struct for root solver
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
-    rparams->itnum = 1;
-	rparams->output = 0;
 
 	// Initialize time and status variables
 	int status;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 	nonlinear_time_initial = omp_get_wtime();
+
+	// Initialize objects for condition number checking
+	/* gsl_matrix *U = gsl_matrix_alloc(sizeRoot, sizeRoot);
+	gsl_matrix *V = gsl_matrix_alloc(sizeRoot, sizeRoot);
+	gsl_vector *singularValues = gsl_vector_alloc(sizeRoot);
+	gsl_vector *work = gsl_vector_alloc(sizeRoot); */
 
 	// Initialize multiroot objects
 	printf("Allocating multiroot solver\n");
@@ -450,36 +465,101 @@ void iterateBPPE()
     gsl_multiroot_fsolver *s;
 	T = gsl_multiroot_fsolver_hybrids;
 	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
-	
-	printf("Allocating initial guess\n");
-	gsl_vector *u = gsl_vector_alloc(sizeRoot);
-	//u->data = y;
-
-	// Create pseudo-random number generator for initial guess
-	random_device rd;
-	mt19937 gen(rd());
-	uniform_real_distribution<double> dis(0.0, 1.0);
-	// Set the initial guess with y and uniform r.v.
-	for (int k = 0; k < sizeRoot/2; k++){
-		gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
-		gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
-	}
 
 	// Initialize GSL ODE objects
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
 	gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
 	gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
+	
+	// ------------- Initial Guess Finding -------------
+	printf("Allocating initial guess\n");
+	gsl_vector *u = gsl_vector_alloc(sizeRoot);
+	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
+
+	// Create pseudo-random number generator for initial guess
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
+	
+	// Set the initial guess with y
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Use integral condition to inform guess
+	rparams->itnum = 1;
+	rparams->output = 1;
+	rparams->intCondition = 1;
+	mapG(u, rparams, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess1[k] = y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Set the initial guess with y and uniform r.v.
+	for (int k = 0; k < sizeRoot/2; k++){
+		//gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		//gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Get second guess for secant method
+	rparams->intCondition = 2;
+	rparams->itnum = 2;
+	mapG(u, rparams, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess2[k] = y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Reset parameters for later
+	rparams->intCondition = 0;
+	rparams->itnum = 3;
+	rparams->output = 0;
+	
+	for (int k = 0; k < sizeRoot/2; k++){
+		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * integral2[k + freqLowerCutoff] - Am_guess2[k + freqLowerCutoff] * integral1[k + freqLowerCutoff]) 
+			/ (integral2[k + freqLowerCutoff] - integral1[k + freqLowerCutoff] + Am_guess2[k + freqLowerCutoff] - Am_guess1[k + freqLowerCutoff]);
+
+		if (abs(integral2[k + freqLowerCutoff] - integral1[k + freqLowerCutoff] + Am_guess2[k + freqLowerCutoff] - Am_guess1[k + freqLowerCutoff]) < DBL_MIN) {
+			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
+			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
+		}
+		else {
+			gsl_vector_set(u, k, real(initGuess));
+			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
+		}
+		// Comment out to set initial guess with old scheme
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen))  * y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Free some memory
+	free(Am_guess1);
+	free(Am_guess2);
+	free(integral1);
+	free(integral2);
+	free(tmp);
+
+	// ---------------------------------------------------
 
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
-	gsl_multiroot_function f = {&mapU, sizeRoot, rparams};
+	gsl_multiroot_function f = {&mapG, sizeRoot, rparams};
 	nonlinear_time_tmp = omp_get_wtime();
 	gsl_multiroot_fsolver_set(s, &f, u);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
-	rparams->output = 0;
+	// Compute the condition number of the Jacobian
+	/* gsl_matrix *Jac = (hybrid_state_t)(s->state)->J;
+	gsl_matrix_memcpy(U, Jac);
+	gsl_linalg_SV_decomp(U, V, singularValues, work); */
+
+	rparams->output = 1;
 	do
 	{
 		printf("Starting iteration %d\n", rparams->itnum);
@@ -520,7 +600,7 @@ void iterateBPPE()
 	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
 	rparams->output = 1;
-	mapU(s->x, rparams, s->f);
+	mapG(s->x, rparams, s->f);
 
 	// Freeing ODE memory
 	gsl_odeiv2_control_free(gslControl);
@@ -657,6 +737,8 @@ void initializeY()
 		y[i + numActiveOmega] = imag(yp_init[i]);
 		y[i + 2*numActiveOmega] = 0.0;
 		y[i + 3*numActiveOmega] = 0.0;
+		integral1[i] = 0.0;
+		integral2[i] = 0.0;
 	}
 
 	for (int i = 0; i < freqLowerCutoff; i++) {
@@ -1172,6 +1254,28 @@ int func(double z, const double y[], double f[], void *odep) {
 	
 	// DELETE ME : Drude model
 	#ifdef DO_DRUDE_MODEL
+
+	fftw_execute(p->ep_b);
+	fftw_execute(p->em_b);
+	normalizeFFT(p->ee_p, 1);
+	normalizeFFT(p->ee_m, 1);
+
+	#pragma omp parallel for
+	for (int i = 0; i < num_t; i++)
+	{
+		//p->ee_p[i] = p->ee_p[i] / num_td;
+		//p->ee_m[i] = p->ee_m[i] / num_td;
+		p->nl_k[i] = p->chi_2 * pow(real(p->ee_p[i] + p->ee_m[i]), 2) + p->chi_3 * pow(real(p->ee_p[i] + p->ee_m[i]), 3);
+	}
+	
+	fftw_execute(p->nk_f);
+	normalizeFFT(nl_k, 1);
+
+	fftw_execute(eFieldPlusForwardFFT);
+	fftw_execute(eFieldMinusForwardFFT);
+	normalizeFFT(p->ee_p, 1);
+	normalizeFFT(p->ee_m, 1);
+
 	const double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
 	const double omeg_p2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0); 
 	#pragma omp parallel for
@@ -1186,10 +1290,11 @@ int func(double z, const double y[], double f[], void *odep) {
 		// Calculate the polarization
 		//p->nl_k[i] = (1.0 - omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i]+p->ee_m[i]);
 		//p->nl_k[i] = (-omeg_p2 / (pow(p->omega[i], 2) + 1.0i * p->omega[i] / tauCollision)) * (p->ee_p[i] + p->ee_m[i]);
-		p->nl_k[i] = ( -omeg_p2 / (p->omega[i] * (p->omega[i] + 1.0i / tauCollision)) ) * (p->ee_p[i] + p->ee_m[i]);
 		//p->nl_k[i] = (-omeg_p2 * tauCollision / (pow(p->omega[i], 2) * tauCollision + 1.0i * p->omega[i])) * (p->ee_p[i] + p->ee_m[i]);
 		//p->nl_k[i] = p->nl_k[i] / sqrt((double)num_t);
 		//p->nl_k[i] = p->nl_k[i] / sqrt(2.0*M_PI);
+		//p->nl_k[i] = ( -omeg_p2 / (p->omega[i] * (p->omega[i] + 1.0i / tauCollision)) ) * (p->ee_p[i] + p->ee_m[i]);
+		p->nl_k[i] += ( -omeg_p2 / (p->omega[i] * (p->omega[i] + 1.0i / tauCollision)) ) * (p->ee_p[i] + p->ee_m[i]);
 	}
 
 	//fftw_execute(p->nk_f);
@@ -1214,7 +1319,6 @@ int func(double z, const double y[], double f[], void *odep) {
 	fftw_execute(p->nk_f);
 	normalizeFFT(nl_k, 1);
 
-	
 	if (p->doPlasmaCalc == 2) {
 
 		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
@@ -1433,5 +1537,20 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odepar
 	}
 	if (fp != NULL) { fclose(fp); }
 
+	return;
+}
+
+
+void integrate(double z, double zStep, odeparam_type *pars, double*y, complex<double>*integral) {
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		if (i < freqLowerCutoff || i > freqUpperCutoff)
+		{
+			integral[i] = 0.0;
+		}
+		else {
+			integral[i] += -(1.0i*pow(pars->omega[i], 2) / (2.0*(pars->k[i])*pow(cLight, 2))*nl_k[i] + pars->omega[i] / (2.0*(pars->k[i])*pow(cLight, 2)*epsilon_0)*pars->nl_p[i])* exp(-1.0i*real(pars->k[i]) * z)*exp(-1.0*abs(imag(pars->k[i]))*z)*zStepMaterial1;
+		}
+	}
 	return;
 }
