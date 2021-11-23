@@ -18,6 +18,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_multiroots.h>
 #include <gsl/gsl_blas.h>
+#include <gsl/gsl_linalg.h>
 #include <gsl/gsl_math.h>
 #include <string>
 #include"physicalConstants.h"
@@ -26,7 +27,7 @@
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
-#define INITIAL_GUESS_SEED_VALUE 1.0e5 // orignal Andrew Value = 1.0e5
+//#define INITIAL_GUESS_SEED_VALUE 1.0e6 // orignal Andrew Value = 1.0e5
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -42,7 +43,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 // Simulation parameters
 
-const int num_Threads = 16; // numnber of OpenMP threads
+const int num_Threads = 8; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
@@ -71,10 +72,10 @@ const double waist_x = 40.0e-6; //pulse-waist fwhm
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
 const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
-const double rho_0 = 9.0e24; // = num_atoms; // initial electron density
+const double rho_0 = 9.0e24; // initial electron density
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
-const double tauCollision = 100.0e-15; //190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
+const double tauCollision = 190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
 const double mpi_sigmaK = 3.4e-128;
 const double mpi_k = 8.0;
 const double FUDGE_FACTOR = 1.0;
@@ -144,6 +145,7 @@ typedef struct {
 typedef struct {
 	int itnum;
 	int output;
+	int intCondition;
 }rootparam_type;
 
 typedef struct {
@@ -181,7 +183,7 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 //void am_to_zero(double*y);
 //int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral);
 int func(double z, const double y[], double f[], void *params);
-//void integrate(double z, double zStep, param_type *params, double*y, complex<double>*integral);
+void integrate(double z, double zStep, odeparam_type *params, double*y, complex<double>*integral);
 //void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odeparam_type *p);
 void DELME_ArgonDispersion(double* omg);
