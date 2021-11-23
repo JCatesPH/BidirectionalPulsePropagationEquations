@@ -23,9 +23,9 @@ private:
 	double m_chi_2;
 	double m_chi_3;
 	int m_doPlasmaCalc = 0;
-	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0;
+	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0, m_ionE = 0.0;
 
-	complex<double>* m_k=nullptr;
+	//complex<double>* m_k=nullptr;
 	int m_numActiveOmega = 0;
 public:
 	Material() : m_name("Undefined Material"), m_n0(0.0), m_n2(0.0), m_chi_2(666.666), m_chi_3(333.333) {}
@@ -40,6 +40,8 @@ public:
 		m_matInfoAsString.append(ss.str());
 	}
 
+	complex<double>* m_k=nullptr;
+
 	void setName(string aName) { m_name = aName; }
 	string getName() { return m_name; }
 	void setidNum(size_t aidNum) { m_idNum = aidNum; }
@@ -53,6 +55,7 @@ public:
 	double getdoPlasmaCalc() { return m_doPlasmaCalc; }
 	double getmpi_sigmaK() { return m_mpi_sigmaK; }
 	double getmpi_k() { return m_mpi_k; }
+	double getIonizationEnergy() {return m_ionE; }
 
 	void setAsPlasmaMaterial(int doPlasmaCalc, double mpi_sigmaK, double mpi_k) {
 		m_doPlasmaCalc = doPlasmaCalc;
@@ -63,6 +66,16 @@ public:
 		ss << "  [ doPlasmaCalc=" << m_doPlasmaCalc;
 		ss << " mpi_sigmaK=" << m_mpi_sigmaK;
 		ss << " mpi_k=" << m_mpi_k;
+		ss << " ]";
+		m_matInfoAsString.append(ss.str());
+	}
+	void setAsPlasmaMaterial(int doPlasmaCalc, double ionEnergy) {
+		m_doPlasmaCalc = doPlasmaCalc;
+		m_ionE = ionEnergy;
+		std::stringstream ss;
+		ss << m_name;
+		ss << "  [ doPlasmaCalc=" << m_doPlasmaCalc;
+		ss << " Ionization Energy =" << m_ionE;
 		ss << " ]";
 		m_matInfoAsString.append(ss.str());
 	}
