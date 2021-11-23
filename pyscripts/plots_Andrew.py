@@ -20,8 +20,9 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
+    #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
     pathhead = '../DATA1'
-    itnum = '24'
+    itnum = '12'
 
 
 CLIGHT = 299792458
@@ -177,7 +178,7 @@ plt.margins(x=0)
 plt.minorticks_on()
 #plt.xlim([0.0, np.max(eSpectrumT[:,0])])
 plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_transmitted.png')
+plt.savefig(pathhead + '/figs/EwT_iter{:}.png'.format(itnum))
 #plt.show()
 
 
@@ -201,7 +202,7 @@ plt.margins(x=0)
 plt.minorticks_on()
 #plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_reflected.png')
+plt.savefig(pathhead + '/figs/EwR_iter{:}.png'.format(itnum))
 plt.show()
 #plt.close('all')
 ######################################
@@ -224,7 +225,7 @@ plt.margins(x=0)
 plt.minorticks_on()
 #plt.xlim([0.0, np.max(eSpectrumR[:,0])])
 plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_both.png')
+plt.savefig(pathhead + '/figs/Ew_both_iter{:}.png'.format(itnum))
 plt.show()
 plt.close('all')
 ######################################
@@ -254,7 +255,7 @@ plt.axvline(omegPlasma, color='k', linestyle='--')
 plt.margins(x=0)
 plt.minorticks_on()
 plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_both_amp.png')
+plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}.png'.format(itnum))
 plt.show()
 ####################################################################
 ####################################################################
