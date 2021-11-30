@@ -17,6 +17,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <stdlib.h>
+#include <gsl/gsl_types.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_vector.h>
+#include <gsl/gsl_matrix.h>
 #include "enorm.c"
 
 static void compute_diag (const gsl_matrix * J, gsl_vector * diag);

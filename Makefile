@@ -20,11 +20,17 @@ OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o
 TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
 
+GSLOBJS = gsl/convergence.o gsl/dogleg.o gsl/enorm.o gsl/fsolver.o gsl/hybrid.o
+GSLHEADERS = gsl/gsl_multiroots.h
+
 # --- Rule 1 ---
 test: $(TARGET)
 
+mygsl: $(GSLOBJS) $(GSLHEADERS)
+	$(CC) $(CPPFLAGS) -o mygslobj.o $(GSLOBJS) $(LDFLAGS)
+
 $(TARGET): $(OBJFILES) $(HEADERS)
-	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(LDFLAGS)
+	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(GSLOBJS) $(LDFLAGS)
 
 rootfind: rootfindtest.cpp
 	$(CC) $(CPPFLAGS) -o testrootfind.out rootfindtest.cpp $(LDFLAGS)
