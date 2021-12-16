@@ -106,7 +106,7 @@ extern double sampleLayerThickness;
 // Predefine a few common material parameters
 const double n0_Vacuum = 1.0; //central index in material 0
 const double n0_Argon = 1.00026436; // For 1.0 um, from https://refractiveindex.info/?shelf=main&book=Ar&page=Peck-15C
-const double n2_Argon = 1.0e-23; //nonlinear index in material 1; ~1e-19 cm^2/W from doi: 10.1007/s00340-013-5354-0
+const double n2_Argon = 5.0e-23; //nonlinear index in material 1; ~1e-19 cm^2/W from doi: 10.1007/s00340-013-5354-0
 const double chi3_Argon = (4 / 3) * epsilon_0 * cLight * pow(n0_Argon, 2) * n2_Argon;
 const double chi2_Argon = 0.0;
 const double n0_Material1 = 1.5; //1.5; //central index in material 1

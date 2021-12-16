@@ -4,7 +4,9 @@ import glob
 import math
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 #%matplotlib widget
 
 #%%
@@ -21,11 +23,21 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA1'
-    itnum = '12'
+    pathhead = '../DATA4'
+    itnum = '54'
 
 
 CLIGHT = 299792458
+EPS0 = 8.85418782e-12
+CHARGE_E = 1.602176634e-19
+MASS_E = 9.10938356e-31
+
+intensityFactor = EPS0*CLIGHT/2 * 1e-4 # Second factor changes it to W/cm^2
+
+mpl.rcParams['font.family'] = 'Avenir'
+plt.rcParams['font.size'] = 16
+plt.rcParams['axes.linewidth'] = 2
+
 #plt.ion()
 ######################################
 #%% Compute and print the preformed plasma parameters 
@@ -36,7 +48,7 @@ epsilon_0 = 8.85418782e-12
 charge_e = 1.602176634e-19
 mass_e = 9.10938356e-31
 
-numE = 9.0e24
+numE = 0
 omegPlasma = np.sqrt(charge_e**2*numE/(epsilon_0*mass_e))
 
 print("For {:} electrons, the plasma frequency is: {:.8e}".format(numE, omegPlasma))
@@ -61,8 +73,6 @@ sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1
 sampleThickness = df.loc[df['Variable'] == 'sampleLayerThickness'].values[0,1]
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
 freqLowerCutoff = int(df.loc[df['Variable'] == 'freqLowerCutoff'].values[0,1])
-
-labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)
 
 ######################################
 
@@ -120,11 +130,11 @@ inSpectrum = df.values
 #%%
 plt.figure(3, figsize=(8, 6))
 plt.clf()
-plt.semilogy(inSpectrum[:,0]/omeg0, inSpectrum[:,3]**2, 'r-', label=labstr)
+plt.semilogy(inSpectrum[:,0]/omeg0, intensityFactor*inSpectrum[:,3]**2, 'b-')
 plt.title(r'Input Intensity Spectrum')
 #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega/\omega_0$')
-plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
+plt.ylabel(r'Intensity [W/cm$^2$]')
 plt.grid(which='major')
 plt.legend()
 plt.margins(x=0)
@@ -159,105 +169,91 @@ plt.savefig(pathhead + '/figs/fig_nPlasma.png') """
 df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Transmitted.dat', header=0)
 eSpectrumT = df.values
 
-halfT = int(eSpectrumT.shape[0]/2)
-
 dOm = abs(eSpectrumT[1,0] - eSpectrumT[0,0])
 print('dOmega = {:.2e}'.format(dOm))
-
-#%%
-plt.figure(4, figsize=(8, 6))
-plt.clf()
-plt.semilogy(eSpectrumT[:halfT,0]/omeg0, eSpectrumT[:halfT,3]**2, label=labstr)
-plt.title(r'Transmitted pulse spectrum')
-#plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega/\omega_0$')
-plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
-plt.grid(which='major')
-plt.legend()
-plt.margins(x=0)
-plt.minorticks_on()
-#plt.xlim([0.0, np.max(eSpectrumT[:,0])])
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/EwT_iter{:}.png'.format(itnum))
-#plt.show()
-
 
 #%% Read in spectrum of reflected pulse
 df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Reflected.dat', header=0)
 eSpectrumR = df.values
 
-halfR = int(eSpectrumR.shape[0]/2)
 
-#%%
-plt.figure(5, figsize=(8, 6))
-plt.clf()
-plt.semilogy(eSpectrumR[:halfR,0]/omeg0, eSpectrumR[:halfR,3]**2, label=labstr)
-plt.title(r'Reflected pulse spectrum')
-#plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega/\omega_0$')
-plt.ylabel(r'$|E(\omega)|^2$ [V$\cdot$s/m]')
-plt.grid(which='major')
-plt.legend()
-plt.margins(x=0)
-plt.minorticks_on()
-#plt.xlim([0.0, np.max(eSpectrumR[:,0])])
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/EwR_iter{:}.png'.format(itnum))
-plt.show()
-#plt.close('all')
 ######################################
+#%% Full spectra in log plot
+fig = plt.figure(5, figsize=(6.47, 4), dpi=400)
+ax = fig.add_axes([0, 0, 1, 1])
 
-#%%
-#freqUpperCutoff = 750
-plt.figure(5, figsize=(8, 6))
-plt.clf()
-plt.semilogy(
-    eSpectrumT[freqLowerCutoff:freqUpperCutoff,0]/omeg0, eSpectrumT[freqLowerCutoff:freqUpperCutoff,3]**2,
-    eSpectrumR[freqLowerCutoff:freqUpperCutoff,0]/omeg0, eSpectrumR[freqLowerCutoff:freqUpperCutoff,3]**2
-    )
-plt.title(r'Both pulse spectra')
-plt.legend(['Transmitted', 'Reflected'])
-#plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-plt.xlabel(r'$\omega/\omega_0$')
-plt.ylabel(r'$|E(\omega)|^2$')
-plt.grid(which='major')
-plt.margins(x=0)
-plt.minorticks_on()
-#plt.xlim([0.0, np.max(eSpectrumR[:,0])])
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_both_iter{:}.png'.format(itnum))
+ax.semilogy(inSpectrum[freqLowerCutoff:freqUpperCutoff,0]/omeg0, intensityFactor*inSpectrum[freqLowerCutoff:freqUpperCutoff,3]**2,  
+    '-b', label='Incident', linewidth=2)
+ax.semilogy(eSpectrumT[freqLowerCutoff:freqUpperCutoff,0]/omeg0, intensityFactor*eSpectrumT[freqLowerCutoff:freqUpperCutoff,3]**2,
+    '-g', label='Transmitted', linewidth=2)
+ax.semilogy(eSpectrumR[freqLowerCutoff:freqUpperCutoff,0]/omeg0, intensityFactor*eSpectrumR[freqLowerCutoff:freqUpperCutoff,3]**2,
+    '-r', label='Reflected', linewidth=2)
+
+# Add legend and labels
+ax.legend(bbox_to_anchor=(1, 1), loc=1, frameon=True, fontsize=16)
+ax.set_xlabel(r'$\omega/\omega_0$', labelpad=10)
+ax.set_ylabel(r'Intensity [W/cm$^2$]', labelpad=10)
+
+#ax.set_xlim([0, 20])
+ax.margins(x=0)
+
+ax.axvline(omegPlasma/omeg0, color='k', linestyle='--')
+
+# Manipulate the ticks
+ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top=False)
+ax.xaxis.set_tick_params(which='minor', size=7, width=2, direction='in', top=False)
+ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right=False)
+ax.yaxis.set_tick_params(which='minor', size=7, width=2, direction='in', right=False)
+ax.xaxis.set_major_locator(mpl.ticker.MultipleLocator(1))
+ax.xaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(2))
+#ax.yaxis.set_major_locator(mpl.ticker.LogLocator(base=1e5, numdecs=5, numticks=None))
+
+ax.grid(True, which='major', axis='both')
+
+plt.savefig(pathhead + '/figs/Ew_both_iter{:}.png'.format(itnum), 
+    dpi=400, transparent=False, bbox_inches='tight')
 plt.show()
-plt.close('all')
-######################################
 
-#%% Overlay transmitted and reflected spectra
-fig = plt.figure(6, figsize=(6.4, 4.8), dpi=200)
+######################################
+#%% Spectra around fundamental
 firstIndex = freqLowerCutoff
-plt.clf()
-plt.plot(
-    inSpectrum[firstIndex:freqUpperCutoff,0], inSpectrum[firstIndex:freqUpperCutoff,3], '-b',
-    eSpectrumT[firstIndex:freqUpperCutoff,0], eSpectrumT[firstIndex:freqUpperCutoff,3], '-g', 
-    eSpectrumR[firstIndex:freqUpperCutoff,0], eSpectrumR[firstIndex:freqUpperCutoff,3], '-r'
-    )
-plt.title(r'Transmitted and reflected amplitude spectra')
-plt.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-plt.legend(['Incident', 'Transmitted', 'Reflected'])
-plt.xlabel(r'$\omega$ [s$^{-1}$]')
-plt.ylabel(r'$|E(f)|$ [V$\cdot$s/m]')
-plt.grid(which='major')
-#plt.xlim([20, 100])
-plt.xlim([omeg0 - 7/taup, omeg0 + 7/taup])
-plt.text(0.25, 0.75, 
+
+fig = plt.figure(6, figsize=(6.47, 4), dpi=400)
+ax = fig.add_axes([0, 0, 1, 1])
+
+ax.plot(inSpectrum[firstIndex:freqUpperCutoff,0], intensityFactor*inSpectrum[firstIndex:freqUpperCutoff,3]**2, 
+    '-b', label='Incident', linewidth=2)
+ax.plot(eSpectrumT[firstIndex:freqUpperCutoff,0], intensityFactor*eSpectrumT[firstIndex:freqUpperCutoff,3]**2, 
+    '-g', label='Transmitted', linewidth=2)
+ax.plot(eSpectrumR[firstIndex:freqUpperCutoff,0], intensityFactor*eSpectrumR[firstIndex:freqUpperCutoff,3]**2, 
+    '-r', label='Reflected', linewidth=2)
+
+# Add legend and labels
+ax.legend(bbox_to_anchor=(1, 1), loc=1, frameon=True, fontsize=16)
+ax.set_xlabel(r'$\omega$ [s$^{-1}$]', labelpad=10)
+ax.set_ylabel(r'Intensity [W/cm$^2$]', labelpad=10)
+ax.text(0.2, 0.8, 
     r'$L=${:.2f} $\mu$m'.format(sampleThickness*1e6), 
     horizontalalignment='center', verticalalignment='center', transform=fig.transFigure,
-    fontsize=14)
-plt.axvline(omegPlasma, color='k', linestyle='--')
-plt.margins(x=0)
-plt.minorticks_on()
-plt.tight_layout()
-plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}.png'.format(itnum))
+    fontsize=16)
+
+ax.set_xlim([omeg0 - 7/taup, omeg0 + 7/taup])
+ax.axvline(omegPlasma, color='k', linestyle='--')
+
+# Manipulate the ticks
+ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top=False)
+ax.xaxis.set_tick_params(which='minor', size=7, width=2, direction='in', top=False)
+ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right=False)
+ax.yaxis.set_tick_params(which='minor', size=7, width=2, direction='in', right=False)
+ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4, integer=True))
+ax.xaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(4))
+ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4, integer=True))
+ax.yaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(4))
+
+ax.grid(True, which='major', axis='both')
+
+plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}.png'.format(itnum), 
+    dpi=400, transparent=False, bbox_inches='tight')
 plt.show()
-####################################################################
-####################################################################
 
 # %%
