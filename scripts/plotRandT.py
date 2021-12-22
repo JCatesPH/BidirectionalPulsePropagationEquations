@@ -4,7 +4,9 @@ import glob
 import math
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 
 if len(sys.argv) > 1:
     pathhead = str(sys.argv[1])
@@ -18,12 +20,25 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA1'
-    itnum = '0'
+    pathhead = '../DATA_DBR'
+    itnum = '11'
+
+
+CLIGHT = 299792458
+EPS0 = 8.85418782e-12
+CHARGE_E = 1.602176634e-19
+MASS_E = 9.10938356e-31
+
+intensityFactor = EPS0*CLIGHT/2 * 1e-4 # Second factor changes it to W/cm^2
+
+mpl.rcParams['font.family'] = 'serif'
+plt.rcParams['font.size'] = 16
+plt.rcParams['axes.linewidth'] = 2
+
 ######################################
 #%%
 def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$'):
-    fig, axs = plt.subplots(figsize=(8, 6))
+    fig, axs = plt.subplots(figsize=(6.47, 4), dpi=400)
 
     for freqs, spectrum, label in zip(freqArr, spectrumArr, labelArr):
         axs.semilogy(freqs, spectrum, label=label)
@@ -65,12 +80,12 @@ labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$
 df = pd.read_table(pathhead + '/Structure.dat', header=0, index_col=False)
 structureDat = df.values
 
-plt.clf()
+plt.subplots(figsize=(6.47, 4), dpi=400)
 plt.plot(structureDat[:,0], structureDat[:,2])
 plt.title('Structure Indices of Refraction')
 plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$z$ [m]')
-plt.ylabel(r'$n_0$')
+plt.ylabel(r'$n$')
 plt.margins(x=0)
 plt.savefig(pathhead + '/figs/Structure.png')
 plt.show()
@@ -88,8 +103,8 @@ k0arr = omeg / 3e8
 
 #%% Plot input spectrum
 plt.clf()
-plt.figure(figsize=(8, 6))
-plt.semilogy(omeg/omeg0, Ez**2, label=labstr)
+plt.figure(figsize=(6.47, 4), dpi=400)
+plt.semilogy(omeg/omeg0, Ez**2)
 plt.title(r'Input Amplitude Spectrum')
 #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega/\omega_0$')
@@ -123,13 +138,13 @@ plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0],
 
 #%%
 sighat = np.sqrt(4*np.log(2)/taup**2)
-#lowerInd = np.count_nonzero(omeg[:halflen] < omeg0-8*sighat)
-#upperInd = np.count_nonzero(omeg[:halflen] < omeg0+8*sighat)
-lowerInd = 1
-upperInd = 1904
+lowerInd = np.count_nonzero(omeg[:halflen] < omeg0-15*sighat)
+upperInd = np.count_nonzero(omeg[:halflen] < omeg0+15*sighat)
+#lowerInd = 1
+#upperInd = 1904
 tcoef = (np.abs(eOmT[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
-plt.clf()
+plt.figure(figsize=(6.47, 4), dpi=400)
 plt.plot(omeg[lowerInd:upperInd]/omeg0, tcoef)
 plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$T$')
@@ -145,7 +160,7 @@ plt.savefig(pathhead + '/figs/TransmissionCoef.png')
 
 rcoef = (np.abs(eOmR[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
-plt.clf()
+plt.figure(figsize=(6.47, 4), dpi=400)
 plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef)
 plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$R$')

@@ -23,8 +23,8 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA4'
-    itnum = '54'
+    pathhead = '../DATA_DBR'
+    itnum = '20'
 
 
 CLIGHT = 299792458
@@ -34,7 +34,7 @@ MASS_E = 9.10938356e-31
 
 intensityFactor = EPS0*CLIGHT/2 * 1e-4 # Second factor changes it to W/cm^2
 
-mpl.rcParams['font.family'] = 'Avenir'
+mpl.rcParams['font.family'] = 'Tahoma'
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.linewidth'] = 2
 
