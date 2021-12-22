@@ -32,6 +32,7 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 // This block of vars were orignally inside main()
 double zPosition = 0.0;
 double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
+double LHSsourceLayerThickness, RHSbufferLayerThickness;
 double twoColorSH_amplitude, twoColorSH_phase;
 int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, sizeRoot;
 double domain_t, zStepMaterial1, alpha_tukey;
@@ -76,6 +77,8 @@ int main(int argc, char *argv[])
 
 	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
 	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");
+	LHSsourceLayerThickness = getDoubleParameterValueByName("LHSbufferThickness");
+	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
 	
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
 	//alpha_tukey = 0.0;
@@ -251,11 +254,25 @@ int main(int argc, char *argv[])
 	//printf("############ WARNING ###########:  Early Termination\n"); exit(-1);
     printf("\n\n############ INFO ###########:  ENTERING THE NONLINEAR PART ##############################\n");
 
+	char timeLogFname[STRING_BUFFER_SIZE];
+	snprintf(timeLogFname, sizeof(char) * STRING_BUFFER_SIZE, "%stimeLog.txt", SIM_DATA_OUTPUT);
+	FILE *tLogFile = fopen(timeLogFname, "w");
+	fprintf(tLogFile, "Time spent before entering nonlinear iteration : %f [s]\n\n", omp_get_wtime() - dtime);
+	fprintf(tLogFile, "==========================================================\n\n");
+	fclose(tLogFile);
+
+	// Primary computation is done in the following function call.
 	iterateBPPE();
 
 	dtime = omp_get_wtime() - dtime;
 	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
+
+	tLogFile = fopen(timeLogFname, "a");
+	fprintf(tLogFile, "\n==========================================================\n\n");
+	fprintf(tLogFile, "Total time spent in program: %f [s]\n\n", dtime);
+	fclose(tLogFile);
 	//cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
+	cout << "The time of various steps have been recorded in the following file: " << timeLogFname << endl;
 	cout << endl << "Exiting program.." << endl << endl;
 
     return 0;
@@ -450,8 +467,12 @@ void iterateBPPE()
 
 	// Initialize time and status variables
 	int status;
+	double dxnorm, xnorm, fnorm;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
-	nonlinear_time_initial = omp_get_wtime();
+
+	char timeLogFname[STRING_BUFFER_SIZE];
+	snprintf(timeLogFname, sizeof(char) * STRING_BUFFER_SIZE, "%stimeLog.txt", SIM_DATA_OUTPUT);
+	FILE *localLogFile = fopen(timeLogFname, "a");
 
 	// Initialize objects for condition number checking
 	/* gsl_matrix *U = gsl_matrix_alloc(sizeRoot, sizeRoot);
@@ -464,13 +485,21 @@ void iterateBPPE()
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
 	T = gsl_multiroot_fsolver_hybrids;
+
+	nonlinear_time_initial = omp_get_wtime();
 	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
 
+	fprintf(localLogFile, "Time spent allocating multiroot solver : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
+	nonlinear_time_initial = omp_get_wtime();
+
 	// Initialize GSL ODE objects
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
 	gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
 	gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
+
+	fprintf(localLogFile, "Time spent allocating ODE objects : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
+	nonlinear_time_initial = omp_get_wtime();
 	
 	// ------------- Initial Guess Finding -------------
 	printf("Allocating initial guess\n");
@@ -544,6 +573,10 @@ void iterateBPPE()
 	free(integral2);
 	free(tmp);
 
+
+	fprintf(localLogFile, "Time spent finding initial guess : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
+	nonlinear_time_initial = omp_get_wtime();
+
 	// ---------------------------------------------------
 
 	// Tell GSL multiroot the function and initial guess
@@ -554,10 +587,17 @@ void iterateBPPE()
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
+	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
+	fprintf(localLogFile, "==========================================================\n");
+	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 1-norm of step  |\n");
+	fprintf(localLogFile, "==========================================================\n");
+	nonlinear_time_initial = omp_get_wtime();
+
 	// Compute the condition number of the Jacobian
 	/* gsl_matrix *Jac = (hybrid_state_t)(s->state)->J;
 	gsl_matrix_memcpy(U, Jac);
 	gsl_linalg_SV_decomp(U, V, singularValues, work); */
+
 
 	rparams->output = 1;
 	do
@@ -571,9 +611,13 @@ void iterateBPPE()
 
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
 		status = gsl_multiroot_test_delta(s->dx, s->x, root_epsabs, root_epsrel);
+		dxnorm = gsl_blas_dasum(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
-		printf("Iteration %d completed in %.2f seconds.\n", rparams->itnum, nonlinear_time);
+		printf("Iteration %d completed in %.3f seconds.\n", rparams->itnum, nonlinear_time);
+		
+		fprintf(localLogFile, "|%18d|%18.3f|%18.2e|\n", rparams->itnum, nonlinear_time, dxnorm);
+
 		rparams->itnum = rparams->itnum + 1;
 		fflush(stdout);
 
@@ -589,9 +633,14 @@ void iterateBPPE()
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
-	double dxnorm = gsl_blas_dasum(s->dx);
-	double xnorm = gsl_blas_dasum(s->x);
-	double fnorm = gsl_blas_dasum(s->f);
+	fprintf(localLogFile, "==========================================================\n");
+	fprintf(localLogFile, "Quasi-Newton scheme has stopped after : %f [s]\n", nonlinear_time_total);
+	fclose(localLogFile);
+
+	
+	dxnorm = gsl_blas_dasum(s->dx);
+	xnorm = gsl_blas_dasum(s->x);
+	fnorm = gsl_blas_dasum(s->f);
 	printf("  dx norm = %.7e\n", dxnorm);
 	printf("  x norm = %.7e\n", xnorm);
 	printf("  f norm = %.7e\n\n", fnorm);
