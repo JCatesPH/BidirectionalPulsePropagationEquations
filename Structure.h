@@ -8,7 +8,7 @@
 #include <fftw3.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
-#include <gsl/gsl_math.h>
+#include "gsl/gsl_math.h"
 #include "Materials.h"
 
 //#define VERBOSE_BOUNDARY 

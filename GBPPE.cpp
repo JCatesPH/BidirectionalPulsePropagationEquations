@@ -466,7 +466,7 @@ void iterateBPPE()
     rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
 
 	// Initialize time and status variables
-	int status;
+	int status; 
 	double dxnorm, xnorm, fnorm;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 

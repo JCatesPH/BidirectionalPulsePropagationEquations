@@ -1,39 +1,55 @@
 # --- Variable definitions ---
 CC = icc
 CXX = icc
-#CPPFLAGS = -fopenmp -std=c++17 -Wall
-#LDFLAGS = -lm -ldl -lgsl -lfftw3 -lgslcblas
 
-CPPFLAGS = -qopenmp -Wall -std=c++17 -fPIC -DMKL_ILP64 -m64 -I"${MKLROOT}/include" 
-CPPFLAGS += -I"/home/jalen/.local/include" # If on Boyle
+# --- General flags for compiler and linker ---
+CPPFLAGS = -qopenmp -Wall -I"${MKLROOT}/include" -fPIC -DMKL_ILP64 -m64 
+CXXFLAGS = -std=c++17 
+#CPPFLAGS += -I"/home/jalen/.local/include" # If on Boyle
 #CPPFLAGS += -g  # activate debugging
 #CPPFLAGS += -no-prec-div # approximate division
 
-#CPPFLAGS = -fopenmp -Wall -DMKL_ILP64 -mkl=parallel -I"${MKLROOT}/include" #-qopt-report -qopt-report-phase=openmp
-#LDFLAGS = -lm -lgsl -lstdc++ -lfftw3 -Wl,--no-as-needed -lmkl_cdft_core -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -liomp5 -lpthread -L${MKLROOT}/lib/intel64 -ldl
-#LDFLAGS = -qopenmp -lfftw3 -liomp5 -L${MKLROOT}/lib/intel64 -lpthread -lm -ldl -lgsl
-LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -lgsl -lm -ldl
-LDFLAGS += -L"/home/jalen/.local/lib" 
-#LDFLAGS += -liomp5 -lpthread
+LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lgsl -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -lm -ldl
+#LDFLAGS += -L"/home/jalen/.local/lib"  # If on Boyle
 
+# --- Custom variables ---
 OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o
 TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
 
-GSLOBJS = gsl/convergence.o gsl/dogleg.o gsl/enorm.o gsl/fsolver.o gsl/hybrid.o
-GSLHEADERS = gsl/gsl_multiroots.h
+# --- Variables for compiling custom GSL library ---
+GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o
+GSLHEADERS = gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multiroot/gsl_multiroots.h
+
+GSLOBJS = $(GSL_MULTIROOTOBJS)
+
+MYGSLLIBS = libmultroot.a
+MYLIBFLAGS = -L. -lmultroot
+
 
 # --- Rule 1 ---
-test: $(TARGET)
+$(TARGET): $(OBJFILES) $(MYGSLLIBS) $(HEADERS)
+	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(GSLOBJS) $(MYGSLLIBS) $(LDFLAGS)
+
+testWOmygsl: $(OBJFILES) $(HEADERS)
+	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(LDFLAGS)
 
 mygsl: $(GSLOBJS) $(GSLHEADERS)
-	$(CC) $(CPPFLAGS) -o mygslobj.o $(GSLOBJS) $(LDFLAGS)
+	$(CC) -o mygslobj.o $(GSLOBJS) $(LDFLAGS)
 
-$(TARGET): $(OBJFILES) $(HEADERS)
-	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(GSLOBJS) $(LDFLAGS)
+libmultroot.a: $(GSL_MULTIROOTOBJS) $(GSLHEADERS)
+	ar $(ARFLAGS) $@ $^
 
 rootfind: rootfindtest.cpp
 	$(CC) $(CPPFLAGS) -o testrootfind.out rootfindtest.cpp $(LDFLAGS)
 
+
+# --- Rules for cleaning ---
+cleanall:
+	rm -f $(OBJFILES) $(TARGET) $(GSLOBJS) $(MYGSLLIBS) *~
+
 clean:
 	rm -f $(OBJFILES) $(TARGET) *~
+
+cleangsl:
+	rm -f $(GSLOBJS) $(MYGSLLIBS) *~

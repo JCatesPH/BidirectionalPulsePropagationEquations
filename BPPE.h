@@ -16,10 +16,10 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
 #include <gsl/gsl_vector.h>
-#include <gsl/gsl_multiroots.h>
+#include "gsl/gsl_multiroots.h"
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
-#include <gsl/gsl_math.h>
+#include "gsl/gsl_math.h"
 #include <string>
 #include"physicalConstants.h"
 #include"Structure.h"
@@ -97,8 +97,8 @@ const double shift = 1.0e-9;
 //const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 //const int l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
 
-const double LHSsourceLayerThickness = 10.0 * microns; //distance from laser source to slab
-const double RHSbufferLayerThickness = 10.0 * microns; //distance from slab to receiver
+extern double LHSsourceLayerThickness; //distance from laser source to slab
+extern double RHSbufferLayerThickness; //distance from slab to receiver
 extern double sampleLayerThickness;
 
 // material parameters
@@ -109,8 +109,8 @@ const double n0_Argon = 1.00026436; // For 1.0 um, from https://refractiveindex.
 const double n2_Argon = 5.0e-23; //nonlinear index in material 1; ~1e-19 cm^2/W from doi: 10.1007/s00340-013-5354-0
 const double chi3_Argon = (4 / 3) * epsilon_0 * cLight * pow(n0_Argon, 2) * n2_Argon;
 const double chi2_Argon = 0.0;
-const double n0_Material1 = 1.5; //1.5; //central index in material 1
-const double n0_Material2 = 2.5; //1.5; //central index in material 2
+const double n0_Material1 = 2.5; //1.5; //central index in material 1
+const double n0_Material2 = 1.5; //1.5; //central index in material 2
 const double n0_Material3 = 1.0; //central index in material 3
 const double n2_Material1 = 0.0; //nonlinear index in material 1
 const double n2_Material2 = 0.0; //nonlinear index in material 2
