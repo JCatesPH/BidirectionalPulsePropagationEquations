@@ -27,10 +27,15 @@
 
 #include "../gsl_math.h"
 #include <gsl/gsl_errno.h>
-#include "gsl_multiroots.h"
+#include "gsl/gsl_multiroots.h"
 #include <gsl/gsl_linalg.h>
 
 #include "dogleg.c"
+
+// -----
+#include <omp.h>
+#define VERBOSE_HYBRIDS_SETUP
+#define VERBOSE_HYBRIDS_ITER
 
 typedef struct
 {
@@ -368,6 +373,13 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
   gsl_vector *diag = state->diag;
 
   int status;
+  
+  #ifdef VERBOSE_HYBRIDS_SETUP
+    double initTime = omp_get_wtime();
+    double tmpTime = initTime;
+    printf("--------------------------------\n");
+    printf("\nStarting setup of quasi-Newton objects for hybrid method..Advanced timing has been enabled.\n");
+  #endif
 
   status = GSL_MULTIROOT_FN_EVAL (func, x, f);
 
@@ -377,6 +389,11 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
     }
 
   status = gsl_multiroot_fdjacobian (func, x, f, GSL_SQRT_DBL_EPSILON, J);
+
+  #ifdef VERBOSE_HYBRIDS_SETUP
+    printf("  The first estimate of the Jacobian is found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+    tmpTime = omp_get_wtime();
+  #endif
 
   if (status)
     {
@@ -403,9 +420,19 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
 
   state->delta = compute_delta (diag, x);
 
+  #ifdef VERBOSE_HYBRIDS_SETUP
+    printf("  Some vector operations cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    tmpTime = omp_get_wtime();
+  #endif
+
   /* Factorize J into QR decomposition */
 
   status = gsl_linalg_QR_decomp (J, tau);
+
+  #ifdef VERBOSE_HYBRIDS_SETUP
+    printf("  The QR decomp. of J cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    tmpTime = omp_get_wtime();
+  #endif
 
   if (status)
     {
@@ -413,6 +440,13 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
     }
 
   status = gsl_linalg_QR_unpack (J, tau, q, r);
+
+  #ifdef VERBOSE_HYBRIDS_SETUP
+    printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    printf("--------------------------------\n");
+    printf(" Total time is %.2f [s]\n", omp_get_wtime() - initTime);
+    printf("--------------------------------\n");
+  #endif
 
   return status;
 }
@@ -438,6 +472,11 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
                      gsl_vector * x,
                      gsl_vector * f, gsl_vector * dx, int scale)
 {
+
+  #ifdef VERBOSE_HYBRIDS_ITER
+    double initTime = omp_get_wtime();
+    double tmpTime = initTime;
+  #endif
   hybrid_state_t *state = (hybrid_state_t *) vstate;
 
   const double fnorm = state->fnorm;
@@ -565,7 +604,17 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
 
   if (state->ncfail == 2)
     {
+      #ifdef VERBOSE_HYBRIDS_ITER
+        printf("  Starting update of Jacobian.. Verbose timing enabled.\n");
+        tmpTime = omp_get_wtime();
+      #endif
+
       gsl_multiroot_fdjacobian (func, x, f, GSL_SQRT_DBL_EPSILON, J);
+
+      #ifdef VERBOSE_HYBRIDS_ITER
+        printf("  Estimate of the Jacobian is found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+        tmpTime = omp_get_wtime();
+      #endif
 
       state->nslow2++;
 
@@ -582,9 +631,20 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
         }
 
       /* Factorize J into QR decomposition */
-
+      #ifdef VERBOSE_HYBRIDS_ITER
+        tmpTime = omp_get_wtime();
+      #endif
       gsl_linalg_QR_decomp (J, tau);
+
+      #ifdef VERBOSE_HYBRIDS_ITER
+        printf("  QR decomp. of J found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+        tmpTime = omp_get_wtime();
+      #endif
       gsl_linalg_QR_unpack (J, tau, q, r);
+
+      #ifdef VERBOSE_HYBRIDS_ITER
+        printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+      #endif
 
       return GSL_SUCCESS;
     }

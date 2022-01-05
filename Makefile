@@ -13,12 +13,12 @@ LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lgsl -lmkl_intel_ilp64 -l
 #LDFLAGS += -L"/home/jalen/.local/lib"  # If on Boyle
 
 # --- Custom variables ---
-OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o
+OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o func.o output.o gslStructs.o helperFuncs.o
 TARGET = test.out
-HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h
+HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h gslStructs.h helperFuncs.h
 
 # --- Variables for compiling custom GSL library ---
-GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o
+GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o gsl/multiroot/broyden.o gsl/multiroot/dnewton.o gsl/multiroot/fdjac.o
 GSLHEADERS = gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multiroot/gsl_multiroots.h
 
 GSLOBJS = $(GSL_MULTIROOTOBJS)

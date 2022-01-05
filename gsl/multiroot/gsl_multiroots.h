@@ -26,6 +26,7 @@
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 
+
 #undef __BEGIN_DECLS
 #undef __END_DECLS
 #ifdef __cplusplus
@@ -35,6 +36,7 @@
 # define __BEGIN_DECLS /* empty */
 # define __END_DECLS /* empty */
 #endif
+
 
 __BEGIN_DECLS
 
@@ -50,6 +52,7 @@ struct gsl_multiroot_function_struct
 typedef struct gsl_multiroot_function_struct gsl_multiroot_function ;
 
 #define GSL_MULTIROOT_FN_EVAL(F,x,y) (*((F)->f))(x,(F)->params,(y))
+#define GSL_MULTIROOT_FN_EVAL_WPARAMS(F,x,p,y) (*((F)->f))(x,p,(y))
 
 int gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
                               const gsl_vector * x, const gsl_vector * f,

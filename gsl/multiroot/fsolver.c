@@ -105,7 +105,6 @@ gsl_multiroot_fsolver_set (gsl_multiroot_fsolver * s,
                            gsl_multiroot_function * f, 
                            const gsl_vector * x)
 {
-  //printf("PRINT FROM WITHIN MULTIROOT LIBRARY TO SHOW LINKING PROPERLY\n");
   if (s->x->size != f->n)
     {
       GSL_ERROR ("function incompatible with solver size", GSL_EBADLEN);

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include "BPPE.h"
 
 using namespace std;
 
@@ -161,3 +162,99 @@ double vnorm(const double *v, const int n) {
 	}
 	return norm;
 }
+
+
+void fill_omg_k(double*omg, double*kx, MaterialDB &theMaterialDB) {
+
+		for (int i = 0; i < num_t; i++)
+		{
+			if (i <= num_t / 2) {
+				omg[i] = (2.0 * M_PI / domain_t)*i;
+			}
+			else {
+				omg[i] = (2.0 * M_PI / domain_t)*((double)i - num_t);
+			}
+		}
+		// COLM NEW this line replaces following comment block
+		theMaterialDB.initAllMaterialKs(omg, numActiveOmega);
+
+	return;
+}
+
+void initializeY(double *y, complex<double> *yp_init)
+{
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		y[i] = real(yp_init[i]);
+		y[i + numActiveOmega] = imag(yp_init[i]);
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
+	}
+
+	for (int i = 0; i < freqLowerCutoff; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
+	}
+	for (int i = freqUpperCutoff; i < numActiveOmega; i++) {
+		y[i] = 0.0;
+		y[i + numActiveOmega] = 0.0;
+		y[i + 2*numActiveOmega] = 0.0;
+		y[i + 3*numActiveOmega] = 0.0;
+	}
+
+}
+
+
+void normalizeFFT(complex<double>* arr) {
+	double c = sqrt((double)num_t);
+	for (int i=0; i < num_t; i++) {
+		arr[i] = arr[i] / c;
+	}
+}
+
+double *window;
+void createWindowFunc(double alpha){
+	window = (double*)malloc(sizeof(double) * num_t);
+	// Implements a Tukey window
+	for (int i = 0; i < num_t/8; i++) {
+		window[i] = 0.0;
+	}
+	for (int i=num_t/8; i < (int)((1+alpha)*num_t/8); i++) {
+		window[i] = 0.5 * (1.0 - cos(4*M_PI*(i-num_t/4)/(alpha*num_t)));
+	}
+	for (int i=(int)((1+alpha)*num_t/8); i <= num_t/2; i++) {
+		window[i] = 1.0;
+	}
+	for (int i=num_t/8; i <= num_t/2; i++) {
+		window[num_t-i] = window[i];
+	}
+	for (int i = 7*num_t/8; i < num_t; i++) {
+		window[i] = 0.0;
+	}
+	/* for (int i=0; i < (int)(alpha*num_t/2); i++) {
+		window[i] = 0.5 * (1.0 - cos(2.0*M_PI*i/(alpha*num_t))) + 1e-15;
+	}
+	for (int i=(int)(alpha*num_t/2); i <= num_t/2; i++) {
+		window[i] = 1.0 + 1e-15;
+	}
+	for (int i=1; i <= num_t/2; i++) {
+		window[num_t-i] = window[i];
+	} */
+
+	char windowFile[STRING_BUFFER_SIZE];
+	snprintf(windowFile, sizeof(char) * STRING_BUFFER_SIZE, "%swindowFunc.dat", SIM_DATA_OUTPUT);
+	FILE* fp;
+	fp = fopen(windowFile, "w");
+	for (int i=0; i < num_t; i++){
+		fprintf(fp, "%.16f \t %.16f\n", i*domain_t/num_t, window[i]);
+	}
+	fclose(fp);
+}
+
+void applyWindow(complex<double>* arr){
+	for (int i=0; i < num_t; i++) {
+		arr[i] = arr[i] * window[i];
+	}
+} 

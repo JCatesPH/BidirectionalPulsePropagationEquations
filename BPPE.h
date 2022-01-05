@@ -21,12 +21,20 @@
 #include <gsl/gsl_linalg.h>
 #include "gsl/gsl_math.h"
 #include <string>
-#include"physicalConstants.h"
-#include"Structure.h"
+#include "physicalConstants.h"
+#include "Structure.h"
 #include "Utilities.h"
+#include "gslStructs.h"
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
+
+//#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
+#define FFTW_WISDOM_TYPE FFTW_PATIENT
+#define DO_DRUDE_MODEL
+//#define DO_CONSTPLASMA
+//#define DO_ARGON_PLASMA
+
 #define NOISE_MAGNITUDE 1.0e-6
 
 // CODE parameters
@@ -42,8 +50,9 @@ complex<double>* eFieldPlusBACKUPCOLM;
 
 
 // Simulation parameters
-
-const int num_Threads = 8; // numnber of OpenMP threads
+extern char SIM_DATA_OUTPUT[30];
+extern int VERBOSE;
+const int num_Threads = 4; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
@@ -55,19 +64,10 @@ const double ode_epsabs = 1e-9;
 const double ode_epsrel = 1e-6;
 const int ode_nmax = 1e6;
 
-
 // GSL Quasi-Newton API parameters
 const double root_epsabs = 1e-9;
 const double root_epsrel = 1e-6;
 
-//pulse parameters
-//const double I_0 = 50.0e16;  //initial peak intensity [W / m^2]
-//const double twoColorSH_amplitude = 0.1;  //0.1; //two-color pulse: 2nd harmonic with half duration of fundamental
-//const double twoColorSH_phase = M_PI_2; //phase shift of 2nd harmonic
-//const double tau = 50.0e-15; //pulse duration fwhm
-//const double lambda_0 = 1.0e-6; //central wavelength
-const double waist_x = 40.0e-6; //pulse-waist fwhm
-//const double omega_0 = 2 * M_PI*cLight / lambda_0; //central angular frequency
 
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
@@ -86,12 +86,13 @@ const double Znaught = FUDGE_FACTOR * (1.0 / (epsilon_0 * cLight));
 
 
 // domain parameters
-//const int num_t = int(pow(2, 14)); //number of time points
+extern int num_t;
+extern double domain_t;
+extern int numActiveOmega;
 const int num_x = int(pow(2, 6)); //number of x points
-//const double domain_t = 5000e-15; //time domain
 const double domain_x = 125.0e-6; //x domain
-//const int freqUpperCutoff = num_t / 2; // upper frequency cut-off
-//const int freqLowerCutoff = 1; //lower frequency cut-off
+extern int freqLowerCutoff; 
+extern int freqUpperCutoff;
 const double shift = 1.0e-9;
 //const int numActiveOmega = num_t / 2 + 1; //num_x * num_t / 2 + 2;
 //const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
@@ -132,21 +133,6 @@ const double Sellmeir_omega_1 = 1.5494e16;
 const double Sellmeir_omega_2 = 7.9514e15;
 const double Sellmeir_omega_3 = 9.7766e13;
 
-typedef struct {
-	double chi_2;
-	double chi_3;
-	double *omega, *kx, *rho;
-	int doPlasmaCalc;
-	double mpi_sigmaK, mpi_k, ionE;
-	complex<double> *k, *ee_p, *ee_m, *nl_k, *nl_p, *j_e;
-	fftw_plan nk_f, ep_b, em_b, np_f;
-}odeparam_type;
-
-typedef struct {
-	int itnum;
-	int output;
-	int intCondition;
-}rootparam_type;
 
 typedef struct {
 	double A0;
@@ -159,25 +145,18 @@ typedef struct {
 
 //void doNonlinearPartofBPPE();
 void iterateBPPE();
-odeparam_type* fill_params(double chi_2, double chi_3, double*omg, double*kx, double*ne, complex<double>*j_e, complex<double>*k, complex<double>*ee_p, complex<double>*ee_m, complex<double>*nl_k, complex<double>*nl_p, fftw_plan nk_f, fftw_plan ep_b, fftw_plan em_b, fftw_plan np_f, int plasmaBool);
-void fill_omg_k(double*omg, double*kx);
 void writeInputEfield(std::complex<double>* ee_p);
 void writeInputSpectrum(std::complex<double>* yp_init);
-void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams);
+//void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams);
 //void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void write2DtoFile(std::complex<double>* ee_p);
 //void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral);
-void initializeY();
-void doLinearProblem();
 void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 //void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym0_init, double*y, complex<double>*integral);
 void writeSimParameters();
 void generateLayers(MaterialDB &myMaterialsDB, Structure &theStructure);
 void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructure);
-void createWindowFunc(double alpha);
-void createWindowFunc();
-void normalizeFFT(complex<double>* arr, int type);
 //void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral);
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
 //void am_to_zero(double*y);
