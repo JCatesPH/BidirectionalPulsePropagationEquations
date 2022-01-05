@@ -2,6 +2,8 @@
 CC = icc
 CXX = icc
 
+export OMP_CANCELLATION = true
+
 # --- General flags for compiler and linker ---
 CPPFLAGS = -qopenmp -Wall -I"${MKLROOT}/include" -fPIC -DMKL_ILP64 -m64 
 CXXFLAGS = -std=c++17 

@@ -61,36 +61,52 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     int col_frac = ((int) n) / num_threads;
     int thread_id = omp_get_thread_num();
 
+    size_t i,j;
+    gsl_vector *x1, *f1;
+
     #pragma omp single
     {
       printf("  n = %d, num_threads = %d, col_frac = %d\n", (int) n, num_threads, col_frac);
     }
     
-    if (thread_id != 0) {
-      private_rparams = copy_rootparams(rparams);
+    #pragma omp critical
+    {
+      if (thread_id != 0) {
+        private_rparams = copy_rootparams(rparams);
+      }
+      else {
+        private_rparams = rparams;
+      }
+
+      x1 = gsl_vector_alloc (n);
+
+        if (x1 == 0)
+        {
+          //#pragma omp error at(execution), severity(fatal), message("ERROR: Failed to allocate space for x1 workspace in fdjac.cpp\n")
+          //GSL_ERROR ("failed to allocate space for x1 workspace", GSL_ENOMEM);
+          printf("ERROR: Failed to allocate space for x1 workspace in fdjac.cpp\n");
+          status = GSL_ENOMEM;
+        } 
+
+      f1 = gsl_vector_alloc (m);
+
+        if (f1 == 0)
+        {
+          gsl_vector_free (x1);
+
+          //#pragma omp error at(execution), severity(fatal), message("ERROR: Failed to allocate space for x1 workspace in fdjac.cpp\n")
+          //GSL_ERROR ("failed to allocate space for f1 workspace", GSL_ENOMEM);
+          printf("ERROR: Failed to allocate space for f1 workspace in fdjac.cpp\n");
+          status = GSL_ENOMEM;
+          
+        }
     }
-    else {
-      private_rparams = rparams;
+    if (status)
+    {
+      #pragma omp cancel parallel
     }
+    #pragma omp barrier
 
-    size_t i,j;
-    gsl_vector *x1, *f1;
-
-    x1 = gsl_vector_alloc (n);
-
-      /* if (x1 == 0)
-      {
-        GSL_ERROR ("failed to allocate space for x1 workspace", GSL_ENOMEM);
-      } */
-
-    f1 = gsl_vector_alloc (m);
-
-      /*     if (f1 == 0)
-      {
-        gsl_vector_free (x1);
-
-        GSL_ERROR ("failed to allocate space for f1 workspace", GSL_ENOMEM);
-      } */
 
     gsl_vector_memcpy (x1, x);  /* copy x into x1 */
 
@@ -173,9 +189,13 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     gsl_vector_free (x1);
     gsl_vector_free (f1);
 
+    #ifdef VERBOSE_JAC_COMP
+      printf("       Finished freeing temporary gsl vectors.\n");
+    #endif
     /* if (thread_id != 0) {
       free_rootparams(private_rparams);
     } */
+    
   }
   #ifdef VERBOSE_JAC_COMP
       printf("    Exiting Jacobian computation..\n");

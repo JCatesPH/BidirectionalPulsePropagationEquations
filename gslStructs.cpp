@@ -150,7 +150,7 @@ void free_odeparams(odeparam_type * p_in) {
         fftw_destroy_plan(p_in->ep_f);
         fftw_destroy_plan(p_in->em_f);
 
-        free(p_in);
+        //free(p_in);
         return;
     }
 }
