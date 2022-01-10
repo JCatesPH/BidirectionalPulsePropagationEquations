@@ -89,7 +89,7 @@ void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& t
 void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	double U_Ar = 15.759; // Ionization potential of Argon [eV]
-	cout << sampleLayerThickness << endl;
+	//cout << sampleLayerThickness << endl;
 	Material vacuum("Vacuum", 1.0, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
 

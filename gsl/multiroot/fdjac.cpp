@@ -59,10 +59,11 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
   int tmpOut = rootObj->getOutParam();
   rootObj->setOutParam(0);
 
-  #pragma omp parallel //num_threads(1)
+  #pragma omp parallel //num_threads(4)
   { 
     //rootparam_type *private_rparams;
     RootParams *tmpRootObjPointer;
+    ODEParams *tmpODEpointer;
     int num_threads = omp_get_num_threads();
     int col_frac = ((int) n) / num_threads;
     int thread_id = omp_get_thread_num();

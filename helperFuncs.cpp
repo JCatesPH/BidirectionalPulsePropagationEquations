@@ -209,14 +209,28 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 
 
 	// Free some memory
-	/* free(Am_guess1);
+	free(Am_guess1);
 	free(Am_guess2);
 	free(integral1);
 	free(integral2);
-	gsl_vector_free(tmp); */
+	gsl_vector_free(tmp);
 
 	rootObj->setItNum(4);
 	rootObj->setOutParam(0); // Turn output on (1) or off (0)
     rootObj->setIntCond(0); // Set whether to calculate integral
+
+}
+
+
+
+void updateGuess(double *ynew, complex<double> *sLeft, const gsl_vector *guessAm, RootParams *rootObj) {
+	for (int k = 0; k < numActiveOmega; k++){
+		ynew[k] = real(sLeft[k]);
+		ynew[k + numActiveOmega] = imag(sLeft[k]);
+	}
+	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
+		ynew[k + 2*numActiveOmega + freqLowerCutoff] = gsl_vector_get(guessAm, k);
+		ynew[k + 3*numActiveOmega + freqLowerCutoff] = gsl_vector_get(guessAm, k + rootObj->getSizeRoot()/2);
+	}
 
 }

@@ -269,7 +269,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * numActiveOmega), rootObj->getODEparams()};
 	gsl_odeiv2_evolve_reset(gslEvolve);
 
-	double *yloc = rootObj->getODEparams()->y;
+	double *yloc = (rootObj->getODEparams())->y;
 
     double nonlinear_time_initial, nonlinear_time;
 
@@ -282,15 +282,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     nonlinear_time_initial = omp_get_wtime();
 
 	// Reset the left source and update guess
-	for (int k = 0; k < numActiveOmega; k++){
-		yloc[k] = real(sourceLeft[k]);
-		yloc[k + numActiveOmega] = imag(sourceLeft[k]);
-	}
-	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
-		yloc[k + 2*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k);
-		yloc[k + 3*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k + rootObj->getSizeRoot()/2);
-	}
-
+	updateGuess(yloc, sourceLeft, ym_guess, rootObj);
+	
 	if (rootObj->getOutParam() == 1) {
 		write_out_eFieldAndSpectrumAtZlocation(rootObj->getItNum(), 
             0, yloc, 0.0, rootObj->getODEparams()->ee_m, 
