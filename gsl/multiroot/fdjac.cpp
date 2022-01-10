@@ -210,7 +210,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
       printf("       Finished freeing temporary gsl vectors.\n");
     #endif
     /* if (thread_id != 0) {
-      free_rootparams(private_rparams);
+      free_rootparams(tmpRootObj);
     } */
 
   }

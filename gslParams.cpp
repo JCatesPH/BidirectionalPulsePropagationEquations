@@ -1,5 +1,50 @@
 #include "gslParams.h"
 
+ODEParams::ODEParams(int nT, double *omg) { // Constructor definition
+	// Takes parameters to set values that are global.
+	numT = nT;
+	numOmeg = numT / 2 + 1;
+	omega = omg;
+
+	// Allocates necessary double arrays
+	rho = (double*)malloc(sizeof(double)*numT);
+	y = (double*)malloc(sizeof(double)*(4*numOmeg));
+
+	// Allocate complex arrays
+	ee_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	ee_m = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	nl_k = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	nl_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	j_e = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+
+	// Allocate fftw plans
+	nk_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	np_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	ep_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+	em_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+	ep_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	em_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+
+
+	// Initialize arrays
+	for (int i = 0; i < numT; i++) {
+		rho[i] = 0.0;
+
+		ee_p[i] = 0.0;
+		ee_m[i] = 0.0;
+		nl_k[i] = 0.0;
+		nl_p[i] = 0.0;
+		j_e[i] = 0.0;
+	}
+
+	for (int i = 0; i < numOmeg; i++) {
+		y[i] = 0.0;
+		y[i + numOmeg] = 0.0;
+		y[i + 2*numOmeg] = 0.0;
+		y[i + 3*numOmeg] = 0.0;
+	}
+}
+
 void ODEParams::fillParams(Material myMat) {
 	// Load plasma parameters
 	doPlasmaCalc = myMat.getdoPlasmaCalc();

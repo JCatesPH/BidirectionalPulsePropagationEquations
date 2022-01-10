@@ -131,7 +131,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	mapG(u, rootObj, tmp);
 
 	for (int k = 0; k < numActiveOmega; k++) {
-		Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+		Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
 	}
 
 	// Set the initial guess with y and uniform r.v.
@@ -149,7 +149,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	mapG(u, rootObj, tmp);
 
 	for (int k = 0; k < numActiveOmega; k++) {
-		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
 	}
 
 	// Do Secant update
@@ -187,7 +187,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	mapG(u, rootObj, tmp);
 
 	for (int k = 0; k < numActiveOmega; k++) {
-		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
 	}
 
 	// Do Secant update

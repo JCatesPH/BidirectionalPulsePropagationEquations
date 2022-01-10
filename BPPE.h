@@ -164,7 +164,7 @@ void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructu
 void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
 //void am_to_zero(double*y);
 //int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral);
-int func(double z, const double y[], double f[], void *params);
+int dAdz(double z, const double y[], double f[], void *params);
 void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<double>*integral);
 //void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEParams *odeObj);

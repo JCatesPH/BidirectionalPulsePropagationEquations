@@ -222,6 +222,15 @@ int main(int argc, char *argv[])
 	fclose(tLogFile);
 	//cout << "Num threads set to  = " << omp_get_num_threads() << endl << endl;
 	cout << "The time of various steps have been recorded in the following file: " << timeLogFname << endl;
+	
+	cout << "Cleaning up memory further.." << endl;
+	free(yp_init);
+	free(ym_init);
+	free(eFieldPlus);
+	free(eFieldMinus);
+	fftw_destroy_plan(eFieldPlusForwardFFT);
+	fftw_destroy_plan(eFieldMinusForwardFFT);
+
 	cout << endl << "Exiting program.." << endl << endl;
 
     return 0;
@@ -250,7 +259,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 
-	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), rootObj->getODEparams()};
+	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * numActiveOmega), rootObj->getODEparams()};
 	gsl_odeiv2_evolve_reset(gslEvolve);
 
 	double *yloc = rootObj->getODEparams()->y;
@@ -296,6 +305,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
             rootObj->getODEparams()->ionE = lit->getMaterial().getIonizationEnergy(); */
 
 			rootObj->getODEparams()->fillParams(lit->getMaterial());
+			gsl_odeiv2_evolve_reset(gslEvolve);
 
             zStepSize = lit->getStepSize();
             zPosition = lit->getStartZpos();
@@ -536,7 +546,7 @@ void iterateBPPE()
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
 	printf("Finished freeing solver memory.\n");
-	//gsl_vector_free(u);
+	gsl_vector_free(u);
 }
 
 

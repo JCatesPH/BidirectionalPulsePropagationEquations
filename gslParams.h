@@ -20,31 +20,7 @@ class ODEParams { // Class for ODE params
 
 		//ODEParams() {} // Default constructor
 		
-		ODEParams(int nT, double *omg) { // Constructor definition
-			// Takes parameters to set values that are global.
-			numT = nT;
-			numOmeg = numT / 2 + 1;
-			omega = omg;
-
-			// Allocates necessary double arrays
-			rho = (double*)malloc(sizeof(double)*numT);
-        	y = (double*)malloc(sizeof(double)*(4*numOmeg));
-
-			// Allocate complex arrays
-			ee_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-			ee_m = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-			nl_k = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-			nl_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-			j_e = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-
-			// Allocate fftw plans
-			nk_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-			np_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-			ep_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
-			em_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
-			ep_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-			em_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-		}
+		ODEParams(int nT, double *omg); // Constructor definition used most often
 
 		~ODEParams() { // Destructor definition
 			// Free arrays in heap
@@ -100,7 +76,8 @@ class RootParams {
 			m_intCondition = p1.m_intCondition;
 			m_nRoot = p1.m_nRoot;
 			printf("     Copying ODEParams in copy of RootParams\n");
-			*m_odeObj = *p1.m_odeObj;
+			ODEParams odeObjNew = *p1.m_odeObj;
+			m_odeObj = &odeObjNew;
 		}
 
 		int getItNum() { return m_itnum; }

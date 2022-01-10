@@ -8,14 +8,14 @@ export OMP_CANCELLATION = true
 CPPFLAGS = -qopenmp -Wall -I"${MKLROOT}/include" -fPIC -DMKL_ILP64 -m64 
 CXXFLAGS = -std=c++17 
 #CPPFLAGS += -I"/home/jalen/.local/include" # If on Boyle
-#CPPFLAGS += -g  # activate debugging
+CPPFLAGS += -g  # activate debugging
 #CPPFLAGS += -no-prec-div # approximate division
 
 LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lgsl -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -lm -ldl
 #LDFLAGS += -L"/home/jalen/.local/lib"  # If on Boyle
 
 # --- Custom variables ---
-OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o func.o output.o helperFuncs.o gslParams.o
+OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o deriv.o output.o helperFuncs.o gslParams.o
 TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h helperFuncs.h gslParams.h
 

@@ -72,7 +72,7 @@ int getIntParameterValueByName(char *paramName) {
   char *p;
   int found=0, paramValue=0;
   // have to copy the buffer  strtok() function modifies the buffer it searches 
-  char *buffer=(char *)malloc(sizeof(char)*strlen(paramFileBuffer));
+  char *buffer=(char *)malloc(sizeof(char)*( strlen(paramFileBuffer) + 1 ));
   strcpy(buffer,paramFileBuffer);
 	    
   const char delims[24] = ",:= \r\n\t";
@@ -102,7 +102,7 @@ int getStringParameterValueByName(char *paramName, char *stringBuffer) {
   const char delims[24] = ",:= \r\n\t";
   
     // have to copy the buffer  strtok() function modifies the buffer it searches 
-  char *buffer=(char *)malloc(sizeof(char)*strlen(paramFileBuffer));
+  char *buffer=(char *)malloc(sizeof(char)*( strlen(paramFileBuffer) + 1 ));
   strcpy(buffer,paramFileBuffer);
 
   p = strtok(buffer,delims);
@@ -130,7 +130,7 @@ double getDoubleParameterValueByName(char *paramName) {
   int found=0;
   double paramValue=0.0;
   // have to copy the buffer  strtok() function modifies the buffer it searches 
-  char *buffer=(char *)malloc(sizeof(char)*strlen(paramFileBuffer));
+  char *buffer=(char *)malloc(sizeof(char)*( strlen(paramFileBuffer) + 1 ));
   strcpy(buffer,paramFileBuffer);
 	    
   const char delims[24] = ",:= \r\n\t";

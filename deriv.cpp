@@ -1,6 +1,6 @@
 #include "BPPE.h"
 
-int func(double z, const double y[], double f[], void *odep) {
+int dAdz(double z, const double y[], double f[], void *odep) {
 
 	//odeparam_type *p = reinterpret_cast<odeparam_type*>(odep);
 	ODEParams *odeObj = reinterpret_cast<ODEParams*>(odep);
@@ -10,23 +10,22 @@ int func(double z, const double y[], double f[], void *odep) {
 	const double num_td = (double)num_t;
 
 	#pragma omp parallel for
-	for (int i = 0; i <= num_tOver2; i++)
+	for (int i = 0; i < numActiveOmega; i++)
 	{
 		//const complex<double> phaseFactor = exp(1.0i * real(odeObj->k[i]) * z) * exp(-1.0 * abs(imag(odeObj->k[i])) * z);
+		//const complex<double> phaseFactor2 = exp(-1.0i * real(odeObj->k[i]) * z) * exp(-1.0 * abs(imag(odeObj->k[i])) * z);
 		const complex<double> phaseFactor = exp(1.0i * odeObj->k[i] * z);
-		odeObj->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
-		odeObj->ee_m[num_t - i] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+		const complex<double> phaseFactor2 = exp(-1.0i * odeObj->k[i] * z);
 
-		if (i > 0 && i < num_tOver2) {
-			//const complex<double> phaseFactor2 = exp(-1.0i * real(odeObj->k[i]) * z) * exp(-1.0 * abs(imag(odeObj->k[i])) * z);
-			const complex<double> phaseFactor2 = exp(-1.0i * odeObj->k[i] * z);
-			odeObj->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
-			odeObj->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+		odeObj->ee_p[i] = (y[i] + 1.0i * y[i + numActiveOmega]) * phaseFactor;
+		odeObj->ee_m[i] = (y[i + 2 * numActiveOmega] + 1.0i * y[i + 3 * numActiveOmega]) * phaseFactor2;
+
+		if (i > 0 && i < numActiveOmega - 1) {	
+			odeObj->ee_p[num_t - i] = (y[i] - 1.0i * y[i + numActiveOmega]) * phaseFactor2;
+			odeObj->ee_m[num_t - i] = (y[i + 2 * numActiveOmega] - 1.0i * y[i + 3 * numActiveOmega]) * phaseFactor;	
 		}
-		
 	}
 
-	
 	// DELETE ME : Drude model
 	#ifdef DO_DRUDE_MODEL
 
