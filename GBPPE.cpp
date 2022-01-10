@@ -29,8 +29,8 @@ double domain_t, zStepMaterial1, alpha_tukey;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
 double *omegaArray, *timeValuesArray, *kx;
-complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init;
-fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
+complex<double> *sourceLeft, *sourceRight;
+//fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
 
 int delmeFLAG = 0;
@@ -40,7 +40,8 @@ int main(int argc, char *argv[])
 	// Start timer
 	double dtime = omp_get_wtime();
 
-	// Setting parameters using input file.
+	/* ============================================== */
+	/* == Reading input file and processing input     */
 	paramFileBuffer = readParmetersFileToBuffer(argv[1]);
 	VERBOSE = getIntParameterValueByName("Verbosity");
 	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
@@ -75,21 +76,22 @@ int main(int argc, char *argv[])
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
 	//alpha_tukey = 0.0;
 
-	pulseparam_type* sourceLeft = (pulseparam_type*)malloc(sizeof(pulseparam_type));
-	pulseparam_type* sourceRight = (pulseparam_type*)malloc(sizeof(pulseparam_type));
+	pulseparam_type* sourceLeftParams = (pulseparam_type*)malloc(sizeof(pulseparam_type));
+	pulseparam_type* sourceRightParams = (pulseparam_type*)malloc(sizeof(pulseparam_type));
 
-	sourceLeft->A0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
-	sourceLeft->omega0 = 2 * M_PI*cLight / lambda_0;
-	sourceLeft->relativeIntensity = twoColorSH_amplitude;
-	sourceLeft->relativePhase = twoColorSH_phase;
-	sourceLeft->pulseDuration = tau;
+	sourceLeftParams->A0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
+	sourceLeftParams->omega0 = 2 * M_PI*cLight / lambda_0;
+	sourceLeftParams->relativeIntensity = twoColorSH_amplitude;
+	sourceLeftParams->relativePhase = twoColorSH_phase;
+	sourceLeftParams->pulseDuration = tau;
 
-	sourceRight->A0 = 0.0;
-	sourceRight->omega0 = 2 * M_PI*cLight / lambda_0;
-	sourceRight->relativeIntensity = twoColorSH_amplitude;
-	sourceRight->relativePhase = twoColorSH_phase;
-	sourceRight->pulseDuration = tau;
+	sourceRightParams->A0 = 0.0;
+	sourceRightParams->omega0 = 2 * M_PI*cLight / lambda_0;
+	sourceRightParams->relativeIntensity = twoColorSH_amplitude;
+	sourceRightParams->relativePhase = twoColorSH_phase;
+	sourceRightParams->pulseDuration = tau;
 	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+	/* ============================================== */
 
 	time_t now = time(0);
 	char *datetime = ctime(&now);
@@ -123,11 +125,10 @@ int main(int argc, char *argv[])
 
 	printf("Structure generated and point monitor locations set..\n");
 	
-	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	ym_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	sourceLeft = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	sourceRight = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	
 	//y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
-	
 
 #ifndef _WIN64
 	fftw_import_system_wisdom();
@@ -142,17 +143,9 @@ int main(int argc, char *argv[])
 		fclose(wisdomFile);
 	}
 #endif
-
-
-	eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
-	eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+	
 	omegaArray = (double*)malloc(sizeof(double)*num_t);
 	kx = NULL;
-
-	eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	
-
 
 	#ifndef _WIN64
 	printf(" SAVING mywisdomfile...\n");
@@ -182,17 +175,31 @@ int main(int argc, char *argv[])
 	createWindowFunc(alpha_tukey);
 	//if (fp != NULL) { fclose(fp);  }
 	
+
+	/* ============================================== */
+	/* == Generate sources */
+	complex<double> *eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+	complex<double> *eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+	fftw_plan eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	fftw_plan eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+
 	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
-	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, ym_init, sourceRight);
+	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, sourceRight, sourceRightParams);
 	for (int i = 0; i < numActiveOmega; i++) {
-		ym_init[i] = 0.0;
+		sourceRight[i] = 0.0;
 	} 
 	if (VERBOSE >=3) printf("Generating the left-hand side source.\n");
-    generateTwoColorPulse(eFieldPlus, eFieldPlusForwardFFT, yp_init, sourceLeft);
-	writeInputSpectrum(yp_init);
-	
-	
+    generateTwoColorPulse(eFieldPlus, eFieldPlusForwardFFT, sourceLeft, sourceLeftParams);
 
+	// Free time-domain fields and fft plans
+	free(eFieldPlus);
+	free(eFieldMinus);
+	fftw_destroy_plan(eFieldPlusForwardFFT);
+	fftw_destroy_plan(eFieldMinusForwardFFT);
+
+	writeInputSpectrum(sourceLeft);
+	/* ============================================== */
+	
 	std::string reldatpath = SIM_DATA_OUTPUT;
 	myStructure.writeStructureLayoutToASCIIFile(reldatpath + "StructureLayout.txt");
 	myStructure.writeStructureToDATFile(reldatpath + "Structure.dat");
@@ -210,10 +217,13 @@ int main(int argc, char *argv[])
 	fprintf(tLogFile, "==========================================================\n\n");
 	fclose(tLogFile);
 
-	// Primary computation is done in the following function call.
+	/* ============================================== */
+	/* == Primary computation */
 	iterateBPPE();
 
 	dtime = omp_get_wtime() - dtime;
+	/* ============================================== */
+
 	if(VERBOSE >= 0) { cout << "Time in seconds is " << dtime << endl; }
 
 	tLogFile = fopen(timeLogFname, "a");
@@ -224,12 +234,9 @@ int main(int argc, char *argv[])
 	cout << "The time of various steps have been recorded in the following file: " << timeLogFname << endl;
 	
 	cout << "Cleaning up memory further.." << endl;
-	free(yp_init);
-	free(ym_init);
-	free(eFieldPlus);
-	free(eFieldMinus);
-	fftw_destroy_plan(eFieldPlusForwardFFT);
-	fftw_destroy_plan(eFieldMinusForwardFFT);
+	free(sourceLeft);
+	free(sourceRight);
+	
 
 	cout << endl << "Exiting program.." << endl << endl;
 
@@ -276,8 +283,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
 	// Reset the left source and update guess
 	for (int k = 0; k < numActiveOmega; k++){
-		yloc[k] = real(yp_init[k]);
-		yloc[k + numActiveOmega] = imag(yp_init[k]);
+		yloc[k] = real(sourceLeft[k]);
+		yloc[k + numActiveOmega] = imag(sourceLeft[k]);
 	}
 	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
 		yloc[k + 2*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k);
@@ -369,8 +376,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     }
 
 	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
-		gsl_vector_set(f, k, yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(ym_init[k + freqLowerCutoff]));
-		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(ym_init[k + freqLowerCutoff]));
+		gsl_vector_set(f, k, yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]));
+		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]));
 	}
 
 
@@ -389,8 +396,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	//}
 
 	for (int k = 0; k < numActiveOmega; k++){
-		yloc[k + 2*numActiveOmega] = real(ym_init[k]);
-		yloc[k + 3*numActiveOmega] = imag(ym_init[k]);
+		yloc[k + 2*numActiveOmega] = real(sourceRight[k]);
+		yloc[k + 3*numActiveOmega] = imag(sourceRight[k]);
 	}
 
 	myStructure.doBackwardPassThroughAllBoundaries(yloc);
@@ -457,9 +464,9 @@ void iterateBPPE()
 	
 	// ------------- Initial Guess Finding -------------
 	printf("Initializing array y..\n");
-	initializeY(myODEParams.y, yp_init);
+	initializeY(myODEParams.y, sourceLeft);
 	printf("Doing linear problem..\n");
-	doLinearProblem(&myODEParams, yp_init, ym_init, myStructure);
+	doLinearProblem(&myODEParams, sourceLeft, sourceRight, myStructure);
 
 	gsl_vector *u = gsl_vector_alloc(sizeRoot);
 	printf("Generating initial guess..\n");
