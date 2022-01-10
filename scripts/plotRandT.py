@@ -21,7 +21,7 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     pathhead = '../DATA_DBR'
-    itnum = '11'
+    itnum = '17'
 
 
 CLIGHT = 299792458
@@ -34,11 +34,12 @@ intensityFactor = EPS0*CLIGHT/2 * 1e-4 # Second factor changes it to W/cm^2
 mpl.rcParams['font.family'] = 'serif'
 plt.rcParams['font.size'] = 16
 plt.rcParams['axes.linewidth'] = 2
+stdfigsize = (6.66, 5)
 
 ######################################
 #%%
-def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$'):
-    fig, axs = plt.subplots(figsize=(6.47, 4), dpi=400)
+def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$', xlims=None):
+    fig, axs = plt.subplots(figsize=stdfigsize, dpi=400)
 
     for freqs, spectrum, label in zip(freqArr, spectrumArr, labelArr):
         axs.semilogy(freqs, spectrum, label=label)
@@ -49,10 +50,13 @@ def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabel
     #axs.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     axs.set_xlabel(xlabelStr)
     #axs.set_ylabel(r'Re[$E(t)$] [V/m]')
-    #axs.set_xlim([0.0, np.max(freqArr)])
-    axs.grid(which='major')
+    if xlims is not None:
+        axs.set_xlim(xlims)
+    #axs.grid(which='major')
     axs.margins(x=0)
     axs.legend()
+
+    plt.tight_layout()
 
     fig.savefig(filePath)
     return fig, axs
@@ -80,13 +84,14 @@ labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$
 df = pd.read_table(pathhead + '/Structure.dat', header=0, index_col=False)
 structureDat = df.values
 
-plt.subplots(figsize=(6.47, 4), dpi=400)
+plt.subplots(figsize=stdfigsize, dpi=400)
 plt.plot(structureDat[:,0], structureDat[:,2])
 plt.title('Structure Indices of Refraction')
 plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$z$ [m]')
 plt.ylabel(r'$n$')
 plt.margins(x=0)
+plt.tight_layout()
 plt.savefig(pathhead + '/figs/Structure.png')
 plt.show()
 
@@ -103,7 +108,7 @@ k0arr = omeg / 3e8
 
 #%% Plot input spectrum
 plt.clf()
-plt.figure(figsize=(6.47, 4), dpi=400)
+plt.figure(figsize=stdfigsize, dpi=400)
 plt.semilogy(omeg/omeg0, Ez**2)
 plt.title(r'Input Amplitude Spectrum')
 #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
@@ -133,7 +138,9 @@ plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0],
     [np.abs(eOmT[:freqUpperCutoff])**2, np.abs(eOmR[:freqUpperCutoff])**2], 
     ['Transmitted', 'Reflected'], 
     filePath=pathhead + '/figs/BothSpectra.png',
-    titleStr='Transmitted and Reflected Spectra')
+    titleStr='Transmitted and Reflected Spectra'
+    #xlims=[0.5, 1.5]
+    )
 #plt.show()
 
 #%%
@@ -144,7 +151,7 @@ upperInd = np.count_nonzero(omeg[:halflen] < omeg0+15*sighat)
 #upperInd = 1904
 tcoef = (np.abs(eOmT[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
-plt.figure(figsize=(6.47, 4), dpi=400)
+plt.figure(figsize=stdfigsize, dpi=400)
 plt.plot(omeg[lowerInd:upperInd]/omeg0, tcoef)
 plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$T$')
@@ -160,13 +167,13 @@ plt.savefig(pathhead + '/figs/TransmissionCoef.png')
 
 rcoef = (np.abs(eOmR[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
-plt.figure(figsize=(6.47, 4), dpi=400)
+plt.figure(figsize=stdfigsize, dpi=400)
 plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef)
 plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$R$')
-plt.grid(which='major')
+#plt.grid(which='major')
 plt.legend()
-plt.xlim([0.5, 1.5])
+plt.xlim([0.75, 1.25])
 #plt.ylim([0, 2])
 plt.margins(x=0)
 plt.title('Reflection Coefficient')

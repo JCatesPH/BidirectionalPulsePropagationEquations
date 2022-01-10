@@ -21,8 +21,10 @@
 #include "gsl_multiroots.h"
 
 // -----
+#include <list>
 #include <omp.h>
-#include "../../gslStructs.h"
+//#include "../../gslStructs.h"
+#include "../../gslParams.h"
 #define VERBOSE_JAC_COMP
 
 int
@@ -50,13 +52,17 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     }
 
   // Load rootparams
-  rootparam_type *rparams = reinterpret_cast<rootparam_type*>(F->params);
-  int tmpOut = rparams->output;
-  rparams->output = 0;
+  //rootparam_type *rparams = reinterpret_cast<rootparam_type*>(F->params);
+  //int tmpOut = rparams->output;
+  //rparams->output = 0;
+  RootParams *rootObj = reinterpret_cast<RootParams*>(F->params);
+  int tmpOut = rootObj->getOutParam();
+  rootObj->setOutParam(0);
 
-  #pragma omp parallel
-  {
-    rootparam_type *private_rparams;
+  #pragma omp parallel //num_threads(1)
+  { 
+    //rootparam_type *private_rparams;
+    RootParams *tmpRootObjPointer;
     int num_threads = omp_get_num_threads();
     int col_frac = ((int) n) / num_threads;
     int thread_id = omp_get_thread_num();
@@ -71,14 +77,24 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     
     #pragma omp critical
     {
+      
       if (thread_id != 0) {
-        private_rparams = copy_rootparams(rparams);
+        //private_rparams = copy_rootparams(rparams);
+        printf("    Copying RootParams object\n");
+        RootParams tmpRootObj  = *rootObj;
+        tmpRootObjPointer = &tmpRootObj;
+        printf("    Finished copying RootParams object\n");
       }
       else {
-        private_rparams = rparams;
-      }
+        //private_rparams = rparams;
+        printf("    Copying RootParams pointer\n");
+        tmpRootObjPointer = rootObj;
+        printf("    Finished copying RootParams pointer\n");
+      } 
 
+      printf("    Allocating x1\n");
       x1 = gsl_vector_alloc (n);
+      //printf("    Finished allocating x1\n");
 
         if (x1 == 0)
         {
@@ -107,13 +123,14 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     }
     #pragma omp barrier
 
+    printf("    Copying vector into tmp\n");
 
     gsl_vector_memcpy (x1, x);  /* copy x into x1 */
 
-      /*     #ifdef VERBOSE_JAC_COMP
+    #ifdef VERBOSE_JAC_COMP
       printf("    Initial vector allocation and copying cost %.2f [s]\n    Entering loop to estimate derivatives.\n", omp_get_wtime() - tmpTime);
       tmpTime = omp_get_wtime();
-    #endif */
+    #endif
 
     // Determine last column index based on whether it is last thread
     int last_index;
@@ -142,7 +159,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
           #endif
 
           //int f_stat = GSL_MULTIROOT_FN_EVAL (F, x1, f1);
-          int f_stat = GSL_MULTIROOT_FN_EVAL_WPARAMS (F, x1, private_rparams, f1);
+          int f_stat = GSL_MULTIROOT_FN_EVAL_WPARAMS (F, x1, tmpRootObjPointer, f1);
 
           #ifdef VERBOSE_JAC_COMP
             evalTime += omp_get_wtime() - tmpTime;
@@ -195,14 +212,15 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     /* if (thread_id != 0) {
       free_rootparams(private_rparams);
     } */
-    
+
   }
   #ifdef VERBOSE_JAC_COMP
       printf("    Exiting Jacobian computation..\n");
       printf("  --------------------------------\n");
   #endif
 
-  rparams->output = tmpOut;
+  //rparams->output = tmpOut;
+  rootObj->setOutParam(tmpOut);
 
   if (status)
     return status;

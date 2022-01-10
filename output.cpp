@@ -173,7 +173,7 @@ void writeInputEfield(std::complex<double>* ee_p)
 
 
 
-void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odeparam_type *p) {
+void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEParams *odeObj) {
 
 	char buffer[STRING_BUFFER_SIZE];
 	snprintf(buffer, sizeof(char) * STRING_BUFFER_SIZE, "%sPointMon_iter_%i_Zpos_%dnm.dat", SIM_DATA_OUTPUT, iterationNo, (int)round(theZpos * 1.0e9));
@@ -184,24 +184,24 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odepar
 	int num_tOver2 = num_t/2;
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		const complex<double> phaseFactor = exp(1.0i * real(p->k[i]) * theZpos) * exp(-1.0 * abs(imag(p->k[i])) * theZpos);
-		p->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
-		p->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
+		const complex<double> phaseFactor = exp(1.0i * real(odeObj->k[i]) * theZpos) * exp(-1.0 * abs(imag(odeObj->k[i])) * theZpos);
+		odeObj->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
+		odeObj->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 
 		if (i > 0 && i < num_tOver2) {
-			const complex<double> phaseFactor2 = exp(-1.0i * real(p->k[i]) * theZpos) * exp(1.0 * abs(imag(p->k[i])) * theZpos);
-			p->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
-			p->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
+			const complex<double> phaseFactor2 = exp(-1.0i * real(odeObj->k[i]) * theZpos) * exp(1.0 * abs(imag(odeObj->k[i])) * theZpos);
+			odeObj->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
+			odeObj->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
 		}
 		
 	}
 
-	fftw_execute(p->ep_b);
-	fftw_execute(p->em_b);
-	normalizeFFT(p->ee_p);
-	normalizeFFT(p->ee_m);
-	applyWindow(p->ee_p);
-	applyWindow(p->ee_m);
+	fftw_execute(odeObj->ep_b);
+	fftw_execute(odeObj->em_b);
+	normalizeFFT(odeObj->ee_p);
+	normalizeFFT(odeObj->ee_m);
+	applyWindow(odeObj->ee_p);
+	applyWindow(odeObj->ee_m);
 
 
 	FILE* fp;
@@ -214,7 +214,7 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, odepar
 		double dt = domain_t / double(num_t);
 		for (int i = 0; i < num_t; i++)
 		{
-			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(p->ee_p[i]), imag(p->ee_p[i]), real(p->ee_m[i]), imag(p->ee_m[i]), p->rho[i], real(p->j_e[i]));
+			fprintf(fp, "%.7e\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\t%.17g\n", i * dt, real(odeObj->ee_p[i]), imag(odeObj->ee_p[i]), real(odeObj->ee_m[i]), imag(odeObj->ee_m[i]), odeObj->rho[i], real(odeObj->j_e[i]));
 		}
 	}
 	else {

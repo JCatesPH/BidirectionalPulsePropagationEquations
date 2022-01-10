@@ -1,36 +1,36 @@
 #include "BPPE.h"
 
-void doLinearProblem(odeparam_type* p, complex<double> *sourceLeft, complex<double> *sourceRight, Structure& theStructure) {
+void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<double> *sourceRight, Structure& theStructure) {
 	for (int its = 0; its < 3; its++) {
 		// Pass forward through boundaries 
-		theStructure.doForwardPassThroughAllBoundaries(p->y);
+		theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
 
 		// Set right source
 		for (int i = 0; i < numActiveOmega; i++)
 		{
-			p->y[i + 2*numActiveOmega] = real(sourceRight[i]);
-			p->y[i + 3*numActiveOmega] = imag(sourceRight[i]);
+			odeObj->y[i + 2*numActiveOmega] = real(sourceRight[i]);
+			odeObj->y[i + 3*numActiveOmega] = imag(sourceRight[i]);
 		}
 
 		// Pass backward through boundaries
-		theStructure.doBackwardPassThroughAllBoundaries(p->y);
+		theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
 
 		// Reset left source to ensure consistency
 		for (int i = 0; i < numActiveOmega; i++)
 		{
-			p->y[i] = real(sourceLeft[i]);
-			p->y[i + numActiveOmega] = imag(sourceLeft[i]);
+			odeObj->y[i] = real(sourceLeft[i]);
+			odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
 		}
 	}
 	
 	// Output the reflected spectrum
-	write_out_eFieldAndSpectrumAtZlocation(0, 0, p->y, 0.0, p->ee_m, theStructure.m_layers.front().getMaterial().getK(), p->em_b);
+	write_out_eFieldAndSpectrumAtZlocation(0, 0, odeObj->y, 0.0, odeObj->ee_m, theStructure.m_layers.front().getMaterial().getK(), odeObj->em_b);
 
 	// Pass forward through boundaries 
-	theStructure.doForwardPassThroughAllBoundaries(p->y);
+	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
 
 	// Output the transmitted spectrum 
-	write_out_eFieldAndSpectrumAtZlocation(0, 1, p->y, theStructure.getThickness(), p->ee_p, theStructure.m_layers.back().getMaterial().getK(), p->ep_b);
+	write_out_eFieldAndSpectrumAtZlocation(0, 1, odeObj->y, theStructure.getThickness(), odeObj->ee_p, theStructure.m_layers.back().getMaterial().getK(), odeObj->ep_b);
 
 	// Set right source
 	/* for (int i = 0; i < numActiveOmega; i++)
@@ -40,13 +40,13 @@ void doLinearProblem(odeparam_type* p, complex<double> *sourceLeft, complex<doub
 	} */
 
 	// Pass backward through boundaries
-	theStructure.doBackwardPassThroughAllBoundaries(p->y);
+	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
 
 	// Reset left source to ensure consistency
 	for (int i = 0; i < numActiveOmega; i++)
 	{
-		p->y[i] = real(sourceLeft[i]);
-		p->y[i + numActiveOmega] = imag(sourceLeft[i]);
+		odeObj->y[i] = real(sourceLeft[i]);
+		odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
 	}
 
 }
@@ -94,4 +94,129 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 	}
 	if (VERBOSE >= 5) { cout << "       Done Boundary() for z = " << z << endl;}
 	return;
+}
+
+
+void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
+	int sizeRoot = rootObj->getSizeRoot();
+	//ODEParams *odeObj = rootObj->getODEparams();
+	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
+
+	// Create pseudo-random number generator for initial guess
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
+	
+	complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* Am_guess1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* Am_guess2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		integral1[i] = 0.0;
+		integral2[i] = 0.0;
+	}
+
+	// Set the initial guess with y
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Use integral condition to inform guess
+    rootObj->setOutParam(1); // Turn output on (1) or off (0)
+    rootObj->setIntCond(1); // Set whether to calculate integral
+	rootObj->integral = integral1;
+	mapG(u, rootObj, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Set the initial guess with y and uniform r.v.
+	for (int k = 0; k < sizeRoot/2; k++){
+		//gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		//gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Get second guess for secant method
+    rootObj->setItNum(2);
+    rootObj->setIntCond(2);
+	rootObj->integral = integral2;
+	mapG(u, rootObj, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Do Secant update
+	for (int k = 0; k < sizeRoot/2; k++){
+		complex<double> map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
+		complex<double> map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
+		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
+			/ (map2 - map1);
+
+		if (abs(map2 - map1) < DBL_MIN) {
+			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
+			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
+		}
+		else {
+			gsl_vector_set(u, k, real(initGuess));
+			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
+		}
+	}
+
+	// Move latest update to previous guess
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess1[k] = Am_guess2[k]; 
+		integral1[k] = integral2[k];
+	}
+
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Do another iteration
+	rootObj->setItNum(3);
+	rootObj->setIntCond(3); // Set whether to calculate integral
+	rootObj->integral = integral2;
+	mapG(u, rootObj, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * odeObj->y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Do Secant update
+	for (int k = 0; k < sizeRoot/2; k++){
+		complex<double> map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
+		complex<double> map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
+		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
+			/ (map2 - map1);
+
+		if (abs(map2 - map1) < DBL_MIN) {
+			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
+			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
+		}
+		else {
+			gsl_vector_set(u, k, real(initGuess));
+			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
+		}
+	}
+
+
+	// Free some memory
+	/* free(Am_guess1);
+	free(Am_guess2);
+	free(integral1);
+	free(integral2);
+	gsl_vector_free(tmp); */
+
+	rootObj->setItNum(4);
+	rootObj->setOutParam(0); // Turn output on (1) or off (0)
+    rootObj->setIntCond(0); // Set whether to calculate integral
+
 }

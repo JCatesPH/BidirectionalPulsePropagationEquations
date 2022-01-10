@@ -11,7 +11,7 @@
 #include <float.h>
 #include <ctime>
 #include <fenv.h>
-
+#include <random>
 
 using namespace std;
 
@@ -28,8 +28,8 @@ int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_
 double domain_t, zStepMaterial1, alpha_tukey;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
-double *omegaArray, *timeValuesArray, *kx;
-complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init;
+double *omegaArray, *timeValuesArray, *kx, *ne, *y;
+complex<double>*eFieldPlus, *eFieldMinus, *yp_init, *ym_init, *nl_k, *nl_p, *j_e, *integral1, *integral2, *Am_guess1, *Am_guess2;
 fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
 
@@ -125,8 +125,11 @@ int main(int argc, char *argv[])
 	
 	yp_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	ym_init = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	
-	//y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
+	integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	Am_guess1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	Am_guess2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
 	
 
 #ifndef _WIN64
@@ -143,15 +146,54 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+	if (numDimensionsMinusOne == 1) {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		nl_k = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		nl_p = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		j_e = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		ne = (double*)malloc(sizeof(double)*num_t*num_x);
+		kx = (double*)malloc(sizeof(double)*numActiveOmega);
+		omegaArray = (double*)malloc(sizeof(double)*numActiveOmega);
 
-	eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
-	eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
-	omegaArray = (double*)malloc(sizeof(double)*num_t);
-	kx = NULL;
+		nkForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		npForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusBackwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		
+	}
+	else {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+#ifdef WRITE_OUT_REFLECTANCE
+		eFieldPlusBACKUPCOLM = (complex<double>*)malloc(sizeof(complex<double>) * num_t);
+//		// DELETE THIS LOOP
+//		double delMeSoon[12000];
+//		double delMeSoon2[12000]; 
+//#pragma loop(hint_parallel(4))
+//		for (int i = 0; i < 12000; ++i)
+//		{
+//			delMeSoon[i] = delMeSoon2[i] * sqrt((double)i); // (y[i] + 1.0i * y[i]); // *exp(-1.0i * real(k[i]) * z);
+//		}
+#endif
 
-	eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		nl_k = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		nl_p = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		j_e = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		ne = (double*)malloc(sizeof(double)*num_t);
+		omegaArray = (double*)malloc(sizeof(double)*num_t);
+		kx = NULL;
 	
+		nkForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		npForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusBackwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		
+	}
 
 
 	#ifndef _WIN64
@@ -191,6 +233,14 @@ int main(int argc, char *argv[])
     generateTwoColorPulse(eFieldPlus, eFieldPlusForwardFFT, yp_init, sourceLeft);
 	writeInputSpectrum(yp_init);
 	
+	initializeY(y, yp_init);
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		integral1[i] = 0.0;
+		integral2[i] = 0.0;
+	}	
+		
+
 	
 
 	std::string reldatpath = SIM_DATA_OUTPUT;
@@ -230,6 +280,23 @@ int main(int argc, char *argv[])
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 0.8e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 2.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 5.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 10.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 30.0e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 10e-6); // 10 microns in plasma
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 20e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 30e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 40e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 50e-6); 
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 75e-6);
+	//monitorZlocations.push_back(LHSsourceLayerThickness + 100e-6); 
+
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.25);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.5);
+	//monitorZlocations.push_back(theStructure.getThickness() * 0.75);
+
 	int num10ums = (myStructure.getThickness() - RHSbufferLayerThickness) / 10e-6;
 	for (int n = 1; n < num10ums; n++){
 		monitorZlocations.push_back(LHSsourceLayerThickness + n*10e-6);
@@ -241,8 +308,7 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 
 int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
-    //rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
-    RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
+    rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
 
 	// Initialize GSL ODE objects
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
@@ -250,14 +316,13 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
 
-	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), rootObj->getODEparams()};
+	gsl_odeiv2_system sys = { func, NULL, (size_t)(4 * numActiveOmega), rparams->odestruct};
 	gsl_odeiv2_evolve_reset(gslEvolve);
 
-	double *yloc = rootObj->getODEparams()->y;
+	double *yloc = rparams->odestruct->y;
 
     double nonlinear_time_initial, nonlinear_time;
 
-	int foundNaN = 0;
 	int numzReports, numZsteps = 0;
 	double zRight, zStepSize;
 	double zPosition = 0.0;
@@ -270,16 +335,13 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 		yloc[k] = real(yp_init[k]);
 		yloc[k + numActiveOmega] = imag(yp_init[k]);
 	}
-	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
+	for (int k = 0; k < rparams->nRoot/2; k++){
 		yloc[k + 2*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k);
-		yloc[k + 3*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k + rootObj->getSizeRoot()/2);
+		yloc[k + 3*numActiveOmega + freqLowerCutoff] = gsl_vector_get(ym_guess, k + rparams->nRoot/2);
 	}
 
-	if (rootObj->getOutParam() == 1) {
-		write_out_eFieldAndSpectrumAtZlocation(rootObj->getItNum(), 
-            0, yloc, 0.0, rootObj->getODEparams()->ee_m, 
-            myStructure.m_layers.front().getMaterial().getK(), 
-            rootObj->getODEparams()->em_b);
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 0, yloc, 0.0, rparams->odestruct->ee_m, myStructure.m_layers.front().getMaterial().getK(), rparams->odestruct->em_b);
 	}
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
@@ -287,16 +349,13 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
         {
             boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), yloc);
-            /* rootObj->getODEparams()->k = lit->getMaterial().getK();
-            rootObj->getODEparams()->chi_2 = lit->getMaterial().getChi2();
-            rootObj->getODEparams()->chi_3 = lit->getMaterial().getChi3();
-            rootObj->getODEparams()->doPlasmaCalc = lit->getMaterial().getdoPlasmaCalc();
-            rootObj->getODEparams()->mpi_k = lit->getMaterial().getmpi_k();
-            rootObj->getODEparams()->mpi_sigmaK = lit->getMaterial().getmpi_sigmaK();
-            rootObj->getODEparams()->ionE = lit->getMaterial().getIonizationEnergy(); */
-
-			rootObj->getODEparams()->fillParams(lit->getMaterial());
-
+            rparams->odestruct->k = lit->getMaterial().getK();
+            rparams->odestruct->chi_2 = lit->getMaterial().getChi2();
+            rparams->odestruct->chi_3 = lit->getMaterial().getChi3();
+            rparams->odestruct->doPlasmaCalc = lit->getMaterial().getdoPlasmaCalc();
+            rparams->odestruct->mpi_k = lit->getMaterial().getmpi_k();
+            rparams->odestruct->mpi_sigmaK = lit->getMaterial().getmpi_sigmaK();
+            rparams->odestruct->ionE = lit->getMaterial().getIonizationEnergy();
             zStepSize = lit->getStepSize();
             zPosition = lit->getStartZpos();
             //zRight = lit->getEndZpos();
@@ -330,18 +389,21 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
                     nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
                     if ((int)(nonlinear_time / 20) > numzReports) {
-                        printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rootObj->getItNum(), numZsteps, zPosition, (int)nonlinear_time);
+                        printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rparams->itnum, numZsteps, zPosition, (int)nonlinear_time);
                         numzReports++;
                     }
 
-					if (rootObj->getIntCond() != 0) {
-						integrate(zPosition, zStepSize, rootObj->getODEparams(), yloc, rootObj->integral);
+					if (rparams->intCondition == 1) {
+						integrate(zPosition, zStepSize, rparams->odestruct, yloc, integral1);
+					}
+					else if (rparams->intCondition == 2) {
+						integrate(zPosition, zStepSize, rparams->odestruct, yloc, integral2);
 					}
                 }
 
-				if (rootObj->getOutParam() == 1) {
+				if (rparams->output == 1) {
 					//printf("  Outputting Point Monitor file at Z location %d[nm]... \n", (int)round(zPosition * 1.0e9));
-					write_multicolumnMonitor(rootObj->getItNum(), zPosition, yloc, rootObj->getODEparams());
+					write_multicolumnMonitor(rparams->itnum, zPosition, yloc, rparams->odestruct);
 
 				}
                 
@@ -358,23 +420,20 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         }
     }
 
-	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
+	for (int k = 0; k < rparams->nRoot/2; k++){
 		gsl_vector_set(f, k, yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(ym_init[k + freqLowerCutoff]));
-		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(ym_init[k + freqLowerCutoff]));
+		gsl_vector_set(f, k + rparams->nRoot/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(ym_init[k + freqLowerCutoff]));
 	}
 
 
-	if (rootObj->getOutParam() == 1) {
-		write_out_eFieldAndSpectrumAtZlocation(rootObj->getItNum(), 
-        1, yloc, myStructure.getThickness(), rootObj->getODEparams()->ee_p, 
-        myStructure.m_layers.back().getMaterial().getK(), 
-        rootObj->getODEparams()->ep_b);
+	if (rparams->output == 1) {
+		write_out_eFieldAndSpectrumAtZlocation(rparams->itnum, 1, yloc, myStructure.getThickness(), rparams->odestruct->ee_p, myStructure.m_layers.back().getMaterial().getK(), rparams->odestruct->ep_b);
 	}
     
 	nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-	//if (rootObj->output == 1) {
-		//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rootObj->itnum, nonlinear_time, numZsteps);
-		//cout << "Iteration " << rootObj->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
+	//if (rparams->output == 1) {
+		//printf("Iteration %d completed in %.2f seconds with %d steps.\n", rparams->itnum, nonlinear_time, numZsteps);
+		//cout << "Iteration " << rparams->itnum <<  " completed in " <<  nonlinear_time << "seconds with" << numZsteps << "steps." << endl;
 		//fflush(stdout);
 	//}
 
@@ -389,20 +448,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	gsl_odeiv2_control_free(gslControl);
     gsl_odeiv2_evolve_free(gslEvolve);
     gsl_odeiv2_step_free(gslStep);
-
-	for (int k = 0; k < numActiveOmega; k++){
-		if(yloc[k] != yloc[k]) foundNaN++;
-		if(yloc[k + numActiveOmega] != yloc[k + numActiveOmega]) foundNaN++;
-		if(yloc[k + 2 * numActiveOmega] != yloc[k + 2 * numActiveOmega]) foundNaN++;
-		if(yloc[k + 3 * numActiveOmega] != yloc[k + 3 * numActiveOmega]) foundNaN++;
-	}
-
-	if (foundNaN >= 1) {
-		printf("WARNING: Found %d NaN numbers.\n", foundNaN);
-		return GSL_EBADFUNC;
-	}	
-	else
-    	return GSL_SUCCESS;
+    
+    return GSL_SUCCESS;
 }
 
 void iterateBPPE()
@@ -410,12 +457,24 @@ void iterateBPPE()
 	// Find the size of the problem with omega cutoffs
 	int sizeRoot = 2*(freqUpperCutoff - freqLowerCutoff + 1);
 
-    // Create the gslParams objects
-    ODEParams myODEParams(num_t, omegaArray);
-    RootParams myRootParams(&myODEParams, sizeRoot);
+	// Set the ODE params and set system up
+    odeparam_type* odeparams = fill_odeparams(
+			num_t,
+			myStructure.m_layers.begin()->getMaterial().getChi2(), 
+			myStructure.m_layers.begin()->getMaterial().getChi3(), 
+			omegaArray, 
+			kx,  
+			ne,
+			j_e, 
+			myStructure.m_layers.begin()->getMaterial().getK(), 
+			eFieldPlus, eFieldMinus, 
+			nl_k, nl_p,
+			y);
 
-    // Fill material-specific parameters with values from first layer
-    myODEParams.fillParams(myStructure.m_layers.begin()->getMaterial());
+	// Initialize param struct for root solver
+    rootparam_type *rparams = (rootparam_type*)malloc(sizeof(rootparam_type));
+	rparams->odestruct = odeparams;
+	rparams->nRoot = sizeRoot;
 
 	// Initialize time and status variables
 	int status; 
@@ -446,14 +505,78 @@ void iterateBPPE()
 
 	
 	// ------------- Initial Guess Finding -------------
-	printf("Initializing array y..\n");
-	initializeY(myODEParams.y, yp_init);
-	printf("Doing linear problem..\n");
-	doLinearProblem(&myODEParams, yp_init, ym_init, myStructure);
-
+	printf("Allocating initial guess\n");
+	doLinearProblem(odeparams, yp_init, ym_init, myStructure);
 	gsl_vector *u = gsl_vector_alloc(sizeRoot);
-	printf("Generating initial guess..\n");
-	generateGuess(u, &myRootParams, &myODEParams);
+	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
+
+	// Create pseudo-random number generator for initial guess
+	random_device rd;
+	mt19937 gen(rd());
+	uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
+	
+	// Set the initial guess with y
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Use integral condition to inform guess
+	rparams->itnum = 1;
+	rparams->output = 1;
+	rparams->intCondition = 1;
+	mapG(u, rparams, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess1[k] = y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Set the initial guess with y and uniform r.v.
+	for (int k = 0; k < sizeRoot/2; k++){
+		//gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		//gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Get second guess for secant method
+	rparams->intCondition = 2;
+	rparams->itnum = 2;
+	mapG(u, rparams, tmp);
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am_guess2[k] = y[k + 2 * numActiveOmega + freqLowerCutoff] + 1.0i * y[k + 3 * numActiveOmega + freqLowerCutoff];
+	}
+
+	// Reset parameters for later
+	rparams->intCondition = 0;
+	rparams->itnum = 3;
+	rparams->output = 0;
+	
+	for (int k = 0; k < sizeRoot/2; k++){
+		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * integral2[k + freqLowerCutoff] - Am_guess2[k + freqLowerCutoff] * integral1[k + freqLowerCutoff]) 
+			/ (integral2[k + freqLowerCutoff] - integral1[k + freqLowerCutoff] + Am_guess2[k + freqLowerCutoff] - Am_guess1[k + freqLowerCutoff]);
+
+		if (abs(integral2[k + freqLowerCutoff] - integral1[k + freqLowerCutoff] + Am_guess2[k + freqLowerCutoff] - Am_guess1[k + freqLowerCutoff]) < DBL_MIN) {
+			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
+			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
+		}
+		else {
+			gsl_vector_set(u, k, real(initGuess));
+			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
+		}
+		// Comment out to set initial guess with old scheme
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen))  * y[k + 3*numActiveOmega + freqLowerCutoff]);
+	}
+
+	// Free some memory
+	free(Am_guess1);
+	free(Am_guess2);
+	free(integral1);
+	free(integral2);
+	free(tmp);
+
 
 	fprintf(localLogFile, "Time spent finding initial guess : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
 	nonlinear_time_initial = omp_get_wtime();
@@ -462,7 +585,7 @@ void iterateBPPE()
 
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
-	gsl_multiroot_function f = {&mapG, sizeRoot, &myRootParams};
+	gsl_multiroot_function f = {&mapG, sizeRoot, rparams};
 	nonlinear_time_tmp = omp_get_wtime();
 	gsl_multiroot_fsolver_set(s, &f, u);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
@@ -479,11 +602,11 @@ void iterateBPPE()
 	gsl_matrix_memcpy(U, Jac);
 	gsl_linalg_SV_decomp(U, V, singularValues, work); */
 
-    // Comment to toggle output on every iteration
-	myRootParams.setOutParam(1);
+
+	rparams->output = 1;
 	do
 	{
-		printf("Starting iteration %d\n", myRootParams.getItNum());
+		printf("Starting iteration %d\n", rparams->itnum);
 		fflush(stdout);
 		nonlinear_time_tmp = omp_get_wtime();
 		status = gsl_multiroot_fsolver_iterate(s);
@@ -495,11 +618,11 @@ void iterateBPPE()
 		dxnorm = gsl_blas_dasum(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
-		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
+		printf("Iteration %d completed in %.3f seconds.\n", rparams->itnum, nonlinear_time);
 		
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, dxnorm);
+		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|\n", rparams->itnum, nonlinear_time, dxnorm);
 
-		myRootParams.setItNum(myRootParams.getItNum() + 1);
+		rparams->itnum = rparams->itnum + 1;
 		fflush(stdout);
 
 		if (status == GSL_EBADFUNC) {
@@ -509,7 +632,7 @@ void iterateBPPE()
 			printf("\nERROR: GSL fsolver returned GSL_ENOPROG. The iteration scheme is not making progress.\n");
 		}
 	}
-	while (status == GSL_CONTINUE && myRootParams.getItNum() < 25000);
+	while (status == GSL_CONTINUE && rparams->itnum < 25000);
 
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
@@ -529,14 +652,15 @@ void iterateBPPE()
 
 	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
-	myRootParams.setOutParam(1);
-	mapG(s->x, &myRootParams, s->f);
+	rparams->output = 1;
+	mapG(s->x, rparams, s->f);
+
+	
 
 	// Free solver memory
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
-	printf("Finished freeing solver memory.\n");
-	//gsl_vector_free(u);
+	gsl_vector_free(u);
 }
 
 
