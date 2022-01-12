@@ -1,19 +1,32 @@
 #pragma once
 
+/* ============================================== */
+/* == Including header files     */
 //#include "stdafx.h"
 #define _USE_MATH_DEFINES
-
+// Standard imports
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
+#include <float.h>
+
+// Import openmp and fftw
+#include <omp.h>
+#include <fftw3.h>
+
+// Standard C++ imports
 #include <fstream>
 #include <iostream>
 #include <iomanip> 
 #include <complex> 
-#include <random>
+#include <ctime>
 #include <cmath>
-#include <algorithm>
-#include <omp.h>
-#include <fftw3.h>
+#include <vector>
+
+#include <random>    // Import for noise generation
+#include <algorithm> // Import for timing and util
+
+// Include mix of gsl and modified gsl headers
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
 #include <gsl/gsl_vector.h>
@@ -22,11 +35,20 @@
 #include <gsl/gsl_linalg.h>
 #include "gsl/gsl_math.h"
 #include <string>
+
+// Includes for floating-point exception handling
+#include <cfenv>
+#include <csignal>
+
+#define SIGNAN 666 // Define signal for NaN
+
+// Include other headers in local path
 #include "physicalConstants.h"
 #include "Structure.h"
 #include "Utilities.h"
 #include "gslParams.h"
-//#include "gslStructs.h"
+
+/* ============================================== */
 
 using namespace std;
 #define STRING_BUFFER_SIZE 256
@@ -37,7 +59,7 @@ using namespace std;
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e-6
+#define NOISE_MAGNITUDE 1.0e-2
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -54,7 +76,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 // Simulation parameters
 extern char SIM_DATA_OUTPUT[30];
 extern int VERBOSE;
-const int num_Threads = 12; // numnber of OpenMP threads
+const int num_Threads = 6; // numnber of OpenMP threads
 const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
@@ -67,8 +89,8 @@ const double ode_epsrel = 1e-6;
 const int ode_nmax = 1e6;
 
 // GSL Quasi-Newton API parameters
-const double root_epsabs = 1e-9;
-const double root_epsrel = 1e-6;
+const double root_epsabs = 1e-10;
+const double root_epsrel = 1e-7;
 
 
 // plasma parameters

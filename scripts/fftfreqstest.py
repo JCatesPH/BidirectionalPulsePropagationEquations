@@ -10,7 +10,7 @@ CHARGE_E = 1.602176634e-19
 MASS_E = 9.10938356e-31
 
 #%% Set parameters
-num_t = 2**12
+num_t = 2**13
 dom_t = 6.6e-12
 delta_t = dom_t / num_t
 

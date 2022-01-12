@@ -49,6 +49,7 @@ typedef struct
   gsl_matrix *J;
   gsl_matrix *q;
   gsl_matrix *r;
+  gsl_matrix *T;
   gsl_vector *tau;
   gsl_vector *diag;
   gsl_vector *qtf;
@@ -78,11 +79,12 @@ static int hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
                     gsl_vector * x, gsl_vector * f, gsl_vector * dx,
                     int scale);
 
+
 static int
 hybrid_alloc (void *vstate, size_t n)
 {
   hybrid_state_t *state = (hybrid_state_t *) vstate;
-  gsl_matrix *J, *q, *r;
+  gsl_matrix *J, *q, *r, *T;
   gsl_vector *tau, *diag, *qtf, *newton, *gradient, *x_trial, *f_trial,
     *df, *qtdf, *rdx, *w, *v;
 
@@ -341,6 +343,31 @@ hybrid_alloc (void *vstate, size_t n)
 
   state->v = v;
 
+  T = gsl_matrix_calloc (n, n);
+
+  if (T == 0)
+    {
+      gsl_matrix_free (J);
+      gsl_matrix_free (q);
+      gsl_matrix_free (r);
+      gsl_vector_free (tau);
+      gsl_vector_free (diag);
+      gsl_vector_free (qtf);
+      gsl_vector_free (newton);
+      gsl_vector_free (gradient);
+      gsl_vector_free (x_trial);
+      gsl_vector_free (f_trial);
+      gsl_vector_free (df);
+      gsl_vector_free (qtdf);
+      gsl_vector_free (rdx);
+      gsl_vector_free (w);
+      gsl_vector_free (v);
+
+      GSL_ERROR ("failed to allocate space for T", GSL_ENOMEM);
+    }
+
+  state->T = T;
+
   return GSL_SUCCESS;
 }
 
@@ -369,6 +396,7 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
   gsl_matrix *J = state->J;
   gsl_matrix *q = state->q;
   gsl_matrix *r = state->r;
+  gsl_matrix *T = state->T;
   gsl_vector *tau = state->tau;
   gsl_vector *diag = state->diag;
 
@@ -427,10 +455,19 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
 
   /* Factorize J into QR decomposition */
 
-  status = gsl_linalg_QR_decomp (J, tau);
+  //status = gsl_linalg_QR_decomp (J, tau);
+  status = gsl_linalg_QR_decomp_r (J, T);
+  gsl_vector_view diagT = gsl_matrix_diagonal(T);
+  gsl_vector_memcpy(tau, &diagT.vector);
+
+  double condNum;
+  gsl_vector *tmp = gsl_vector_calloc(3 * (size_t)(T->size1)); // Workspace for computing condition number
+  gsl_linalg_QR_rcond(J, &condNum, tmp); // NOTE: condNum has reciprocal con num, 1/k(J)
+  gsl_vector_free(tmp);
 
   #ifdef VERBOSE_HYBRIDS_SETUP
     printf("  The QR decomp. of J cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    printf("  The condition number from the 1-norm is %.4e\n", 1/condNum);
     tmpTime = omp_get_wtime();
   #endif
 
@@ -439,7 +476,8 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
       return status;
     }
 
-  status = gsl_linalg_QR_unpack (J, tau, q, r);
+  //status = gsl_linalg_QR_unpack (J, tau, q, r);
+  status = gsl_linalg_QR_unpack_r (J, T, q, r);
 
   #ifdef VERBOSE_HYBRIDS_SETUP
     printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
@@ -484,6 +522,7 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
   gsl_matrix *J = state->J;
   gsl_matrix *q = state->q;
   gsl_matrix *r = state->r;
+  gsl_matrix *T = state->T;
   gsl_vector *tau = state->tau;
   gsl_vector *diag = state->diag;
   gsl_vector *qtf = state->qtf;
@@ -634,13 +673,23 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
       #ifdef VERBOSE_HYBRIDS_ITER
         tmpTime = omp_get_wtime();
       #endif
-      gsl_linalg_QR_decomp (J, tau);
+      //gsl_linalg_QR_decomp (J, tau);
+      gsl_linalg_QR_decomp_r (J, T);
+      gsl_vector_view diagT = gsl_matrix_diagonal(T);
+      gsl_vector_memcpy(tau, &diagT.vector);
+
+      double condNum;
+      gsl_vector *tmp = gsl_vector_calloc(3 * (size_t)(T->size1)); // Workspace for computing condition number
+      gsl_linalg_QR_rcond(J, &condNum, tmp); // NOTE: condNum has reciprocal con num, 1/k(J)
+      gsl_vector_free(tmp);
 
       #ifdef VERBOSE_HYBRIDS_ITER
         printf("  QR decomp. of J found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+        printf("  The condition number from the 1-norm is %.4e\n", 1/condNum);
         tmpTime = omp_get_wtime();
       #endif
-      gsl_linalg_QR_unpack (J, tau, q, r);
+      //gsl_linalg_QR_unpack (J, tau, q, r);
+      gsl_linalg_QR_unpack_r (J, T, q, r);
 
       #ifdef VERBOSE_HYBRIDS_ITER
         printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
@@ -668,7 +717,7 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
 
   /* No progress as measured by function evaluations */
 
-  if (state->nslow1 == 10)
+  if (state->nslow1 == 50)
     {
       return GSL_ENOPROG;
     }

@@ -181,7 +181,7 @@ void fill_omg_k(double*omg, double*kx, MaterialDB &theMaterialDB) {
 	return;
 }
 
-void initializeY(double *y, complex<double> *yp_init)
+/* void initializeY(double *y, complex<double> *yp_init)
 {
 	for (int i = 0; i < numActiveOmega; i++)
 	{
@@ -204,7 +204,7 @@ void initializeY(double *y, complex<double> *yp_init)
 		y[i + 3*numActiveOmega] = 0.0;
 	}
 
-}
+} */
 
 
 void normalizeFFT(complex<double>* arr) {
@@ -258,3 +258,41 @@ void applyWindow(complex<double>* arr){
 		arr[i] = arr[i] * window[i];
 	}
 } 
+
+volatile sig_atomic_t fatal_error_in_progress = 0;
+
+void floatingPointExceptions(int sig) {
+	/* Since this handler is established for more than one kind of signal, 
+     it might still get invoked recursively by delivery of some other kind
+     of signal.  Use a static variable to keep track of that. */
+	if (fatal_error_in_progress)
+		raise (sig);
+	fatal_error_in_progress = 1;
+	
+	//cout << "WARNING: sent signal " << sig << endl;
+	if(sig == SIGNAN) {
+		cout << "WARNING: signal SIGNAN sent" << endl;
+		sig = SIGABRT;
+	}
+
+	if(fetestexcept(FE_DIVBYZERO)) {
+		cout << "WARNING: signal FE_DIVBYZERO sent" << endl;
+	}
+	if(fetestexcept(FE_INVALID)) {
+		cout << "WARNING: signal FE_INVALID sent" << endl;
+	}
+	if(fetestexcept(FE_UNDERFLOW)) {
+		cout << "WARNING: signal FE_UNDERFLOW sent" << endl;
+	}
+	if(fetestexcept(FE_OVERFLOW)) {
+		cout << "WARNING: signal FE_OVERFLOW sent" << endl;
+	}
+
+	if (sig != SIGFPE) {
+		signal(sig, SIG_DFL);
+		raise(sig);
+	}
+	else {
+		fatal_error_in_progress = 0;
+	}
+}

@@ -69,7 +69,7 @@ void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* 
 	for (int i = 0; i < numActiveOmega; i++) {
 		source[i] = ee[i];
 	}
-
+	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE);
 }
 
 
@@ -99,8 +99,10 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 
 void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	int sizeRoot = rootObj->getSizeRoot();
+	int itSecant = 5;
 	//ODEParams *odeObj = rootObj->getODEparams();
 	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
+	complex<double> map1, map2, initGuess;
 
 	// Create pseudo-random number generator for initial guess
 	random_device rd;
@@ -154,58 +156,65 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 
 	// Do Secant update
 	for (int k = 0; k < sizeRoot/2; k++){
-		complex<double> map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
-		complex<double> map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
-		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
-			/ (map2 - map1);
-
+		map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
+		map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
 		if (abs(map2 - map1) < DBL_MIN) {
 			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
 			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
 		}
 		else {
-			gsl_vector_set(u, k, real(initGuess));
-			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
-		}
-	}
-
-	// Move latest update to previous guess
-	for (int k = 0; k < numActiveOmega; k++) {
-		Am_guess1[k] = Am_guess2[k]; 
-		integral1[k] = integral2[k];
-	}
-
-	for (int k = 0; k < sizeRoot/2; k++){
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
-	}
-
-	// Do another iteration
-	rootObj->setItNum(3);
-	rootObj->setIntCond(3); // Set whether to calculate integral
-	rootObj->integral = integral2;
-	mapG(u, rootObj, tmp);
-
-	for (int k = 0; k < numActiveOmega; k++) {
-		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
-	}
-
-	// Do Secant update
-	for (int k = 0; k < sizeRoot/2; k++){
-		complex<double> map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
-		complex<double> map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
-		complex<double> initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
+			initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
 			/ (map2 - map1);
-
-		if (abs(map2 - map1) < DBL_MIN) {
-			gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
-			gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
-		}
-		else {
 			gsl_vector_set(u, k, real(initGuess));
 			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
 		}
 	}
+	/* cout << "Finished iteration 3" << endl;
+	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
+
+	for (int it = 3; it < itSecant; it++) {
+		// Move latest update to previous guess
+		for (int k = 0; k < numActiveOmega; k++) {
+			Am_guess1[k] = Am_guess2[k]; 
+			integral1[k] = integral2[k];
+			integral2[k] = 0.0;
+		}
+
+		// Do another iteration
+		rootObj->setItNum(it);
+		rootObj->setIntCond(it); // Set whether to calculate integral
+		rootObj->integral = integral2;
+		mapG(u, rootObj, tmp);
+
+		for (int k = 0; k < numActiveOmega; k++) {
+			Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
+		}
+
+		// Do Secant update
+		for (int k = 0; k < sizeRoot/2; k++){
+			map1 = Am_guess1[k + freqLowerCutoff] + integral1[k + freqLowerCutoff];
+			map2 = Am_guess2[k + freqLowerCutoff] + integral2[k + freqLowerCutoff];
+			if (abs(map2 - map1) < DBL_MIN) {
+				gsl_vector_set(u, k, real(Am_guess2[k + freqLowerCutoff]));
+				gsl_vector_set(u, k + sizeRoot/2, imag(Am_guess2[k + freqLowerCutoff]));
+			}
+			else {
+				initGuess = (Am_guess1[k + freqLowerCutoff] * map2 - Am_guess2[k + freqLowerCutoff] * map1) 
+				/ (map2 - map1);
+				gsl_vector_set(u, k, real(initGuess));
+				gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
+			}
+		}
+	}
+	
+	/* cout << "Finished iteration 4" << endl;
+	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
+	/* for (int k = 0; k < sizeRoot/2; k++){
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
+	} */
 
 
 	// Free some memory
@@ -215,7 +224,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	free(integral2);
 	gsl_vector_free(tmp);
 
-	rootObj->setItNum(4);
+	rootObj->setItNum(itSecant);
 	rootObj->setOutParam(0); // Turn output on (1) or off (0)
     rootObj->setIntCond(0); // Set whether to calculate integral
 

@@ -59,11 +59,13 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
   int tmpOut = rootObj->getOutParam();
   rootObj->setOutParam(0);
 
-  #pragma omp parallel //num_threads(4)
+  #pragma omp parallel //num_threads(1)
   { 
     //rootparam_type *private_rparams;
-    RootParams *tmpRootObjPointer;
-    ODEParams *tmpODEpointer;
+    //RootParams *tmpRootObjPointer;
+    ODEParams private_odeObj = *(rootObj->getODEparams());
+    RootParams private_rootObj(&private_odeObj, rootObj->getSizeRoot());
+    
     int num_threads = omp_get_num_threads();
     int col_frac = ((int) n) / num_threads;
     int thread_id = omp_get_thread_num();
@@ -78,22 +80,23 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     
     #pragma omp critical
     {
+        /* if (thread_id != 0) {
+        //  //private_rparams = copy_rootparams(rparams);
+          printf("    Copying RootParams object\n");
+          RootParams tmpRootObj  = *rootObj;
+          tmpRootObjPointer = &tmpRootObj;
+          tmpRootObjPointer = new RootParams;
+          *tmpRootObjPointer = *rootObj;
+          printf("    Finished copying RootParams object\n");
+        }
+        else {
+          //private_rparams = rparams;
+          printf("    Copying RootParams pointer\n");
+          tmpRootObjPointer = rootObj;
+          printf("    Finished copying RootParams pointer\n");
+        }  */
       
-      if (thread_id != 0) {
-        //private_rparams = copy_rootparams(rparams);
-        printf("    Copying RootParams object\n");
-        RootParams tmpRootObj  = *rootObj;
-        tmpRootObjPointer = &tmpRootObj;
-        printf("    Finished copying RootParams object\n");
-      }
-      else {
-        //private_rparams = rparams;
-        printf("    Copying RootParams pointer\n");
-        tmpRootObjPointer = rootObj;
-        printf("    Finished copying RootParams pointer\n");
-      } 
-
-      printf("    Allocating x1\n");
+      /* printf("    Allocating x1\n"); */
       x1 = gsl_vector_alloc (n);
       //printf("    Finished allocating x1\n");
 
@@ -124,12 +127,14 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     }
     #pragma omp barrier
 
-    printf("    Copying vector into tmp\n");
-
+    /* printf("    Copying vector into tmp\n"); */
+    //printf("Thread %d has numT in ODEParams obj set to %d\n", thread_id, tmpRootObjPointer->getODEparams()->numT);
+    //printf("Thread %d has numT in ODEParams obj set to %d\n", thread_id, private_rootObj.getODEparams()->numT);
+    
     gsl_vector_memcpy (x1, x);  /* copy x into x1 */
 
     #ifdef VERBOSE_JAC_COMP
-      printf("    Initial vector allocation and copying cost %.2f [s]\n    Entering loop to estimate derivatives.\n", omp_get_wtime() - tmpTime);
+      //printf("    Initial vector allocation and copying cost %.2f [s]\n    Entering loop to estimate derivatives.\n", omp_get_wtime() - tmpTime);
       tmpTime = omp_get_wtime();
     #endif
 
@@ -160,7 +165,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
           #endif
 
           //int f_stat = GSL_MULTIROOT_FN_EVAL (F, x1, f1);
-          int f_stat = GSL_MULTIROOT_FN_EVAL_WPARAMS (F, x1, tmpRootObjPointer, f1);
+          int f_stat = GSL_MULTIROOT_FN_EVAL_WPARAMS (F, x1, &private_rootObj, f1);
 
           #ifdef VERBOSE_JAC_COMP
             evalTime += omp_get_wtime() - tmpTime;
@@ -169,7 +174,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
 
           if (f_stat != GSL_SUCCESS) 
             {
-              status = GSL_EBADFUNC;
+              status = GSL_EBADFUNC;  
               break; /* n.b. avoid memory leak for x1,f1 */
             }
         }
@@ -203,21 +208,30 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     #ifdef VERBOSE_JAC_COMP
       printf("      Thread number %d information: \n", thread_id);
       printf("       Time spent evaluating mapping is %.2f [s]\n       Time spent computing columns is %.2f [s]\n", evalTime, colTime);
+      if (status == GSL_EBADFUNC) {
+        printf("       WARNING: GSL_EBADFUNC sent\n");
+      }
+      else if (status == GSL_ESING) {
+        printf("       WARNING: GSL_ESING sent (Jacobian singularity)\n");
+      }
+      else {
+        printf("       status : %d\n", status);
+      }
     #endif
     gsl_vector_free (x1);
     gsl_vector_free (f1);
 
-    #ifdef VERBOSE_JAC_COMP
+    /* #ifdef VERBOSE_JAC_COMP
       printf("       Finished freeing temporary gsl vectors.\n");
-    #endif
+    #endif */
     /* if (thread_id != 0) {
       free_rootparams(tmpRootObj);
     } */
 
   }
   #ifdef VERBOSE_JAC_COMP
-      printf("    Exiting Jacobian computation..\n");
-      printf("  --------------------------------\n");
+    /* printf("    Exiting Jacobian computation..\n"); */
+    printf("  --------------------------------\n");
   #endif
 
   //rparams->output = tmpOut;

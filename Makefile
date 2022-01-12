@@ -8,8 +8,9 @@ export OMP_CANCELLATION = true
 CPPFLAGS = -qopenmp -Wall -I"${MKLROOT}/include" -fPIC -DMKL_ILP64 -m64 
 CXXFLAGS = -std=c++17 
 #CPPFLAGS += -I"/home/jalen/.local/include" # If on Boyle
-CPPFLAGS += -g  # activate debugging
+#CPPFLAGS += -g  # activate debugging
 #CPPFLAGS += -no-prec-div # approximate division
+CPPFLAGS += -fnon-call-exceptions
 
 LDFLAGS = -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lgsl -lmkl_intel_ilp64 -lmkl_intel_thread -lmkl_core -lm -ldl
 #LDFLAGS += -L"/home/jalen/.local/lib"  # If on Boyle
@@ -30,7 +31,7 @@ MYLIBFLAGS = -L. -lmultroot
 
 
 # --- Rule 1 ---
-$(TARGET): $(OBJFILES) $(MYGSLLIBS) $(HEADERS)
+$(TARGET): $(OBJFILES) $(MYGSLLIBS) $(HEADERS) 
 	$(CC) $(CPPFLAGS) -o $(TARGET) $(OBJFILES) $(GSLOBJS) $(MYGSLLIBS) $(LDFLAGS)
 
 testWOmygsl: $(OBJFILES) $(HEADERS)

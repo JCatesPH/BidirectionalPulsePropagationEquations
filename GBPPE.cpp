@@ -6,12 +6,6 @@
 #include "BPPE.h"
 #include "createLayers.h"
 #include "helperFuncs.h"
-#include <iomanip> 
-#include <vector>
-#include <float.h>
-#include <ctime>
-#include <fenv.h>
-
 
 using namespace std;
 
@@ -33,6 +27,7 @@ complex<double> *sourceLeft, *sourceRight;
 //fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
 
+int foundNaN = 0;
 int delmeFLAG = 0;
 
 int main(int argc, char *argv[])
@@ -90,14 +85,20 @@ int main(int argc, char *argv[])
 	sourceRightParams->relativeIntensity = twoColorSH_amplitude;
 	sourceRightParams->relativePhase = twoColorSH_phase;
 	sourceRightParams->pulseDuration = tau;
-	//feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+	
 	/* ============================================== */
+	/* == Do some setup and output simulation info    */
+
+	// Set the signal handler for floating-point exceptions
+	//feenableexcept(FE_ALL_EXCEPT & ~FE_INEXACT);
+	signal(SIGFPE, floatingPointExceptions); 
+	signal(SIGNAN, floatingPointExceptions); 
 
 	time_t now = time(0);
 	char *datetime = ctime(&now);
 
 	if (VERBOSE >= 0) {
-		cout << "GBPPE code - ACMS Ver.0" << endl;
+		cout << "GBPPE code - ACMS Ver.1" << endl;
 		cout << "The current date and time: " << datetime << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
 		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
@@ -117,6 +118,7 @@ int main(int argc, char *argv[])
 
 	writeSimParameters();
 
+	/* ============================================== */
 
 	generateLayers(myMaterialsDB, myStructure);
     setupPointMonitorLocations(myMaterialsDB, myStructure);
@@ -273,7 +275,6 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
     double nonlinear_time_initial, nonlinear_time;
 
-	int foundNaN = 0;
 	int numzReports, numZsteps = 0;
 	double zRight, zStepSize;
 	double zPosition = 0.0;
@@ -329,6 +330,19 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                 {
 
                     GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, yloc);
+
+					for (int k = 0; k < numActiveOmega; k++){
+						if(yloc[k] != yloc[k]) foundNaN++;
+						if(yloc[k + numActiveOmega] != yloc[k + numActiveOmega]) foundNaN++;
+						if(yloc[k + 2 * numActiveOmega] != yloc[k + 2 * numActiveOmega]) foundNaN++;
+						if(yloc[k + 3 * numActiveOmega] != yloc[k + 3 * numActiveOmega]) foundNaN++;
+					}
+
+					if (foundNaN >= 1) {
+						printf("WARNING: found NaN\n");
+						printf("   Info: While taking ode step at z = %.5e\n", zPosition);
+						raise(SIGABRT);
+					}
                     
 					if (GSLerrorFlag == GSL_SUCCESS) {
                         numZsteps++;
@@ -354,6 +368,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 					write_multicolumnMonitor(rootObj->getItNum(), zPosition, yloc, rootObj->getODEparams());
 
 				}
+				//if(fetestexcept(FE_ALL_EXCEPT & ~FE_INEXACT)) raise(SIGFPE);
                 
             }
 
@@ -407,10 +422,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 		if(yloc[k + 3 * numActiveOmega] != yloc[k + 3 * numActiveOmega]) foundNaN++;
 	}
 
-	if (foundNaN >= 1) {
-		printf("WARNING: Found %d NaN numbers.\n", foundNaN);
+	if (foundNaN >= 1) 
 		return GSL_EBADFUNC;
-	}	
 	else
     	return GSL_SUCCESS;
 }
@@ -423,9 +436,11 @@ void iterateBPPE()
     // Create the gslParams objects
     ODEParams myODEParams(num_t, omegaArray);
     RootParams myRootParams(&myODEParams, sizeRoot);
+	//RootParams myRootParams(num_t, omegaArray, sizeRoot);
 
     // Fill material-specific parameters with values from first layer
-    myODEParams.fillParams(myStructure.m_layers.begin()->getMaterial());
+    //myRootParams.getODEparams()->fillParams(myStructure.m_layers.begin()->getMaterial());
+	myODEParams.fillParams(myStructure.m_layers.begin()->getMaterial());
 
 	// Initialize time and status variables
 	int status; 
@@ -446,7 +461,7 @@ void iterateBPPE()
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
-	T = gsl_multiroot_fsolver_hybrids;
+	T = gsl_multiroot_fsolver_hybrid;
 
 	nonlinear_time_initial = omp_get_wtime();
 	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
@@ -457,13 +472,18 @@ void iterateBPPE()
 	
 	// ------------- Initial Guess Finding -------------
 	printf("Initializing array y..\n");
-	initializeY(myODEParams.y, sourceLeft);
+	//initializeY(myRootParams.getODEparams()->y, sourceLeft);
+	myODEParams.initializeY(sourceLeft);
 	printf("Doing linear problem..\n");
 	doLinearProblem(&myODEParams, sourceLeft, sourceRight, myStructure);
+	/* if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE);
+	feclearexcept(FE_ALL_EXCEPT); */
 
 	gsl_vector *u = gsl_vector_alloc(sizeRoot);
 	printf("Generating initial guess..\n");
 	generateGuess(u, &myRootParams, &myODEParams);
+	/* if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE);
+	feclearexcept(FE_ALL_EXCEPT); */
 
 	fprintf(localLogFile, "Time spent finding initial guess : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
 	nonlinear_time_initial = omp_get_wtime();
@@ -479,8 +499,9 @@ void iterateBPPE()
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
 	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
+	gsl_vector_free(u);
 	fprintf(localLogFile, "==========================================================\n");
-	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 1-norm of step  |\n");
+	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  |\n");
 	fprintf(localLogFile, "==========================================================\n");
 	nonlinear_time_initial = omp_get_wtime();
 
@@ -498,11 +519,19 @@ void iterateBPPE()
 		nonlinear_time_tmp = omp_get_wtime();
 		status = gsl_multiroot_fsolver_iterate(s);
 
+		//if(fetestexcept(FE_ALL_EXCEPT & ~FE_INEXACT)) raise(SIGFPE);
+		if (status == GSL_EBADFUNC) {
+			printf("\nERROR: GSL fsolver returned GSL_EBADFUNC. The iteration scheme encountered a singular point.\n");
+		}
+		if (status == GSL_ENOPROG) {
+			printf("\nERROR: GSL fsolver returned GSL_ENOPROG. The iteration scheme is not making progress.\n");
+		}
 		if (status) break;
 
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
 		status = gsl_multiroot_test_delta(s->dx, s->x, root_epsabs, root_epsrel);
-		dxnorm = gsl_blas_dasum(s->dx);
+		//dxnorm = gsl_blas_dasum(s->dx);
+		dxnorm = gsl_blas_dnrm2(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
@@ -511,13 +540,6 @@ void iterateBPPE()
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
-
-		if (status == GSL_EBADFUNC) {
-			printf("\nERROR: GSL fsolver returned GSL_EBADFUNC. The iteration scheme encountered a singular point.\n");
-		}
-		if (status == GSL_ENOPROG) {
-			printf("\nERROR: GSL fsolver returned GSL_ENOPROG. The iteration scheme is not making progress.\n");
-		}
 	}
 	while (status == GSL_CONTINUE && myRootParams.getItNum() < 25000);
 
@@ -529,9 +551,12 @@ void iterateBPPE()
 	fclose(localLogFile);
 
 	
-	dxnorm = gsl_blas_dasum(s->dx);
-	xnorm = gsl_blas_dasum(s->x);
-	fnorm = gsl_blas_dasum(s->f);
+	//dxnorm = gsl_blas_dasum(s->dx);
+	//xnorm = gsl_blas_dasum(s->x);
+	//fnorm = gsl_blas_dasum(s->f);
+	dxnorm = gsl_blas_dnrm2(s->dx);
+	xnorm = gsl_blas_dnrm2(s->x);
+	fnorm = gsl_blas_dnrm2(s->f);
 	printf("  dx norm = %.7e\n", dxnorm);
 	printf("  x norm = %.7e\n", xnorm);
 	printf("  f norm = %.7e\n\n", fnorm);
@@ -546,7 +571,7 @@ void iterateBPPE()
 	printf("Freeing solver memory.\n");
     gsl_multiroot_fsolver_free(s);
 	printf("Finished freeing solver memory.\n");
-	gsl_vector_free(u);
+	
 }
 
 

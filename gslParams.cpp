@@ -110,3 +110,14 @@ ODEParams::ODEParams(const ODEParams &p1) {  // Copy constructor
 	}
 
 }
+
+
+void ODEParams::initializeY(complex<double> *sL) { // Function to initialize the y array with LHS source
+	for (int i = 0; i < numOmeg; i++)
+	{
+		y[i] = real(sL[i]);
+		y[i + numOmeg] = imag(sL[i]);
+		y[i + 2*numOmeg] = 0.0;
+		y[i + 3*numOmeg] = 0.0;
+	}
+}
