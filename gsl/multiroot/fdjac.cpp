@@ -207,7 +207,8 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
       }
     #ifdef VERBOSE_JAC_COMP
       printf("      Thread number %d information: \n", thread_id);
-      printf("       Time spent evaluating mapping is %.2f [s]\n       Time spent computing columns is %.2f [s]\n", evalTime, colTime);
+      printf("       Time spent evaluating mapping is %.2f [s]\n", evalTime);
+      //printf("       Time spent computing columns is %.2f [s]\n", colTime);
       if (status == GSL_EBADFUNC) {
         printf("       WARNING: GSL_EBADFUNC sent\n");
       }
