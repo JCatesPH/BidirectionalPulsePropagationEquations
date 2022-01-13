@@ -38,7 +38,8 @@
 #define VERBOSE_HYBRIDS_ITER
 #define STRING_BUFFER_SIZE 256
 extern char SIM_DATA_OUTPUT[30];
-#define NOPROG_MAX 10
+#define NOPROG_MAX 50
+#include "../../gslParams.h"
 
 typedef struct
 {
@@ -506,9 +507,9 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
 	if (jacLog != NULL)
 	{
 
-		fprintf(jacLog, "====================================================================================================\n");
+		fprintf(jacLog, "=====================================================================================================\n");
     fprintf(jacLog, "| Iteration | Computing Jac. Time | QR Decomp. Time     | QR Unpack Time      | 1-norm con. number  |\n");
-    fprintf(jacLog, "====================================================================================================\n");
+    fprintf(jacLog, "=====================================================================================================\n");
 		fprintf(jacLog, "|%11d|%21.3f|%21.3f|%21.3f|%21.5e|\n", (int)state->iter, jacTime, qrDecompTime, qrUnpackTime, 1/condNum);
 
 	}
@@ -730,6 +731,7 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
       #endif
       // ----------------------------------------
       // -- Append times and con num to log
+      RootParams *rootObj = reinterpret_cast<RootParams*>(func->params);
       char jacLogPath[STRING_BUFFER_SIZE];
       snprintf(jacLogPath, sizeof(char) * STRING_BUFFER_SIZE, "%sjacLog.txt", SIM_DATA_OUTPUT);
 
@@ -737,7 +739,7 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
       jacLog = fopen(jacLogPath, "a");
       if (jacLog != NULL)
       {
-        fprintf(jacLog, "|%11d|%21.3f|%21.3f|%21.3f|%21.5e|\n", (int)state->iter, jacTime, qrDecompTime, qrUnpackTime, 1/condNum);
+        fprintf(jacLog, "|%11d|%21.3f|%21.3f|%21.3f|%21.5e|\n", rootObj->getItNum(), jacTime, qrDecompTime, qrUnpackTime, 1/condNum);
       }
       else {
         printf("Failed to open file '%s'\n", jacLogPath);

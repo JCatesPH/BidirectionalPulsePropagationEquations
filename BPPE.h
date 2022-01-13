@@ -77,7 +77,7 @@ complex<double>* eFieldPlusBACKUPCOLM;
 extern char SIM_DATA_OUTPUT[30];
 extern int VERBOSE;
 const int num_Threads = 6; // numnber of OpenMP threads
-const int num_iterations = 5; //number of BPPE iterations
+//const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
 //const double zStepMaterial1 = 0.01 * microns; // Step for integration
@@ -192,3 +192,4 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEParams *odeObj);
 void DELME_ArgonDispersion(double* omg);
 void DELME_AndrewPreformed(double* omg, Material* mat);
+void readGlobalParameters(char *inFile);

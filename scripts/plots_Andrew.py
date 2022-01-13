@@ -24,7 +24,7 @@ if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
     pathhead = '../DATA_Drude_25umL'
-    itnum = '3'
+    itnum = '51'
 
 
 CLIGHT = 299792458
@@ -48,7 +48,7 @@ epsilon_0 = 8.85418782e-12
 charge_e = 1.602176634e-19
 mass_e = 9.10938356e-31
 
-numE = 0
+numE = 9e24
 omegPlasma = np.sqrt(charge_e**2*numE/(epsilon_0*mass_e))
 
 print("For {:} electrons, the plasma frequency is: {:.8e}".format(numE, omegPlasma))

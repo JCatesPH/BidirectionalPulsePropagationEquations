@@ -99,17 +99,18 @@ void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
 
 void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	int sizeRoot = rootObj->getSizeRoot();
-	int itSecant = 5;
+	int itSecant = 1;
 	//ODEParams *odeObj = rootObj->getODEparams();
 	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
 	complex<double> map1, map2, initGuess;
 
 	// Create pseudo-random number generator for initial guess
-	random_device rd;
-	mt19937 gen(rd());
+	/* random_device rd;
+	mt19937 gen(rd()); */
+	default_random_engine gen;
 	uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
 	
-	complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	/* complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* Am_guess1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* Am_guess2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
@@ -169,8 +170,8 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 			gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
 		}
 	}
-	/* cout << "Finished iteration 3" << endl;
-	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
+	//cout << "Finished iteration 3" << endl;
+	//if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); 
 
 	for (int it = 3; it < itSecant; it++) {
 		// Move latest update to previous guess
@@ -205,24 +206,25 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 				gsl_vector_set(u, k + sizeRoot/2, imag(initGuess));
 			}
 		}
-	}
-	
-	/* cout << "Finished iteration 4" << endl;
-	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
-	/* for (int k = 0; k < sizeRoot/2; k++){
-		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
-	} */
-
+	} 
 
 	// Free some memory
 	free(Am_guess1);
 	free(Am_guess2);
 	free(integral1);
 	free(integral2);
-	gsl_vector_free(tmp);
+	gsl_vector_free(tmp); */
+	
+	
+	/* cout << "Finished iteration 4" << endl;
+	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
+	for (int k = 0; k < sizeRoot/2; k++){
+		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
+	}
+
 
 	rootObj->setItNum(itSecant);
 	rootObj->setOutParam(0); // Turn output on (1) or off (0)

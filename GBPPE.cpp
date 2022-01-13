@@ -37,39 +37,7 @@ int main(int argc, char *argv[])
 
 	/* ============================================== */
 	/* == Reading input file and processing input     */
-	paramFileBuffer = readParmetersFileToBuffer(argv[1]);
-	VERBOSE = getIntParameterValueByName("Verbosity");
-	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
-
-	// Load in pulse parameters
-	I_0 = getDoubleParameterValueByName("meanPumpIntensity");
-	twoColorSH_amplitude = getDoubleParameterValueByName("twoColorRelativeIntensity");
-	twoColorSH_phase = getDoubleParameterValueByName("twoColorPhase");
-	tau = getDoubleParameterValueByName("pulseDuration");
-	lambda_0 = getDoubleParameterValueByName("fundamentalWavelength");
-
-	A_0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
-	omega_0 = 2 * M_PI*cLight / lambda_0;
-
-	// Load in domain parameters
-	num_t = getIntParameterValueByName("numTimePoints");
-	//num_t = pow(2, 17);
-	domain_t = getDoubleParameterValueByName("timeDomainSize");
-
-	//freqUpperCutoff = num_t / 2;
-	freqLowerCutoff = getIntParameterValueByName("omegLowerCutoff");
-	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
-	numActiveOmega = num_t / 2 + 1;
-	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
-	l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
-
-	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
-	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");
-	LHSsourceLayerThickness = getDoubleParameterValueByName("LHSbufferThickness");
-	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
-	
-	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
-	//alpha_tukey = 0.0;
+	readGlobalParameters(argv[1]);
 
 	pulseparam_type* sourceLeftParams = (pulseparam_type*)malloc(sizeof(pulseparam_type));
 	pulseparam_type* sourceRightParams = (pulseparam_type*)malloc(sizeof(pulseparam_type));
@@ -216,7 +184,7 @@ int main(int argc, char *argv[])
 	snprintf(timeLogFname, sizeof(char) * STRING_BUFFER_SIZE, "%stimeLog.txt", SIM_DATA_OUTPUT);
 	FILE *tLogFile = fopen(timeLogFname, "w");
 	fprintf(tLogFile, "Time spent before entering iterateBPPE() : %f [s]\n\n", omp_get_wtime() - dtime);
-	fprintf(tLogFile, "==========================================================\n\n");
+	fprintf(tLogFile, "============================================================================\n");
 	fclose(tLogFile);
 
 	/* ============================================== */
@@ -488,6 +456,12 @@ void iterateBPPE()
 	fprintf(localLogFile, "Time spent finding initial guess : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
 	nonlinear_time_initial = omp_get_wtime();
 
+	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
+	myRootParams.setOutParam(1);
+	mapG(u, &myRootParams, tmp);
+	myRootParams.setItNum(myRootParams.getItNum() + 1);
+	myRootParams.setOutParam(0);
+
 	// ---------------------------------------------------
 
 	// Tell GSL multiroot the function and initial guess
@@ -499,10 +473,9 @@ void iterateBPPE()
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
 	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
-	gsl_vector_free(u);
-	fprintf(localLogFile, "===========================================================================\n");
+	fprintf(localLogFile, "============================================================================\n");
 	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  | 2-norm of map    |\n");
-	fprintf(localLogFile, "===========================================================================\n");
+	fprintf(localLogFile, "============================================================================\n");
 	nonlinear_time_initial = omp_get_wtime();
 
 	// Compute the condition number of the Jacobian
@@ -551,7 +524,7 @@ void iterateBPPE()
 	printf("==========================================================\n");
 	printf("Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
-	fprintf(localLogFile, "==========================================================\n");
+	fprintf(localLogFile, "============================================================================\n");
 	fprintf(localLogFile, "Quasi-Newton scheme has stopped after : %f [s]\n", nonlinear_time_total);
 	fclose(localLogFile);
 
@@ -574,6 +547,7 @@ void iterateBPPE()
 
 	// Free solver memory
 	printf("Freeing solver memory.\n");
+	gsl_vector_free(u);
     gsl_multiroot_fsolver_free(s);
 	printf("Finished freeing solver memory.\n");
 	
@@ -690,11 +664,11 @@ void writeSimParameters()
 	fp = fopen(parametersFilePathName, "w");
 	if (fp != NULL)
 	{
-		fprintf(fp, "cLight         \t%.17g\t/*speed of light */\n", cLight);
-		fprintf(fp, "epsilon_0      \t%.17g\t/*permittivity of free space */\n", epsilon_0);
-		fprintf(fp, "Znaught        \t%.17g\t/*impedance of free space */\n", Znaught);
-		fprintf(fp, "charge_e       \t%.17g\t/*electron charge */\n", charge_e);
-		fprintf(fp, "mass_e         \t%.17g\t/*electron mass */\n", mass_e);
+		//fprintf(fp, "cLight         \t%.17g\t/*speed of light */\n", cLight);
+		//fprintf(fp, "epsilon_0      \t%.17g\t/*permittivity of free space */\n", epsilon_0);
+		//fprintf(fp, "Znaught        \t%.17g\t/*impedance of free space */\n", Znaught);
+		//fprintf(fp, "charge_e       \t%.17g\t/*electron charge */\n", charge_e);
+		//fprintf(fp, "mass_e         \t%.17g\t/*electron mass */\n", mass_e);
 		fprintf(fp, "u_Argon        \t%.17g\t/*argon potential */\n", u_Argon);
 		fprintf(fp, "u_Hydrogen     \t%.17g\t/*hydrogen potential */\n", u_Hydrogen);
 		fprintf(fp, "E_a            \t%.17g\t/*QST parameters */\n", E_a);
@@ -715,7 +689,7 @@ void writeSimParameters()
 		fprintf(fp, "j_e0            \t%.17g\t/* initial current density */\n", j_e0);
 		fprintf(fp, "freqUpperCutoff \t%d\t/* upper frequency cut-off */\n", freqUpperCutoff);
 		fprintf(fp, "freqLowerCutoff \t%d\t/*lower frequency cut-off */\n", freqLowerCutoff);
-		fprintf(fp, "num_iterations  \t%d\t/*number of BPPE iterations*/ */\n", num_iterations);
+		//fprintf(fp, "num_iterations  \t%d\t/*number of BPPE iterations*/ */\n", num_iterations);
 		fprintf(fp, "shift           \t%.17g\t/*FILL */\n", shift);
 		fprintf(fp, "numDimensionsMinusOne \t%.17g\t/*(1+1) dimension (0) or (2+1) dimension (1) */\n", (double)numDimensionsMinusOne);
 		//fprintf(fp, "plasmaOnOff     \t%d\t/*plasma on (1) or off (0) */\n", plasmaOnOff);
@@ -753,10 +727,11 @@ void writeSimParameters()
 		fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
 
 		// Print the GSL ODE parameters
-		fprintf(fp, "epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", ode_epsabs);
-		fprintf(fp, "epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", ode_epsrel);
+		fprintf(fp, "ode_epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", ode_epsabs);
+		fprintf(fp, "ode_epsrel       \t%.17g\t/*relative error tolerance for Runge-Kutta */\n", ode_epsrel);
 		fprintf(fp, "ode_nmax       \t%.2g\t/*maximum ode steps before reset */\n", (double)ode_nmax);
-
+		fprintf(fp, "root_epsabs       \t%.17g\t/*absolute error tolerance for quasi-Newton */\n", root_epsabs);
+		fprintf(fp, "root_epsrel       \t%.17g\t/*relative error tolerance for quasi-Newton */\n", root_epsrel);
 		fprintf(fp, "alpha_tukey       \t%.8g\t/*value of parameter in Tukey window */\n", alpha_tukey);
 	}
 	else {
@@ -766,3 +741,37 @@ void writeSimParameters()
 }
 
 
+void readGlobalParameters(char *inFile) {
+	paramFileBuffer = readParmetersFileToBuffer(inFile);
+	VERBOSE = getIntParameterValueByName("Verbosity");
+	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
+
+	// Load in pulse parameters
+	I_0 = getDoubleParameterValueByName("meanPumpIntensity");
+	twoColorSH_amplitude = getDoubleParameterValueByName("twoColorRelativeIntensity");
+	twoColorSH_phase = getDoubleParameterValueByName("twoColorPhase");
+	tau = getDoubleParameterValueByName("pulseDuration");
+	lambda_0 = getDoubleParameterValueByName("fundamentalWavelength"); 
+
+	A_0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
+	omega_0 = 2 * M_PI*cLight / lambda_0;
+
+	// Load in domain parameters
+	num_t = getIntParameterValueByName("numTimePoints");
+	//num_t = pow(2, 17);
+	domain_t = getDoubleParameterValueByName("timeDomainSize");
+
+	//freqUpperCutoff = num_t / 2;
+	freqLowerCutoff = getIntParameterValueByName("omegLowerCutoff");
+	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
+	numActiveOmega = num_t / 2 + 1;
+	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
+	l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
+
+	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
+	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");
+	LHSsourceLayerThickness = getDoubleParameterValueByName("LHSbufferThickness");
+	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
+	
+	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
+}
