@@ -36,6 +36,9 @@
 #include <omp.h>
 #define VERBOSE_HYBRIDS_SETUP
 #define VERBOSE_HYBRIDS_ITER
+#define STRING_BUFFER_SIZE 256
+extern char SIM_DATA_OUTPUT[30];
+#define NOPROG_MAX 10
 
 typedef struct
 {
@@ -402,9 +405,11 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
 
   int status;
   
+  double initTime = omp_get_wtime();
+  double tmpTime = initTime;
+  double jacTime, qrDecompTime, qrUnpackTime, condNum;
+
   #ifdef VERBOSE_HYBRIDS_SETUP
-    double initTime = omp_get_wtime();
-    double tmpTime = initTime;
     printf("--------------------------------\n");
     printf("\nStarting setup of quasi-Newton objects for hybrid method..Advanced timing has been enabled.\n");
   #endif
@@ -416,10 +421,12 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
       return status;
     }
 
+  tmpTime = omp_get_wtime();
   status = gsl_multiroot_fdjacobian (func, x, f, GSL_SQRT_DBL_EPSILON, J);
+  jacTime = omp_get_wtime() - tmpTime;
 
   #ifdef VERBOSE_HYBRIDS_SETUP
-    printf("  The first estimate of the Jacobian is found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+    printf("  The first estimate of the Jacobian is found in %.2f [s]\n", jacTime);
     tmpTime = omp_get_wtime();
   #endif
 
@@ -448,27 +455,28 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
 
   state->delta = compute_delta (diag, x);
 
-  #ifdef VERBOSE_HYBRIDS_SETUP
+  /* #ifdef VERBOSE_HYBRIDS_SETUP
     printf("  Some vector operations cost %.2f [s]\n", omp_get_wtime() - tmpTime);
     tmpTime = omp_get_wtime();
-  #endif
+  #endif */
 
   /* Factorize J into QR decomposition */
 
   //status = gsl_linalg_QR_decomp (J, tau);
+  tmpTime = omp_get_wtime();
   status = gsl_linalg_QR_decomp_r (J, T);
+  qrDecompTime = omp_get_wtime() - tmpTime;
   gsl_vector_view diagT = gsl_matrix_diagonal(T);
   gsl_vector_memcpy(tau, &diagT.vector);
 
-  double condNum;
+  // -- Find the condition number
   gsl_vector *tmp = gsl_vector_calloc(3 * (size_t)(T->size1)); // Workspace for computing condition number
   gsl_linalg_QR_rcond(J, &condNum, tmp); // NOTE: condNum has reciprocal con num, 1/k(J)
   gsl_vector_free(tmp);
 
   #ifdef VERBOSE_HYBRIDS_SETUP
-    printf("  The QR decomp. of J cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    printf("  The QR decomp. of J cost %.2f [s]\n", qrDecompTime);
     printf("  The condition number from the 1-norm is %.4e\n", 1/condNum);
-    tmpTime = omp_get_wtime();
   #endif
 
   if (status)
@@ -477,14 +485,40 @@ hybrid_set_impl (void *vstate, gsl_multiroot_function * func, gsl_vector * x,
     }
 
   //status = gsl_linalg_QR_unpack (J, tau, q, r);
+  tmpTime = omp_get_wtime();
   status = gsl_linalg_QR_unpack_r (J, T, q, r);
+  qrUnpackTime = omp_get_wtime() - tmpTime;
 
   #ifdef VERBOSE_HYBRIDS_SETUP
-    printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+    printf("  Unpacking of QR decomp. cost %.2f [s]\n", qrUnpackTime);
     printf("--------------------------------\n");
     printf(" Total time is %.2f [s]\n", omp_get_wtime() - initTime);
     printf("--------------------------------\n");
   #endif
+
+  // ----------------------------------------
+  // -- Start new log file
+  char jacLogPath[STRING_BUFFER_SIZE];
+	snprintf(jacLogPath, sizeof(char) * STRING_BUFFER_SIZE, "%sjacLog.txt", SIM_DATA_OUTPUT);
+
+  FILE* jacLog;
+	jacLog = fopen(jacLogPath, "w");
+	if (jacLog != NULL)
+	{
+
+		fprintf(jacLog, "====================================================================================================\n");
+    fprintf(jacLog, "| Iteration | Computing Jac. Time | QR Decomp. Time     | QR Unpack Time      | 1-norm con. number  |\n");
+    fprintf(jacLog, "====================================================================================================\n");
+		fprintf(jacLog, "|%11d|%21.3f|%21.3f|%21.3f|%21.5e|\n", (int)state->iter, jacTime, qrDecompTime, qrUnpackTime, 1/condNum);
+
+	}
+	else {
+		printf("Failed to open file '%s'\n", jacLogPath);
+
+		exit(-1);
+	}
+	if (jacLog != NULL) { fclose(jacLog); }
+  // ----------------------------------------
 
   return status;
 }
@@ -511,10 +545,10 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
                      gsl_vector * f, gsl_vector * dx, int scale)
 {
 
-  #ifdef VERBOSE_HYBRIDS_ITER
-    double initTime = omp_get_wtime();
-    double tmpTime = initTime;
-  #endif
+  double initTime = omp_get_wtime();
+  double tmpTime = initTime;
+  double jacTime, qrDecompTime, qrUnpackTime, condNum;
+
   hybrid_state_t *state = (hybrid_state_t *) vstate;
 
   const double fnorm = state->fnorm;
@@ -645,14 +679,13 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
     {
       #ifdef VERBOSE_HYBRIDS_ITER
         printf("  Starting update of Jacobian.. Verbose timing enabled.\n");
-        tmpTime = omp_get_wtime();
       #endif
-
+      tmpTime = omp_get_wtime();
       gsl_multiroot_fdjacobian (func, x, f, GSL_SQRT_DBL_EPSILON, J);
+      jacTime = omp_get_wtime() - tmpTime;
 
       #ifdef VERBOSE_HYBRIDS_ITER
-        printf("  Estimate of the Jacobian is found in %.2f [s]\n", omp_get_wtime() - tmpTime);
-        tmpTime = omp_get_wtime();
+        printf("  Estimate of the Jacobian is found in %.2f [s]\n", jacTime);
       #endif
 
       state->nslow2++;
@@ -670,30 +703,49 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
         }
 
       /* Factorize J into QR decomposition */
-      #ifdef VERBOSE_HYBRIDS_ITER
-        tmpTime = omp_get_wtime();
-      #endif
+      tmpTime = omp_get_wtime();
       //gsl_linalg_QR_decomp (J, tau);
       gsl_linalg_QR_decomp_r (J, T);
+      qrDecompTime = omp_get_wtime() - tmpTime; 
+
       gsl_vector_view diagT = gsl_matrix_diagonal(T);
       gsl_vector_memcpy(tau, &diagT.vector);
-
-      double condNum;
+      
       gsl_vector *tmp = gsl_vector_calloc(3 * (size_t)(T->size1)); // Workspace for computing condition number
       gsl_linalg_QR_rcond(J, &condNum, tmp); // NOTE: condNum has reciprocal con num, 1/k(J)
       gsl_vector_free(tmp);
 
       #ifdef VERBOSE_HYBRIDS_ITER
-        printf("  QR decomp. of J found in %.2f [s]\n", omp_get_wtime() - tmpTime);
+        printf("  QR decomp. of J found in %.2f [s]\n", qrDecompTime);
         printf("  The condition number from the 1-norm is %.4e\n", 1/condNum);
         tmpTime = omp_get_wtime();
       #endif
+      tmpTime = omp_get_wtime();
       //gsl_linalg_QR_unpack (J, tau, q, r);
       gsl_linalg_QR_unpack_r (J, T, q, r);
+      qrUnpackTime = omp_get_wtime() - tmpTime; 
 
       #ifdef VERBOSE_HYBRIDS_ITER
-        printf("  Unpacking of QR decomp. cost %.2f [s]\n", omp_get_wtime() - tmpTime);
+        printf("  Unpacking of QR decomp. cost %.2f [s]\n", qrUnpackTime);
       #endif
+      // ----------------------------------------
+      // -- Append times and con num to log
+      char jacLogPath[STRING_BUFFER_SIZE];
+      snprintf(jacLogPath, sizeof(char) * STRING_BUFFER_SIZE, "%sjacLog.txt", SIM_DATA_OUTPUT);
+
+      FILE* jacLog;
+      jacLog = fopen(jacLogPath, "a");
+      if (jacLog != NULL)
+      {
+        fprintf(jacLog, "|%11d|%21.3f|%21.3f|%21.3f|%21.5e|\n", (int)state->iter, jacTime, qrDecompTime, qrUnpackTime, 1/condNum);
+      }
+      else {
+        printf("Failed to open file '%s'\n", jacLogPath);
+
+        exit(-1);
+      }
+      if (jacLog != NULL) { fclose(jacLog); }
+      // ----------------------------------------
 
       return GSL_SUCCESS;
     }
@@ -717,7 +769,7 @@ hybrid_iterate_impl (void *vstate, gsl_multiroot_function * func,
 
   /* No progress as measured by function evaluations */
 
-  if (state->nslow1 == 50)
+  if (state->nslow1 == NOPROG_MAX)
     {
       return GSL_ENOPROG;
     }
