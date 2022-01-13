@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
 	char timeLogFname[STRING_BUFFER_SIZE];
 	snprintf(timeLogFname, sizeof(char) * STRING_BUFFER_SIZE, "%stimeLog.txt", SIM_DATA_OUTPUT);
 	FILE *tLogFile = fopen(timeLogFname, "w");
-	fprintf(tLogFile, "Time spent before entering nonlinear iteration : %f [s]\n\n", omp_get_wtime() - dtime);
+	fprintf(tLogFile, "Time spent before entering iterateBPPE() : %f [s]\n\n", omp_get_wtime() - dtime);
 	fprintf(tLogFile, "==========================================================\n\n");
 	fclose(tLogFile);
 
@@ -500,9 +500,9 @@ void iterateBPPE()
 
 	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
 	gsl_vector_free(u);
-	fprintf(localLogFile, "==========================================================\n");
-	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  |\n");
-	fprintf(localLogFile, "==========================================================\n");
+	fprintf(localLogFile, "===========================================================================\n");
+	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  | 2-norm of map    |\n");
+	fprintf(localLogFile, "===========================================================================\n");
 	nonlinear_time_initial = omp_get_wtime();
 
 	// Compute the condition number of the Jacobian
@@ -526,17 +526,21 @@ void iterateBPPE()
 		if (status == GSL_ENOPROG) {
 			printf("\nERROR: GSL fsolver returned GSL_ENOPROG. The iteration scheme is not making progress.\n");
 		}
+		if (status == GSL_ENOPROGJ) {
+			printf("\nERROR: GSL fsolver returned GSL_ENOPROGJ. The iteration scheme is not making progress.\n");
+		}
 		if (status) break;
 
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
 		status = gsl_multiroot_test_delta(s->dx, s->x, root_epsabs, root_epsrel);
 		//dxnorm = gsl_blas_dasum(s->dx);
 		dxnorm = gsl_blas_dnrm2(s->dx);
+		fnorm = gsl_blas_dnrm2(s->f);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, dxnorm);
+		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, dxnorm, fnorm);
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
@@ -544,7 +548,8 @@ void iterateBPPE()
 	while (status == GSL_CONTINUE && myRootParams.getItNum() < 25000);
 
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
-	printf("  Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
+	printf("==========================================================\n");
+	printf("Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
 	fprintf(localLogFile, "==========================================================\n");
 	fprintf(localLogFile, "Quasi-Newton scheme has stopped after : %f [s]\n", nonlinear_time_total);
