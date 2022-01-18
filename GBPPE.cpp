@@ -18,7 +18,7 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
 double LHSsourceLayerThickness, RHSbufferLayerThickness;
 double twoColorSH_amplitude, twoColorSH_phase;
-int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0;
+int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, num_Threads;
 double domain_t, zStepMaterial1, alpha_tukey;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
@@ -745,6 +745,7 @@ void readGlobalParameters(char *inFile) {
 	paramFileBuffer = readParmetersFileToBuffer(inFile);
 	VERBOSE = getIntParameterValueByName("Verbosity");
 	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
+	num_Threads = getIntParameterValueByName("numThreads");
 
 	// Load in pulse parameters
 	I_0 = getDoubleParameterValueByName("meanPumpIntensity");
