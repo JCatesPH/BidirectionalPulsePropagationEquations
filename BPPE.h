@@ -59,7 +59,7 @@ using namespace std;
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e-2
+#define NOISE_MAGNITUDE 1.0e4
 
 // CODE parameters
 #define USE_CPP_BOUNDARY

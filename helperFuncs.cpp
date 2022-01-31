@@ -219,10 +219,12 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	/* cout << "Finished iteration 4" << endl;
 	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
 	for (int k = 0; k < sizeRoot/2; k++){
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
+		gsl_vector_set(u, k, dis(gen));
+		gsl_vector_set(u, k + sizeRoot/2, dis(gen));
 	}
 
 
