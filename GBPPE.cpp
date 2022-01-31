@@ -17,6 +17,7 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 // This block of vars were orignally inside main()
 double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
 double LHSsourceLayerThickness, RHSbufferLayerThickness;
+double rho_0;
 double twoColorSH_amplitude, twoColorSH_phase;
 int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, num_Threads;
 double domain_t, zStepMaterial1, alpha_tukey;
@@ -321,7 +322,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                     }
 
                     nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-                    if ((int)(nonlinear_time / 20) > numzReports) {
+                    if ((int)(nonlinear_time / 20) > numzReports && rootObj->getOutParam() == 1) {
                         printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rootObj->getItNum(), numZsteps, zPosition, (int)nonlinear_time);
                         numzReports++;
                     }
@@ -775,4 +776,6 @@ void readGlobalParameters(char *inFile) {
 	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
 	
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
+
+	rho_0 = getDoubleParameterValueByName("initialEDensity");
 }
