@@ -30,7 +30,7 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
 #include <gsl/gsl_vector.h>
-#include "gsl/gsl_multiroots.h"
+#include "gsl/gsl_multimin.h"
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
 #include "gsl/gsl_math.h"
@@ -170,7 +170,7 @@ typedef struct {
 
 
 //void doNonlinearPartofBPPE();
-int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f);
+double mapG(const gsl_vector *ym_guess, void *rootparams);
 void iterateBPPE();
 void writeInputEfield(std::complex<double>* ee_p);
 void writeInputSpectrum(std::complex<double>* yp_init);

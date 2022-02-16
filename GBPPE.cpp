@@ -227,7 +227,7 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 
 
-int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
+double mapG(const gsl_vector *ym_guess, void *rootparams) {
     //rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
     RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
 
@@ -352,9 +352,10 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         }
     }
 
+	double f2norm = 0.0;
 	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
-		gsl_vector_set(f, k, yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]));
-		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]));
+		f2norm += pow(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]), 2);
+		f2norm += pow(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]), 2);
 	}
 
 
@@ -384,7 +385,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     gsl_odeiv2_evolve_free(gslEvolve);
     gsl_odeiv2_step_free(gslStep);
 
-	for (int k = 0; k < numActiveOmega; k++){
+	/* for (int k = 0; k < numActiveOmega; k++){
 		if(yloc[k] != yloc[k]) foundNaN++;
 		if(yloc[k + numActiveOmega] != yloc[k + numActiveOmega]) foundNaN++;
 		if(yloc[k + 2 * numActiveOmega] != yloc[k + 2 * numActiveOmega]) foundNaN++;
@@ -394,7 +395,8 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	if (foundNaN >= 1) 
 		return GSL_EBADFUNC;
 	else
-    	return GSL_SUCCESS;
+    	return GSL_SUCCESS; */
+	return sqrt(f2norm);
 }
 
 void iterateBPPE()
@@ -413,7 +415,7 @@ void iterateBPPE()
 
 	// Initialize time and status variables
 	int status; 
-	double dxnorm, xnorm, fnorm;
+	double xnorm, fval, simplexSize;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 
 	char timeLogFname[STRING_BUFFER_SIZE];
@@ -428,12 +430,11 @@ void iterateBPPE()
 
 	// Initialize multiroot objects
 	printf("Allocating multiroot solver\n");
-	const gsl_multiroot_fsolver_type *T;
-    gsl_multiroot_fsolver *s;
-	T = gsl_multiroot_fsolver_hybrid;
+	const gsl_multimin_fminimizer_type *fminType = gsl_multimin_fminimizer_nmsimplex2;
+    gsl_multimin_fminimizer *gslSolver;
 
 	nonlinear_time_initial = omp_get_wtime();
-	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
+	gslSolver = gsl_multimin_fminimizer_alloc(fminType, sizeRoot);
 
 	fprintf(localLogFile, "Time spent allocating multiroot solver : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
 	nonlinear_time_initial = omp_get_wtime();
@@ -459,17 +460,26 @@ void iterateBPPE()
 
 	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
 	myRootParams.setOutParam(1);
-	mapG(u, &myRootParams, tmp);
+	mapG(u, &myRootParams);
 	myRootParams.setItNum(myRootParams.getItNum() + 1);
 	myRootParams.setOutParam(0);
 
 	// ---------------------------------------------------
 
+	// ----------- Setting Initial Step Sizes -----------
+	gsl_vector *fminStepSizes = gsl_vector_alloc(sizeRoot);
+	gsl_vector_set_all(fminStepSizes, 1e2);
+
+	// ---------------------------------------------------
+
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
-	gsl_multiroot_function f = {&mapG, sizeRoot, &myRootParams};
+	gsl_multimin_function minFunc;
+	minFunc.n = sizeRoot;
+	minFunc.f = mapG;
+	minFunc.params = &myRootParams;
 	nonlinear_time_tmp = omp_get_wtime();
-	gsl_multiroot_fsolver_set(s, &f, u);
+	gsl_multimin_fminimizer_set(gslSolver, &minFunc, u, fminStepSizes);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
@@ -491,7 +501,7 @@ void iterateBPPE()
 		printf("Starting iteration %d\n", myRootParams.getItNum());
 		fflush(stdout);
 		nonlinear_time_tmp = omp_get_wtime();
-		status = gsl_multiroot_fsolver_iterate(s);
+		status = gsl_multimin_fminimizer_iterate(gslSolver);
 
 		//if(fetestexcept(FE_ALL_EXCEPT & ~FE_INEXACT)) raise(SIGFPE);
 		if (status == GSL_EBADFUNC) {
@@ -506,15 +516,15 @@ void iterateBPPE()
 		if (status) break;
 
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
-		status = gsl_multiroot_test_delta(s->dx, s->x, root_epsabs, root_epsrel);
+		simplexSize = gsl_multimin_fminimizer_size (gslSolver);
+      	status = gsl_multimin_test_size (simplexSize, 1e-2);
 		//dxnorm = gsl_blas_dasum(s->dx);
-		dxnorm = gsl_blas_dnrm2(s->dx);
-		fnorm = gsl_blas_dnrm2(s->f);
+		//dxnorm = gsl_blas_dnrm2(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, dxnorm, fnorm);
+		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gslSolver->fval);
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
@@ -523,33 +533,28 @@ void iterateBPPE()
 
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("==========================================================\n");
-	printf("Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
+	printf("Multimin solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
 	fprintf(localLogFile, "============================================================================\n");
 	fprintf(localLogFile, "Quasi-Newton scheme has stopped after : %f [s]\n", nonlinear_time_total);
 	fclose(localLogFile);
 
-	
-	//dxnorm = gsl_blas_dasum(s->dx);
-	//xnorm = gsl_blas_dasum(s->x);
-	//fnorm = gsl_blas_dasum(s->f);
-	dxnorm = gsl_blas_dnrm2(s->dx);
-	xnorm = gsl_blas_dnrm2(s->x);
-	fnorm = gsl_blas_dnrm2(s->f);
-	printf("  dx norm = %.7e\n", dxnorm);
-	printf("  x norm = %.7e\n", xnorm);
-	printf("  f norm = %.7e\n\n", fnorm);
-
 
 	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
 	myRootParams.setOutParam(1);
-	mapG(s->x, &myRootParams, s->f);
+	mapG(gslSolver->x, &myRootParams);
+
+	xnorm = gsl_blas_dnrm2(gslSolver->x);
+	printf("  simplex size = %.7e\n", simplexSize);
+	printf("  x norm       = %.7e\n", xnorm);
+	printf("  f val        = %.7e\n\n", gslSolver->fval);
 
 	// Free solver memory
 	printf("Freeing solver memory.\n");
 	gsl_vector_free(u);
-    gsl_multiroot_fsolver_free(s);
+	gsl_vector_free(fminStepSizes);
+    gsl_multimin_fminimizer_free(gslSolver);
 	printf("Finished freeing solver memory.\n");
 	
 }

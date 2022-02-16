@@ -1,6 +1,6 @@
-/* multiroots/enorm.c
+/* multimin/convergence.c
  * 
- * Copyright (C) 1996, 1997, 1998, 1999, 2000, 2007 Brian Gough
+ * Copyright (C) 1996, 1997, 1998, 1999, 2000 Fabrice Rossi
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,23 +16,43 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-#include <stdlib.h>
-#include <gsl/gsl_types.h>
-#include "../gsl_math.h"
-#include <gsl/gsl_vector.h>
-#include <gsl/gsl_matrix.h>
 
-static double enorm (const gsl_vector * f);
+#include "../config.h"
+#include "gsl_multimin.h"
+#include <gsl/gsl_blas.h>
 
-static double enorm (const gsl_vector * f) {
-  double e2 = 0 ;
-  size_t i, n = f->size ;
-  for (i = 0; i < n ; i++) {
-    double fi= gsl_vector_get(f, i);
-    e2 += fi * fi ;
-  }
-  return sqrt(e2);
+int
+gsl_multimin_test_gradient (const gsl_vector *g, double epsabs)
+{
+  double norm;
+
+  if (epsabs < 0.0)
+    {
+      GSL_ERROR ("absolute tolerance is negative", GSL_EBADTOL);
+    }
+
+  norm = gsl_blas_dnrm2(g);
+  
+  if (norm < epsabs)
+    {
+      return GSL_SUCCESS;
+    }
+
+  return GSL_CONTINUE;
 }
 
+int
+gsl_multimin_test_size (const double size, double epsabs)
+{
+  if (epsabs < 0.0)
+    {
+      GSL_ERROR ("absolute tolerance is negative", GSL_EBADTOL);
+    }
+  
+  if (size < epsabs)
+    {
+      return GSL_SUCCESS;
+    }
 
-
+  return GSL_CONTINUE;
+}
