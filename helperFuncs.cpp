@@ -247,3 +247,29 @@ void updateGuess(double *ynew, complex<double> *sLeft, const gsl_vector *guessAm
 	}
 
 }
+
+void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
+	RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
+	const int nRoot = rootObj->getSizeRoot();
+	double epsrel = 1e-6;
+
+	const double G0 = rootObj->getGnorm();
+	gsl_vector *Am_1 = gsl_vector_alloc(nRoot);
+	gsl_vector_memcpy(Am_1, Am_in);
+
+	for (int j = 0; j < nRoot; j++){
+		double Aj = gsl_vector_get(Am_1, j);
+		double deltaA = epsrel * abs(Aj);
+
+		if (deltaA == 0) {
+			deltaA = epsrel;
+		}
+
+		gsl_vector_set(Am_1, j, Aj + deltaA);
+
+		double G1 = mapG(Am_1, rootparams);
+
+		gsl_vector_set(dG, j, (G1-G0)/deltaA);
+	}
+	
+}

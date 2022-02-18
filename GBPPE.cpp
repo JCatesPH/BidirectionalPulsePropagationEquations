@@ -357,6 +357,7 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 		f2norm += pow(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]), 2);
 		f2norm += pow(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]), 2);
 	}
+	rootObj->setGnorm(f2norm);
 
 
 	if (rootObj->getOutParam() == 1) {
