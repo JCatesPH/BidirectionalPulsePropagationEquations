@@ -468,7 +468,7 @@ void iterateBPPE()
 
 	// ----------- Setting Initial Step Sizes -----------
 	gsl_vector *fminStepSizes = gsl_vector_alloc(sizeRoot);
-	gsl_vector_set_all(fminStepSizes, 1e2);
+	gsl_vector_set_all(fminStepSizes, MULTIMIN_INTSTEP);
 
 	// ---------------------------------------------------
 
@@ -512,6 +512,9 @@ void iterateBPPE()
 		}
 		if (status == GSL_ENOPROGJ) {
 			printf("\nERROR: GSL fsolver returned GSL_ENOPROGJ. The iteration scheme is not making progress.\n");
+		}
+		if (myRootParams.getItNum() == MULTIMIN_ITMAX) {
+			printf("\nWARNING: Reached MULTIMIN_ITMAX iterations.\n");
 		}
 		if (status) break;
 

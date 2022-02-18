@@ -61,6 +61,9 @@ using namespace std;
 
 #define NOISE_MAGNITUDE 1.0e4
 
+#define MULTIMIN_ITMAX 25000
+#define MULTIMIN_INTSTEP 1e2
+
 // CODE parameters
 #define USE_CPP_BOUNDARY
 #define USE_CPP_NONLINEAR
