@@ -69,6 +69,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
     int num_threads = omp_get_num_threads();
     int col_frac = ((int) n) / num_threads;
     int thread_id = omp_get_thread_num();
+    int prog = 0, numdots = 0;
 
     size_t i,j;
     gsl_vector *x1, *f1;
@@ -146,6 +147,9 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
       last_index = (thread_id + 1) * col_frac;
     
     // This is when actual Jacobian computations begin
+    #ifdef VERBOSE_JAC_COMP
+      printf("Progress : [");
+    #endif
     for (j = thread_id * col_frac; j < last_index; j++)
       {
         double xj = gsl_vector_get (x, j);
@@ -204,7 +208,17 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
             status = GSL_ESING;
           }
         }
+        prog++;
+        #ifdef VERBOSE_JAC_COMP
+          if ((double) prog / n > numdots / 10.0) {
+            printf("*");
+          }
+        #endif 
       }
+    #ifdef VERBOSE_JAC_COMP
+      printf("]\n");
+    #endif 
+    #pragma omp barrier
     #ifdef VERBOSE_JAC_COMP
       printf("      Thread number %d information: \n", thread_id);
       printf("       Time spent evaluating mapping is %.2f [s]\n", evalTime);

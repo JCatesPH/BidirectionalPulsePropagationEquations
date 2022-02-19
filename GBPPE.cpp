@@ -321,7 +321,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                     }
 
                     nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
-                    if ((int)(nonlinear_time / 20) > numzReports) {
+                    if ((int)(nonlinear_time / 20) > numzReports && rootObj->getOutParam() == 1) {
                         printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rootObj->getItNum(), numZsteps, zPosition, (int)nonlinear_time);
                         numzReports++;
                     }

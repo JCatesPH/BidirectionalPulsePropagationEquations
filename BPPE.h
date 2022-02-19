@@ -59,7 +59,7 @@ using namespace std;
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e4
+#define NOISE_MAGNITUDE 1.0e-2
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -85,8 +85,8 @@ const int normType = -1;
 extern double zStepMaterial1;
 
 // GSL ODE API parameters
-const double ode_epsabs = 1e-9;
-const double ode_epsrel = 1e-6;
+const double ode_epsabs = 1e-8;
+const double ode_epsrel = 1e-5;
 const int ode_nmax = 1e6;
 
 // GSL Quasi-Newton API parameters
