@@ -17,6 +17,7 @@ MaterialDB myMaterialsDB("myFirstMaterialDB");
 // This block of vars were orignally inside main()
 double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
 double LHSsourceLayerThickness, RHSbufferLayerThickness;
+double rho_0;
 double twoColorSH_amplitude, twoColorSH_phase;
 int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, num_Threads;
 double domain_t, zStepMaterial1, alpha_tukey;
@@ -775,4 +776,6 @@ void readGlobalParameters(char *inFile) {
 	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
 	
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
+
+	rho_0 = getDoubleParameterValueByName("initialEDensity");
 }

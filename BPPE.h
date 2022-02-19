@@ -97,7 +97,8 @@ const double root_epsrel = 1e-7;
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
 const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
-const double rho_0 = 9.0e24; // initial electron density
+//const double rho_0 = 9.0e24; // initial electron density
+extern double rho_0;
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
 const double tauCollision = 190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time

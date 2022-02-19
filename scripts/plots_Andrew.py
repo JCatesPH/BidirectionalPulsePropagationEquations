@@ -23,7 +23,8 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA_Drude_25umL_fromNoise'
+    pathhead = '../DATA_Drude_25umL'
+    pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
     itnum = '21'
 
 
@@ -48,7 +49,7 @@ epsilon_0 = 8.85418782e-12
 charge_e = 1.602176634e-19
 mass_e = 9.10938356e-31
 
-numE = 9e24
+numE = 1e24
 omegPlasma = np.sqrt(charge_e**2*numE/(epsilon_0*mass_e))
 
 print("For {:} electrons, the plasma frequency is: {:.8e}".format(numE, omegPlasma))
