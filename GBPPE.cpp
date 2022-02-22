@@ -416,7 +416,7 @@ void iterateBPPE()
 
 	// Initialize time and status variables
 	int status; 
-	double xnorm, fval, simplexSize;
+	double xnorm, fval, simplexSize, gradnorm;
 	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
 
 	char timeLogFname[STRING_BUFFER_SIZE];
@@ -431,11 +431,14 @@ void iterateBPPE()
 
 	// Initialize multiroot objects
 	printf("Allocating multiroot solver\n");
-	const gsl_multimin_fminimizer_type *fminType = gsl_multimin_fminimizer_nmsimplex2;
-    gsl_multimin_fminimizer *gslSolver;
+	//const gsl_multimin_fminimizer_type *fminType = gsl_multimin_fminimizer_nmsimplex2;
+    //gsl_multimin_fminimizer *gslSolver;
+	const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_conjugate_fr;
+	gsl_multimin_fdfminimizer *gslSolver_fdf;
 
 	nonlinear_time_initial = omp_get_wtime();
-	gslSolver = gsl_multimin_fminimizer_alloc(fminType, sizeRoot);
+	//gslSolver = gsl_multimin_fminimizer_alloc(fminType, sizeRoot);
+	gslSolver_fdf = gsl_multimin_fdfminimizer_alloc(fdfminType, sizeRoot);
 
 	fprintf(localLogFile, "Time spent allocating multiroot solver : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
 	nonlinear_time_initial = omp_get_wtime();
@@ -475,12 +478,16 @@ void iterateBPPE()
 
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
-	gsl_multimin_function minFunc;
+	//gsl_multimin_function minFunc;
+	gsl_multimin_function_fdf minFunc;
 	minFunc.n = sizeRoot;
 	minFunc.f = mapG;
 	minFunc.params = &myRootParams;
+	minFunc.df = dGdA;
+	minFunc.fdf = GdG;
 	nonlinear_time_tmp = omp_get_wtime();
-	gsl_multimin_fminimizer_set(gslSolver, &minFunc, u, fminStepSizes);
+	//gsl_multimin_fminimizer_set(gslSolver, &minFunc, u, fminStepSizes);
+	gsl_multimin_fdfminimizer_set(gslSolver_fdf, &minFunc, u, MULTIMIN_INTSTEP, 1.0e-4);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
@@ -502,7 +509,8 @@ void iterateBPPE()
 		printf("Starting iteration %d\n", myRootParams.getItNum());
 		fflush(stdout);
 		nonlinear_time_tmp = omp_get_wtime();
-		status = gsl_multimin_fminimizer_iterate(gslSolver);
+		//status = gsl_multimin_fminimizer_iterate(gslSolver);
+		status = gsl_multimin_fdfminimizer_iterate(gslSolver_fdf);
 
 		//if(fetestexcept(FE_ALL_EXCEPT & ~FE_INEXACT)) raise(SIGFPE);
 		if (status == GSL_EBADFUNC) {
@@ -520,15 +528,17 @@ void iterateBPPE()
 		if (status) break;
 
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
-		simplexSize = gsl_multimin_fminimizer_size (gslSolver);
-      	status = gsl_multimin_test_size (simplexSize, 1e-2);
+		//simplexSize = gsl_multimin_fminimizer_size (gslSolver);
+      	//status = gsl_multimin_test_size (simplexSize, 1e-2);
+		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, 1e-6);
 		//dxnorm = gsl_blas_dasum(s->dx);
 		//dxnorm = gsl_blas_dnrm2(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gslSolver->fval);
+		//fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gslSolver->fval);
+		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
@@ -547,18 +557,22 @@ void iterateBPPE()
 	// Run the map one last time to output spectra
 	printf("Performing final iteration with output enabled..\n");
 	myRootParams.setOutParam(1);
-	mapG(gslSolver->x, &myRootParams);
+	//mapG(gslSolver->x, &myRootParams);
+	mapG(gslSolver_fdf->x, &myRootParams);
 
-	xnorm = gsl_blas_dnrm2(gslSolver->x);
+	//xnorm = gsl_blas_dnrm2(gslSolver->x);
+	xnorm = gsl_blas_dnrm2(gslSolver_fdf->x);
 	printf("  simplex size = %.7e\n", simplexSize);
 	printf("  x norm       = %.7e\n", xnorm);
-	printf("  f val        = %.7e\n\n", gslSolver->fval);
+	//printf("  f val        = %.7e\n\n", gslSolver->fval);
+	printf("  f val        = %.7e\n\n", gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 
 	// Free solver memory
 	printf("Freeing solver memory.\n");
 	gsl_vector_free(u);
 	gsl_vector_free(fminStepSizes);
-    gsl_multimin_fminimizer_free(gslSolver);
+    //gsl_multimin_fminimizer_free(gslSolver);
+	gsl_multimin_fdfminimizer_free(gslSolver_fdf);
 	printf("Finished freeing solver memory.\n");
 	
 }

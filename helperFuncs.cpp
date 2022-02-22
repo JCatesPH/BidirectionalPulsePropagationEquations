@@ -273,3 +273,8 @@ void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
 	}
 	
 }
+
+void GdG(const gsl_vector *Am_in, void *rootparams, double *G, gsl_vector *dG) {
+	*G = mapG(Am_in, rootparams);
+	dGdA(Am_in, rootparams, dG);
+}
