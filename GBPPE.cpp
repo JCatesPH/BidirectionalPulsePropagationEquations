@@ -487,7 +487,7 @@ void iterateBPPE()
 	minFunc.fdf = GdG;
 	nonlinear_time_tmp = omp_get_wtime();
 	//gsl_multimin_fminimizer_set(gslSolver, &minFunc, u, fminStepSizes);
-	gsl_multimin_fdfminimizer_set(gslSolver_fdf, &minFunc, u, MULTIMIN_INTSTEP, 1.0e-4);
+	gsl_multimin_fdfminimizer_set(gslSolver_fdf, &minFunc, u, MULTIMIN_INTSTEP, MULTIMIN_TOL);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
@@ -530,7 +530,7 @@ void iterateBPPE()
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
 		//simplexSize = gsl_multimin_fminimizer_size (gslSolver);
       	//status = gsl_multimin_test_size (simplexSize, 1e-2);
-		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, 1e-6);
+		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, MULTIMIN_EPSABS);
 		//dxnorm = gsl_blas_dasum(s->dx);
 		//dxnorm = gsl_blas_dnrm2(s->dx);
 
@@ -562,8 +562,11 @@ void iterateBPPE()
 
 	//xnorm = gsl_blas_dnrm2(gslSolver->x);
 	xnorm = gsl_blas_dnrm2(gslSolver_fdf->x);
-	printf("  simplex size = %.7e\n", simplexSize);
+	gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
+	//printf("  simplex size = %.7e\n", simplexSize);
+
 	printf("  x norm       = %.7e\n", xnorm);
+	printf("  simplex size = %.7e\n", gradnorm);
 	//printf("  f val        = %.7e\n\n", gslSolver->fval);
 	printf("  f val        = %.7e\n\n", gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 

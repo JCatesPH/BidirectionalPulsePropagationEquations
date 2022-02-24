@@ -63,6 +63,8 @@ using namespace std;
 
 #define MULTIMIN_ITMAX 25000
 #define MULTIMIN_INTSTEP 1e2
+#define MULTIMIN_TOL 0.1
+#define MULTIMIN_EPSABS 1e-6
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
