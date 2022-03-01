@@ -1,0 +1,30 @@
+# # Template for input file
+################################
+# # Global parameters
+Verbosity                   = 4  
+outputPath                  = DATA
+numThreads                  = 8
+
+################################
+# # Beam parameters
+meanPumpIntensity           =
+pulseDuration               =
+fundamentalWavelength       =
+twoColorRelativeIntensity   =
+twoColorPhase               =
+
+################################
+# # Time domain parameters
+numTimePoints               =
+timeDomainSize              =
+omegLowerCutoff             =
+omegUpperCutoff             =
+tukeyWindowAlpha            =
+
+################################
+# # Spatial domain parameters
+sampleLayerThickness        =
+initialZStep                =
+LHSbufferThickness          =
+RHSbufferThickness          =
+initialEDensity             =

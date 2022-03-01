@@ -259,8 +259,8 @@ void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
 
 	for (int j = 0; j < nRoot; j++){
 		double Aj = gsl_vector_get(Am_1, j);
-		//double deltaA = epsrel * abs(Aj);
-		double deltaA = epsrel;
+		double deltaA = epsrel * abs(Aj);
+		//double deltaA = epsrel;
 
 		/* if (deltaA == 0) {
 			deltaA = epsrel;

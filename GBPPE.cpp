@@ -504,9 +504,13 @@ void iterateBPPE()
 
     // Comment to toggle output on every iteration
 	myRootParams.setOutParam(1);
+	printf("Starting iterations..\n");
+	printf("============================================================================\n");
+	printf("| Iteration Number | Time in seconds  | 2-norm of step  | 2-norm of map    |\n");
+	printf("============================================================================\n");
 	do
 	{
-		printf("Starting iteration %d\n", myRootParams.getItNum());
+		//printf("Starting iteration %d\n", myRootParams.getItNum());
 		fflush(stdout);
 		nonlinear_time_tmp = omp_get_wtime();
 		//status = gsl_multimin_fminimizer_iterate(gslSolver);
@@ -531,14 +535,16 @@ void iterateBPPE()
 		//simplexSize = gsl_multimin_fminimizer_size (gslSolver);
       	//status = gsl_multimin_test_size (simplexSize, 1e-2);
 		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, MULTIMIN_EPSABS);
+		gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
 		//dxnorm = gsl_blas_dasum(s->dx);
 		//dxnorm = gsl_blas_dnrm2(s->dx);
 
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
-		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
+		//printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
 		//fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gslSolver->fval);
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
+		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, gradnorm, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
+		printf("|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, gradnorm, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
