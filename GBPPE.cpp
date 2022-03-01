@@ -566,7 +566,7 @@ void iterateBPPE()
 	//printf("  simplex size = %.7e\n", simplexSize);
 
 	printf("  x norm       = %.7e\n", xnorm);
-	printf("  simplex size = %.7e\n", gradnorm);
+	printf("  grad norm    = %.7e\n", gradnorm);
 	//printf("  f val        = %.7e\n\n", gslSolver->fval);
 	printf("  f val        = %.7e\n\n", gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 
