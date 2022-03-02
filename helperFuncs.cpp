@@ -251,7 +251,8 @@ void updateGuess(double *ynew, complex<double> *sLeft, const gsl_vector *guessAm
 void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
 	RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
 	const int nRoot = rootObj->getSizeRoot();
-	double epsrel = 1e-4;
+	//double epsrel = 1e-4;
+	double epsrel = GSL_SQRT_DBL_EPSILON; // 1.49e-8
 
 	const double G0 = rootObj->getGnorm();
 	gsl_vector *Am_1 = gsl_vector_alloc(nRoot);
@@ -262,9 +263,9 @@ void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
 		double deltaA = epsrel * abs(Aj);
 		//double deltaA = epsrel;
 
-		/* if (deltaA == 0) {
+		if (deltaA == 0) {
 			deltaA = epsrel;
-		} */
+		}
 
 		gsl_vector_set(Am_1, j, Aj + deltaA);
 
