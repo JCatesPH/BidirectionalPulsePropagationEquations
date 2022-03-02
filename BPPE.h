@@ -59,12 +59,12 @@ using namespace std;
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 5.0e-1
+#define NOISE_MAGNITUDE 5.0e2
 
-#define MULTIMIN_ITMAX 25000
-#define MULTIMIN_INTSTEP 1e8
-#define MULTIMIN_TOL 0.1
-#define MULTIMIN_EPSABS 1e-6
+//#define MULTIMIN_ITMAX 25000
+//#define MULTIMIN_INTSTEP 1e4
+//#define MULTIMIN_TOL 0.1
+//#define MULTIMIN_EPSABS 1e-6
 
 // CODE parameters
 #define USE_CPP_BOUNDARY

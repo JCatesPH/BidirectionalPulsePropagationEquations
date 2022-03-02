@@ -27,6 +27,10 @@ double *omegaArray, *timeValuesArray, *kx;
 complex<double> *sourceLeft, *sourceRight;
 //fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
+// -- Optimization algorithm parameters
+int multimin_iterMax;
+double multimin_initStep, multimin_tol, multimin_stopCon;
+// ------------------
 
 int foundNaN = 0;
 int delmeFLAG = 0;
@@ -473,7 +477,7 @@ void iterateBPPE()
 
 	// ----------- Setting Initial Step Sizes -----------
 	gsl_vector *fminStepSizes = gsl_vector_alloc(sizeRoot);
-	gsl_vector_set_all(fminStepSizes, MULTIMIN_INTSTEP);
+	gsl_vector_set_all(fminStepSizes, multimin_initStep);
 
 	// ---------------------------------------------------
 
@@ -488,7 +492,7 @@ void iterateBPPE()
 	minFunc.fdf = &GdG;
 	nonlinear_time_tmp = omp_get_wtime();
 	//gsl_multimin_fminimizer_set(gslSolver, &minFunc, u, fminStepSizes);
-	gsl_multimin_fdfminimizer_set(gslSolver_fdf, &minFunc, u, MULTIMIN_INTSTEP, MULTIMIN_TOL);
+	gsl_multimin_fdfminimizer_set(gslSolver_fdf, &minFunc, u, multimin_initStep, multimin_tol);
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
@@ -527,7 +531,7 @@ void iterateBPPE()
 		if (status == GSL_ENOPROGJ) {
 			printf("\nERROR: GSL fsolver returned GSL_ENOPROGJ. The iteration scheme is not making progress.\n");
 		}
-		if (myRootParams.getItNum() == MULTIMIN_ITMAX) {
+		if (myRootParams.getItNum() == multimin_iterMax) {
 			printf("\nWARNING: Reached MULTIMIN_ITMAX iterations.\n");
 		}
 		if (status) break;
@@ -535,7 +539,7 @@ void iterateBPPE()
 		//status = gsl_multiroot_test_residual(s->f, root_epsabs);
 		//simplexSize = gsl_multimin_fminimizer_size (gslSolver);
       	//status = gsl_multimin_test_size (simplexSize, 1e-2);
-		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, MULTIMIN_EPSABS);
+		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, multimin_stopCon);
 		//gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
 		gradnorm = gsl_blas_dnrm2(gslSolver_fdf->dx);
 		//dxnorm = gsl_blas_dasum(s->dx);
@@ -551,7 +555,7 @@ void iterateBPPE()
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
 		fflush(stdout);
 	}
-	while (status == GSL_CONTINUE && myRootParams.getItNum() < 25000);
+	while (status == GSL_CONTINUE && myRootParams.getItNum() < multimin_iterMax);
 
 	nonlinear_time_total = omp_get_wtime() - nonlinear_time_initial;
 	printf("=============================================================\n");
@@ -792,24 +796,29 @@ void readGlobalParameters(char *inFile) {
 	A_0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
 	omega_0 = 2 * M_PI*cLight / lambda_0;
 
-	// Load in domain parameters
+	// -- Time domain parameters
 	num_t = getIntParameterValueByName("numTimePoints");
-	//num_t = pow(2, 17);
 	domain_t = getDoubleParameterValueByName("timeDomainSize");
-
-	//freqUpperCutoff = num_t / 2;
 	freqLowerCutoff = getIntParameterValueByName("omegLowerCutoff");
 	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
 	numActiveOmega = num_t / 2 + 1;
-	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 	l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
 
+	// -- Spatial domain parameters
 	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
 	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");
 	LHSsourceLayerThickness = getDoubleParameterValueByName("LHSbufferThickness");
 	RHSbufferLayerThickness = getDoubleParameterValueByName("RHSbufferThickness");
 	
+	// -- Tukey window parameter
 	alpha_tukey = getDoubleParameterValueByName("tukeyWindowAlpha");
 
+	// -- Initial electron density
 	rho_0 = getDoubleParameterValueByName("initialEDensity");
+
+	// -- Optimization algorithm parameters
+	multimin_iterMax  = getIntParameterValueByName("multiminIterMax");
+	multimin_initStep = getDoubleParameterValueByName("multiminInitStep");
+	multimin_tol      = getDoubleParameterValueByName("multiminTol");
+	multimin_stopCon  = getDoubleParameterValueByName("multiminStopCon");
 }

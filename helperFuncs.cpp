@@ -121,12 +121,6 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 		integral2[i] = 0.0;
 	}
 
-	// Set the initial guess with y
-	for (int k = 0; k < sizeRoot/2; k++){
-		gsl_vector_set(u, k, odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
-	}
-
 	// Use integral condition to inform guess
     rootObj->setOutParam(1); // Turn output on (1) or off (0)
     rootObj->setIntCond(1); // Set whether to calculate integral
@@ -137,13 +131,6 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 		Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
 	}
 
-	// Set the initial guess with y and uniform r.v.
-	for (int k = 0; k < sizeRoot/2; k++){
-		//gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
-		//gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
-	}
 
 	// Get second guess for secant method
     rootObj->setItNum(2);
@@ -219,12 +206,12 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	/* cout << "Finished iteration 4" << endl;
 	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
 	for (int k = 0; k < sizeRoot/2; k++){
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
-		//gsl_vector_set(u, k, dis(gen));
-		//gsl_vector_set(u, k + sizeRoot/2, dis(gen));
+		gsl_vector_set(u, k, dis(gen));
+		gsl_vector_set(u, k + sizeRoot/2, dis(gen));
 	}
 
 

@@ -28,3 +28,10 @@ initialZStep                =
 LHSbufferThickness          =
 RHSbufferThickness          =
 initialEDensity             =
+
+################################
+# # Optimization parameters
+multiminIterMax             =
+multiminInitStep            =
+multiminTol                 =
+multiminStopCon             =
