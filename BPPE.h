@@ -55,11 +55,11 @@ using namespace std;
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
-#define DO_DRUDE_MODEL
+//#define DO_DRUDE_MODEL
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 5.0e2
+#define NOISE_MAGNITUDE 1.0e-1
 
 //#define MULTIMIN_ITMAX 25000
 //#define MULTIMIN_INTSTEP 1e4
@@ -147,8 +147,10 @@ const double n0_Material3 = 1.0; //central index in material 3
 const double n2_Material1 = 0.0; //nonlinear index in material 1
 const double n2_Material2 = 0.0; //nonlinear index in material 2
 const double chi_2 = 0.0; //30.0e-12; //nonlinear chi_2
-const double chi3_Material1 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material1, 2) * n2_Material1;
-const double chi3_Material2 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material2, 2) * n2_Material2;
+//const double chi3_Material1 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material1, 2) * n2_Material1;
+//const double chi3_Material2 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material2, 2) * n2_Material2;
+const double chi3_Material1 = 0.0;
+const double chi3_Material2 = 0.0; 
 const double chi2_Material1 = 0.0;
 const double chi2_Material2 = 0.0; //-1.0 * chi_2;
 

@@ -12,7 +12,7 @@ MASS_E = 9.10938356e-31
 
 #%% Set parameters
 num_t = 2**13
-dom_t = 6.6e-12
+dom_t = 0.66e-12
 delta_t = dom_t / num_t
 
 print('num_t = {}'.format(num_t))
@@ -29,7 +29,7 @@ print('delta_omeg = {:.3e}'.format(delta_om))
 print('delta_f = {:.3e}'.format(delta_f))
 
 #%% Use the central frequency for further analysis
-lamb0 = 10e-6
+lamb0 = 1e-6
 omeg0 = 2 * np.pi * CLIGHT / lamb0 
 maxHarm = int(max_omeg / omeg0)
 

@@ -20,8 +20,9 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA_DBR'
-    itnum = '17'
+    #pathhead = '../DATA_DBR'
+    pathhead = '../DATA/DBR_relN_bfgs_030222'
+    itnum = '2'
 
 
 CLIGHT = 299792458
@@ -49,6 +50,7 @@ def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabel
         axs.set_title(titleStr)
     #axs.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     axs.set_xlabel(xlabelStr)
+    axs.set_ylabel((r'$I$ [W/cm$^2$]'))
     #axs.set_ylabel(r'Re[$E(t)$] [V/m]')
     if xlims is not None:
         axs.set_xlim(xlims)
@@ -73,7 +75,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
-Z0 = df.loc[df['Variable'] == 'Znaught'].values[0,1]
+#Z0 = df.loc[df['Variable'] == 'Znaught'].values[0,1]
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
 
 labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)
@@ -109,10 +111,11 @@ k0arr = omeg / 3e8
 #%% Plot input spectrum
 plt.clf()
 plt.figure(figsize=stdfigsize, dpi=400)
-plt.semilogy(omeg/omeg0, Ez**2)
-plt.title(r'Input Amplitude Spectrum')
+plt.semilogy(omeg/omeg0, intensityFactor * Ez**2)
+plt.title(r'Input Spectrum')
 #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega/\omega_0$')
+plt.ylabel(r'$I$ [W/cm$^2$]')
 plt.grid(which='major')
 plt.legend()
 #plt.xlim([0.0, np.max(inSpectrum[:,0])])
@@ -134,19 +137,28 @@ halflen = int(len(omeg) / 2)
 #%%
 #plotSpectrum([omeg/omeg0], [np.abs(eOmT)**2], [''], pathhead + '/figs/TransmittedSpectrum.png')
 #plotSpectrum([omeg/omeg0], [np.abs(eOmR)**2], [''], pathhead + '/figs/ReflectedSpectrum.png')
-plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
-    [np.abs(eOmT[:freqUpperCutoff])**2, np.abs(eOmR[:freqUpperCutoff])**2], 
-    ['Transmitted', 'Reflected'], 
-    filePath=pathhead + '/figs/BothSpectra.png',
+plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
+    [intensityFactor * np.abs(eOmT[:freqUpperCutoff])**2, intensityFactor * np.abs(eOmR[:freqUpperCutoff])**2, intensityFactor * Ez[:freqUpperCutoff]**2], 
+    ['T', 'R', 'I'], 
+    filePath=pathhead + '/figs/AllSpectra.png',
     titleStr='Transmitted and Reflected Spectra'
     #xlims=[0.5, 1.5]
     )
 #plt.show()
 
 #%%
+plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
+    [intensityFactor * np.abs(eOmT[:freqUpperCutoff])**2, intensityFactor * np.abs(eOmR[:freqUpperCutoff])**2], 
+    ['Transmitted', 'Reflected'], 
+    filePath=pathhead + '/figs/BothSpectra.png',
+    titleStr='Transmitted and Reflected Spectra'
+    #xlims=[0.5, 1.5]
+    )
+
+#%%
 sighat = np.sqrt(4*np.log(2)/taup**2)
-lowerInd = np.count_nonzero(omeg[:halflen] < omeg0-15*sighat)
-upperInd = np.count_nonzero(omeg[:halflen] < omeg0+15*sighat)
+lowerInd = np.count_nonzero(omeg[:halflen] < omeg0-50*sighat)
+upperInd = np.count_nonzero(omeg[:halflen] < omeg0+50*sighat)
 #lowerInd = 1
 #upperInd = 1904
 tcoef = (np.abs(eOmT[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
@@ -173,7 +185,7 @@ plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$R$')
 #plt.grid(which='major')
 plt.legend()
-plt.xlim([0.75, 1.25])
+#plt.xlim([0.75, 1.25])
 #plt.ylim([0, 2])
 plt.margins(x=0)
 plt.title('Reflection Coefficient')

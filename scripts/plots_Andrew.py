@@ -23,9 +23,10 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA/Drude_2umL_cgfr_022822'
+    pathhead = '../DATA/Drude_2umL_relNoise_bfgs_030122'
+    #pathhead = '../DATA/DBR_relN_bfgs_cd_030222'
     #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
-    itnum = '2'
+    itnum = '211'
 
 
 CLIGHT = 299792458

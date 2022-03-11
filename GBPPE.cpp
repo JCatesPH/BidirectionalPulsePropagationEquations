@@ -361,7 +361,13 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 		f2norm += pow(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]), 2);
 		f2norm += pow(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]), 2);
 	}
-	rootObj->setGnorm(f2norm);
+	rootObj->setGnorm(sqrt(f2norm));
+	/* double f1norm = 0.0;
+	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
+		f1norm += abs(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]));
+		f1norm += abs(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]));
+	}
+	rootObj->setGnorm(f1norm);  */
 
 
 	if (rootObj->getOutParam() == 1) {
@@ -401,7 +407,7 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 		return GSL_EBADFUNC;
 	else
     	return GSL_SUCCESS; */
-	return sqrt(f2norm);
+	return rootObj->getGnorm();
 }
 
 void iterateBPPE()
@@ -437,8 +443,8 @@ void iterateBPPE()
 	printf("Allocating multiroot solver\n");
 	//const gsl_multimin_fminimizer_type *fminType = gsl_multimin_fminimizer_nmsimplex2;
     //gsl_multimin_fminimizer *gslSolver;
-	//const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_vector_bfgs2;
-	const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_conjugate_fr;
+	const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_vector_bfgs2;
+	//const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_conjugate_fr;
 	gsl_multimin_fdfminimizer *gslSolver_fdf;
 
 	nonlinear_time_initial = omp_get_wtime();
@@ -476,8 +482,8 @@ void iterateBPPE()
 	// ---------------------------------------------------
 
 	// ----------- Setting Initial Step Sizes -----------
-	gsl_vector *fminStepSizes = gsl_vector_alloc(sizeRoot);
-	gsl_vector_set_all(fminStepSizes, multimin_initStep);
+	//gsl_vector *fminStepSizes = gsl_vector_alloc(sizeRoot);
+	//gsl_vector_set_all(fminStepSizes, multimin_initStep);
 
 	// ---------------------------------------------------
 
@@ -498,7 +504,7 @@ void iterateBPPE()
 
 	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
 	fprintf(localLogFile, "============================================================================\n");
-	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  | 2-norm of map    |\n");
+	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of grad  | 2-norm of map    |\n");
 	fprintf(localLogFile, "============================================================================\n");
 	nonlinear_time_initial = omp_get_wtime();
 
@@ -511,7 +517,7 @@ void iterateBPPE()
 	myRootParams.setOutParam(1);
 	printf("Starting iterations..\n");
 	printf("=============================================================\n");
-	printf("| Iter   | Time [s]   | 2-norm of step   | 2-norm of map    |\n");
+	printf("| Iter   | Time [s]   | 2-norm of grad   | 2-norm of map    |\n");
 	printf("=============================================================\n");
 	do
 	{
@@ -540,8 +546,9 @@ void iterateBPPE()
 		//simplexSize = gsl_multimin_fminimizer_size (gslSolver);
       	//status = gsl_multimin_test_size (simplexSize, 1e-2);
 		status = gsl_multimin_test_gradient(gslSolver_fdf->gradient, multimin_stopCon);
-		//gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
-		gradnorm = gsl_blas_dnrm2(gslSolver_fdf->dx);
+		gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
+		//gradnorm = gsl_blas_dnrm2(gslSolver_fdf->dx);
+		//gradnorm = gsl_blas_dnrm2(gsl_multimin_fdfminimizer_dx(gslSolver_fdf));
 		//dxnorm = gsl_blas_dasum(s->dx);
 		//dxnorm = gsl_blas_dnrm2(s->dx);
 
@@ -549,7 +556,7 @@ void iterateBPPE()
 		//printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
 		//fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, simplexSize, gslSolver->fval);
-		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, gradnorm, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
+		fprintf(localLogFile, "|%18d|%18.3f|%18.9e|%18.9e|\n", myRootParams.getItNum(), nonlinear_time, gradnorm, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 		printf("|%8d|%12.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, gradnorm, gsl_multimin_fdfminimizer_minimum(gslSolver_fdf));
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
@@ -573,8 +580,10 @@ void iterateBPPE()
 	mapG(gslSolver_fdf->x, &myRootParams);
 
 	//xnorm = gsl_blas_dnrm2(gslSolver->x);
-	xnorm = gsl_blas_dnrm2(gslSolver_fdf->x);
-	gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
+	//xnorm = gsl_blas_dnrm2(gslSolver_fdf->x);
+	//gradnorm = gsl_blas_dnrm2(gslSolver_fdf->gradient);
+	gradnorm = gsl_blas_dnrm2(gsl_multimin_fdfminimizer_gradient(gslSolver_fdf));
+	xnorm = gsl_blas_dnrm2(gsl_multimin_fdfminimizer_x(gslSolver_fdf));
 	//printf("  simplex size = %.7e\n", simplexSize);
 
 	printf("  x norm       = %.7e\n", xnorm);
@@ -585,7 +594,7 @@ void iterateBPPE()
 	// Free solver memory
 	printf("Freeing solver memory.\n");
 	gsl_vector_free(u);
-	gsl_vector_free(fminStepSizes);
+	//gsl_vector_free(fminStepSizes);
     //gsl_multimin_fminimizer_free(gslSolver);
 	gsl_multimin_fdfminimizer_free(gslSolver_fdf);
 	printf("Finished freeing solver memory.\n");
