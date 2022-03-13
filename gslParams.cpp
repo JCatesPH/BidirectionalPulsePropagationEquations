@@ -51,6 +51,8 @@ void ODEParams::fillParams(Material myMat) {
 	mpi_sigmaK = myMat.getmpi_sigmaK();
 	mpi_k = myMat.getmpi_k();
 	ionE = myMat.getIonizationEnergy();
+	sigmaBremsstrahlung = myMat.getsigmaBremsstrahlung();
+	recombTime = myMat.getrecombTime();
 
 	// Load susceptibilities
 	chi_2 = myMat.getChi2();

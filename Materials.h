@@ -23,7 +23,7 @@ private:
 	double m_chi_2;
 	double m_chi_3;
 	int m_doPlasmaCalc = 0;
-	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0, m_ionE = 0.0;
+	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0, m_ionE = 0.0, m_sigmaBremsstrahlung = 0.0, m_recombTime;
 
 	//complex<double>* m_k=nullptr;
 	int m_numActiveOmega = 0;
@@ -56,6 +56,9 @@ public:
 	double getmpi_sigmaK() { return m_mpi_sigmaK; }
 	double getmpi_k() { return m_mpi_k; }
 	double getIonizationEnergy() {return m_ionE; }
+	double getsigmaBremsstrahlung() {return m_sigmaBremsstrahlung; }
+	double getrecombTime() {return m_recombTime; }
+
 
 	void setAsPlasmaMaterial(int doPlasmaCalc, double mpi_sigmaK, double mpi_k) {
 		m_doPlasmaCalc = doPlasmaCalc;
@@ -76,6 +79,25 @@ public:
 		ss << m_name;
 		ss << "  [ doPlasmaCalc=" << m_doPlasmaCalc;
 		ss << " Ionization Energy =" << m_ionE;
+		ss << " ]";
+		m_matInfoAsString.append(ss.str());
+	}
+	//setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime);
+	void setAsPlasmaMaterial(int doPlasmaCalc, double mpi_sigmaK, double mpi_k, double sigmaBremsstrahlung, double ionE, double recombTime) {
+		m_doPlasmaCalc = doPlasmaCalc;
+		m_mpi_sigmaK = mpi_sigmaK;
+		m_mpi_k = mpi_k;
+		m_sigmaBremsstrahlung = sigmaBremsstrahlung;
+		m_ionE = ionE;
+		m_recombTime = recombTime;
+		std::stringstream ss;
+		ss << m_name;
+		ss << "  [ doPlasmaCalc=" << m_doPlasmaCalc;
+		ss << " mpi_sigmaK=" << m_mpi_sigmaK;
+		ss << " mpi_k=" << m_mpi_k;
+		ss << " sigmaBremsstrahlung=" << m_sigmaBremsstrahlung;
+		ss << " ionE=" << m_ionE;
+		ss << " recombTime=" << m_recombTime;
 		ss << " ]";
 		m_matInfoAsString.append(ss.str());
 	}

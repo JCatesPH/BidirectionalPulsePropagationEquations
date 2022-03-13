@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
 
 	fill_omg_k(omegaArray, kx, myMaterialsDB);
 	DELME_ArgonDispersion(omegaArray);
+	//DELME_SilicaDispersion(omegaArray);
 	#ifdef DO_CONSTPLASMA
 		DELME_AndrewPreformed(omegaArray, myMaterialsDB.getMaterialByName("PlasmaMat"));
 	#endif
@@ -652,6 +653,42 @@ void DELME_ArgonDispersion(double* omg) {
 
 }
 
+void DELME_SilicaDispersion(double* omg) {
+	Material *SilicaMat;
+	SilicaMat = myMaterialsDB.getMaterialByName("Silica");
+
+	complex<double> n0;
+	double lambda;
+	
+	char dispersionFile[STRING_BUFFER_SIZE];
+	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Silica.dat", SIM_DATA_OUTPUT);
+	FILE* fp;
+	fp = fopen(dispersionFile, "w");
+	if (fp != NULL)
+	{
+		fprintf(fp, "# lambda [um]\tRe[n]\tIm[n]\n");
+	}
+	else {
+		printf("Failed to open file '%s'\n", dispersionFile);
+
+		exit(-1);
+	}
+
+	SilicaMat->m_k[0] = 0.0;
+	for (int i = 1; i < numActiveOmega; i++)
+	{
+		lambda = 2 * M_PI*cLight / omg[i] * 1e6;
+		// Sellmeier formula from https://doi.org/10.1364/JOSA.55.001205 valid for 0.21-6.7 um at 20.C
+		n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
+		n0 += DBL_EPSILON;
+
+		SilicaMat->m_k[i] = omg[i] * n0 / cLight;
+
+		fprintf(fp, "%.7g\t%.17g\t%.17g \n", lambda, real(n0), imag(n0));
+	}
+	if (fp != NULL) { fclose(fp); }
+
+}
 
 void writeSimParameters()
 {
@@ -670,10 +707,10 @@ void writeSimParameters()
 		//fprintf(fp, "Znaught        \t%.17g\t/*impedance of free space */\n", Znaught);
 		//fprintf(fp, "charge_e       \t%.17g\t/*electron charge */\n", charge_e);
 		//fprintf(fp, "mass_e         \t%.17g\t/*electron mass */\n", mass_e);
-		fprintf(fp, "u_Argon        \t%.17g\t/*argon potential */\n", u_Argon);
-		fprintf(fp, "u_Hydrogen     \t%.17g\t/*hydrogen potential */\n", u_Hydrogen);
-		fprintf(fp, "E_a            \t%.17g\t/*QST parameters */\n", E_a);
-		fprintf(fp, "mu_a           \t%.17g\t/*FILL */\n", mu_a);
+		//fprintf(fp, "u_Argon        \t%.17g\t/*argon potential */\n", u_Argon);
+		//fprintf(fp, "u_Hydrogen     \t%.17g\t/*hydrogen potential */\n", u_Hydrogen);
+		//fprintf(fp, "E_a            \t%.17g\t/*QST parameters */\n", E_a);
+		//fprintf(fp, "mu_a           \t%.17g\t/*FILL */\n", mu_a);
 		fprintf(fp, "I_0            \t%.8g\t/*initial peak ensity */\n", I_0);
 		fprintf(fp, "twoColorSH_amplitude \t%.17g\t/*two-color pulse: 2nd harmonic with half duration of fundamental */\n", twoColorSH_amplitude);
 		fprintf(fp, "twoColorSH_phase \t%.17g\t/*phase shift of 2nd harmonic */\n", twoColorSH_phase);
@@ -716,16 +753,16 @@ void writeSimParameters()
 		fprintf(fp, "n0_Material3           \t%.17g\t/*central index in material 3 */\n", n0_Material3);
 		fprintf(fp, "n2_Material1           \t%.17g\t/*nonlinear index in material 1 */\n", n2_Material1);
 		fprintf(fp, "n2_Material2           \t%.17g\t/*nonlinear index in material 2 */\n", n2_Material2);
-		fprintf(fp, "chi_2                  \t%.17g\t/*nonlinear chi_2 */\n", chi_2);
+		//fprintf(fp, "chi_2                  \t%.17g\t/*nonlinear chi_2 */\n", chi_2);
 		fprintf(fp, "A_0                    \t%.17g\t/*pulse peak amplitude */\n", A_0);
-		fprintf(fp, "Keldysh                \t%.17g\t/*keldysh parameter */\n", omega_0 * sqrt(2.0 * u_Argon*charge_e) / A_0);
-		fprintf(fp, "omegaPlasma            \t%.17g\t/*fully-ionized plasma frequency */\n", omegaPlasma);
-		fprintf(fp, "Sellmeir_chi_1_1       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_1);
-		fprintf(fp, "Sellmeir_chi_1_2       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_2);
-		fprintf(fp, "Sellmeir_chi_1_3       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_3);
-		fprintf(fp, "Sellmeir_omega_1       \t%.17g\t/*FILL */\n", Sellmeir_omega_1);
-		fprintf(fp, "Sellmeir_omega_2       \t%.17g\t/*FILL */\n", Sellmeir_omega_2);
-		fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
+		//fprintf(fp, "Keldysh                \t%.17g\t/*keldysh parameter */\n", omega_0 * sqrt(2.0 * u_Argon*charge_e) / A_0);
+		//fprintf(fp, "omegaPlasma            \t%.17g\t/*fully-ionized plasma frequency */\n", omegaPlasma);
+		//fprintf(fp, "Sellmeir_chi_1_1       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_1);
+		//fprintf(fp, "Sellmeir_chi_1_2       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_2);
+		//fprintf(fp, "Sellmeir_chi_1_3       \t%.17g\t/*FILL */\n", Sellmeir_chi_1_3);
+		//fprintf(fp, "Sellmeir_omega_1       \t%.17g\t/*FILL */\n", Sellmeir_omega_1);
+		//fprintf(fp, "Sellmeir_omega_2       \t%.17g\t/*FILL */\n", Sellmeir_omega_2);
+		//fprintf(fp, "Sellmeir_omega_3       \t%.17g\t/*FILL */\n", Sellmeir_omega_3);
 
 		// Print the GSL ODE parameters
 		fprintf(fp, "ode_epsabs       \t%.17g\t/*absolute error tolerance for Runge-Kutta */\n", ode_epsabs);

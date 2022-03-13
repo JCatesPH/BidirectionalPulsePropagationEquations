@@ -17,7 +17,7 @@ class ODEParams { // Class for ODE params
 		int numT = -666;
 		int numOmeg = -666;
 		int doPlasmaCalc = 0;
-		double chi_2, chi_3, mpi_sigmaK, mpi_k, ionE;
+		double chi_2, chi_3, mpi_sigmaK, mpi_k, ionE, sigmaBremsstrahlung, recombTime;
 		double *omega, *kx, *rho, *y;
 		complex<double> *k, *ee_p, *ee_m, *nl_k, *nl_p, *j_e;
 		fftw_plan nk_f, ep_b, em_b, np_f, ep_f, em_f;

@@ -93,9 +93,56 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	fftw_execute(odeObj->nk_f);
 	normalizeFFT(odeObj->nl_k);
 
-	if (odeObj->doPlasmaCalc == 2) {
+	if (odeObj->doPlasmaCalc == 3) {
+		double ht = domain_t / num_td;
+		double neutrals = num_atoms - rho_0;      // Neutral particles
+		double electrons = rho_0;                 // background Electrons
+		double change = 0.0;                      // dN/dt
+		double current = 0.0;                     // Current to be exported to UPPE
+		double current_change = 0.0e0;            // Current change for differential equation
+		double ve = 0.0; //1/tauCollision;
+		double fv1 = 0.0e0, fv2 = 0.0e0;
 
-		// POSSIBLE ERROR WHY FACTOR 2.0 in following ht calculation???
+		odeObj->rho[0] = electrons;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			double fieldIntensity = ( pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]),2) ) / Znaught ;  // MIRO real+real
+			// First, MPI ionization is calculated
+			change = neutrals * odeObj->mpi_sigmaK * ht * pow(fieldIntensity, odeObj->mpi_k);
+			// Next, the avalanche ionization
+			change += odeObj->sigmaBremsstrahlung * fieldIntensity * electrons / odeObj->ionE;
+			// Last, recombination term is computed
+			change -= electrons / odeObj->recombTime;
+			electrons += change;
+			neutrals -= change;
+			// Don't allow neutrals dip below zero
+			if (neutrals < 0.0) neutrals = 0.0;
+			if (electrons > num_atoms) electrons = num_atoms;
+
+			odeObj->rho[i + 1] = electrons;
+		}
+
+		odeObj->j_e[0] = j_e0;
+		fv1 = j_e0;
+		for (int i = 0; i < num_t - 1; i++)
+		{
+			fv2 = real(odeObj->ee_p[i + 1] + odeObj->ee_m[i + 1]);
+			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			fv1 = fv2;
+			current += current_change;
+			odeObj->j_e[i + 1] = current;
+		}
+
+		//if (z == distanceSourceToSample)
+		
+
+		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
+		//applyWindow(odeObj->j_e);
+		fftw_execute(odeObj->np_f);
+		normalizeFFT(odeObj->nl_p);
+	}
+	else if (odeObj->doPlasmaCalc == 2) {
+
 		double ht = domain_t / num_td;
 		double neutrals = num_atoms - rho_0;                          // Neutral particles
 		double electrons = rho_0;                      // background Electrons
