@@ -33,6 +33,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	fftw_execute(odeObj->em_b);
 	normalizeFFT(odeObj->ee_p);
 	normalizeFFT(odeObj->ee_m);
+	applyWindow(odeObj->ee_p);
+	applyWindow(odeObj->ee_m);
 
 	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
@@ -81,6 +83,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	fftw_execute(odeObj->em_b);
 	normalizeFFT(odeObj->ee_p);
 	normalizeFFT(odeObj->ee_m);
+	applyWindow(odeObj->ee_p);
+	applyWindow(odeObj->ee_m);
 
 	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
@@ -324,3 +328,4 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 	}
 	return;
 }
+
