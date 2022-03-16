@@ -687,12 +687,17 @@ void DELME_SilicaDispersion(double* omg) {
 	for (int i = 1; i < numActiveOmega; i++)
 	{
 		lambda = 2 * M_PI*cLight / omg[i] * 1e6;
-		// Sellmeier formula from https://doi.org/10.1364/JOSA.55.001205 valid for 0.21-6.7 um at 20.C
-		//n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
-		//n0 += DBL_EPSILON;
+		
+		if (lambda > 0.21 && lambda < 0.67) {
+			// Sellmeier formula from https://doi.org/10.1364/JOSA.55.001205 valid for 0.21-6.7 um at 20.C
+			n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
+		}
+		else {
+			// Cauchy Equation fit (CAUTION)
+			n0 = sqrt(1.0603 + 1.59989 / lambda - 1.97666 / pow(lambda,2) + 0.864072 / pow(lambda,3) - 0.108171 / pow(lambda,4));
+		}
 
-		// Cauchy Equation fit (CAUTION)
-		n0 = sqrt(1.0603 + 1.59989 / lambda - 1.97666 / pow(lambda,2) + 0.864072 / pow(lambda,3) - 0.108171 / pow(lambda,4));
+		//n0 += DBL_EPSILON;
 
 		SilicaMat->m_k[i] = omg[i] * n0 / cLight;
 
