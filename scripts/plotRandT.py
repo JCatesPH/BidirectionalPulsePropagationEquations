@@ -20,8 +20,8 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA_DBR'
-    itnum = '17'
+    pathhead = '../DATA/DBR_fsol_031022'
+    itnum = '5'
 
 
 CLIGHT = 299792458
@@ -73,7 +73,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
-Z0 = df.loc[df['Variable'] == 'Znaught'].values[0,1]
+#Z0 = df.loc[df['Variable'] == 'Znaught'].values[0,1]
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
 
 labstr = r'$I_0={:4.2f}$ [TW/cm$^2$], $\omega_0={:4.2f}$ [THz], $\tau_p={:4.2f}$ [fs]'.format(iIntensity*1e-16, omeg0*1e-12, taup*1e15)

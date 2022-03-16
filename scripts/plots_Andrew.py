@@ -23,9 +23,10 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA_Drude_25umL'
-    pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
-    itnum = '21'
+    #pathhead = '../DATA/Drude_2umL_fsol_031322'
+    #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
+    pathhead = '../DATA/Durand2013_031322'
+    itnum = '0'
 
 
 CLIGHT = 299792458
@@ -49,7 +50,7 @@ epsilon_0 = 8.85418782e-12
 charge_e = 1.602176634e-19
 mass_e = 9.10938356e-31
 
-numE = 1e24
+numE = 9e24
 omegPlasma = np.sqrt(charge_e**2*numE/(epsilon_0*mass_e))
 
 print("For {:} electrons, the plasma frequency is: {:.8e}".format(numE, omegPlasma))
@@ -256,5 +257,6 @@ ax.grid(True, which='major', axis='both')
 plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}.png'.format(itnum), 
     dpi=400, transparent=False, bbox_inches='tight')
 plt.show()
+
 
 # %%

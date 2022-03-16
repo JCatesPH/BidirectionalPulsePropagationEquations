@@ -12,7 +12,7 @@ MASS_E = 9.10938356e-31
 
 #%% Set parameters
 num_t = 2**13
-dom_t = 0.65e-12
+dom_t = 1.2e-12
 delta_t = dom_t / num_t
 
 print('num_t = {}'.format(num_t))
@@ -27,9 +27,11 @@ delta_f = 1 / dom_t
 print('max_omeg = {:.3e}'.format(max_omeg))
 print('delta_omeg = {:.3e}'.format(delta_om))
 print('delta_f = {:.3e}'.format(delta_f))
+print('min_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / max_omeg))
+print('max_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / delta_om))
 
 #%% Use the central frequency for further analysis
-lamb0 = 1e-6
+lamb0 = 1.9e-6
 omeg0 = 2 * np.pi * CLIGHT / lamb0 
 maxHarm = int(max_omeg / omeg0)
 
@@ -37,6 +39,7 @@ print('max harmonic = {:d}'.format(maxHarm))
 print('points per fund. wavelength = {:d}'.format(int((lamb0/CLIGHT)/delta_t)))
 print('points per min. wavelength = {:d}'.format(int(2*np.pi/(12*omeg0)/delta_t)))
 #print('points per THz wavelength = {:d}'.format(int((1/10e12)/delta_t)))
+
 
 
 #%%
@@ -65,6 +68,15 @@ print('cutoff for last = {:d}'.format(cutoffLast))
 customHarmonic = (15 + 0.5)*omeg0
 cutoffCustom = np.max(np.nonzero(omegArr < customHarmonic))
 print('custom cutoff = {:d}'.format(cutoffCustom))
+
+#%% Find the cutoffs for transparency window of silica
+omeg1 = 2 * np.pi * CLIGHT / 0.21e-6
+omeg2 = 2 * np.pi * CLIGHT / 6.7e-6
+cutoffOm1 = np.max(np.nonzero(omegArr < omeg1))
+cutoffOm2 = np.max(np.nonzero(omegArr < omeg2))
+print('cutoff for 0.21 = {:d}'.format(cutoffOm1))
+print('cutoff for 6.7 = {:d}'.format(cutoffOm2))
+
 # %%
 numE = 1.0e27
 omegPlasma = np.sqrt(CHARGE_E**2*numE/(EPS0*MASS_E))
