@@ -136,8 +136,8 @@ int main(int argc, char *argv[])
 
 
 	fill_omg_k(omegaArray, kx, myMaterialsDB);
-	DELME_ArgonDispersion(omegaArray);
-	//DELME_SilicaDispersion(omegaArray);
+	//DELME_ArgonDispersion(omegaArray);
+	DELME_SilicaDispersion(omegaArray);
 	#ifdef DO_CONSTPLASMA
 		DELME_AndrewPreformed(omegaArray, myMaterialsDB.getMaterialByName("PlasmaMat"));
 	#endif
@@ -688,8 +688,11 @@ void DELME_SilicaDispersion(double* omg) {
 	{
 		lambda = 2 * M_PI*cLight / omg[i] * 1e6;
 		// Sellmeier formula from https://doi.org/10.1364/JOSA.55.001205 valid for 0.21-6.7 um at 20.C
-		n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
-		n0 += DBL_EPSILON;
+		//n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
+		//n0 += DBL_EPSILON;
+
+		// Cauchy Equation fit (CAUTION)
+		n0 = sqrt(1.0603 + 1.59989 / lambda - 1.97666 / pow(lambda,2) + 0.864072 / pow(lambda,3) - 0.108171 / pow(lambda,4));
 
 		SilicaMat->m_k[i] = omg[i] * n0 / cLight;
 

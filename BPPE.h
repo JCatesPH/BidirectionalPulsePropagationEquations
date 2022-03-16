@@ -55,11 +55,11 @@ using namespace std;
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
-#define DO_DRUDE_MODEL
+//#define DO_DRUDE_MODEL
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e-2
+#define NOISE_MAGNITUDE 1.0e3
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -85,8 +85,8 @@ const int normType = -1;
 extern double zStepMaterial1;
 
 // GSL ODE API parameters
-const double ode_epsabs = 1e-8;
-const double ode_epsrel = 1e-5;
+const double ode_epsabs = 1e-10;
+const double ode_epsrel = 1e-7;
 const int ode_nmax = 1e6;
 
 // GSL Quasi-Newton API parameters
@@ -96,14 +96,15 @@ const double root_epsrel = 1e-7;
 
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
-const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
+//const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
+const double num_atoms = 2.1e26;  //number of atoms in silica [1/m^3] (See Durand 2013 paper)
 //const double rho_0 = 9.0e24; // initial electron density
 extern double rho_0;
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
 const double tauCollision = 190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
-const double mpi_sigmaK = 3.4e-128;
-const double mpi_k = 8.0;
+/* const double mpi_sigmaK = 3.4e-128;
+const double mpi_k = 8.0; */
 const double FUDGE_FACTOR = 1.0;
 const double Znaught = FUDGE_FACTOR * (1.0 / (epsilon_0 * cLight));
 //const double nu_a = 4.13e16; // [Hz]
@@ -142,8 +143,10 @@ const double n0_Material3 = 1.0; //central index in material 3
 const double n2_Material1 = 0.0; //nonlinear index in material 1
 const double n2_Material2 = 0.0; //nonlinear index in material 2
 const double chi_2 = 0.0; //30.0e-12; //nonlinear chi_2
-const double chi3_Material1 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material1, 2) * n2_Material1;
-const double chi3_Material2 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material2, 2) * n2_Material2;
+//const double chi3_Material1 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material1, 2) * n2_Material1;
+//const double chi3_Material2 = (4 / 3) * epsilon_0 * cLight * pow(n0_Material2, 2) * n2_Material2;
+const double chi3_Material1 = 0.0;
+const double chi3_Material2 = 0.0;
 const double chi2_Material1 = 0.0;
 const double chi2_Material2 = 0.0; //-1.0 * chi_2;
 
@@ -152,12 +155,12 @@ const double chi2_Material2 = 0.0; //-1.0 * chi_2;
 const double omegaPlasma = sqrt(num_atoms*pow(charge_e,2)/(mass_e*epsilon_0)); //fully-ionized plasma frequency
 
 //sellemeier parameters
-const double Sellmeir_chi_1_1 = 2.4272;
+/* const double Sellmeir_chi_1_1 = 2.4272;
 const double Sellmeir_chi_1_2 = 1.4617;
 const double Sellmeir_chi_1_3 = 9.6536;
 const double Sellmeir_omega_1 = 1.5494e16;
 const double Sellmeir_omega_2 = 7.9514e15;
-const double Sellmeir_omega_3 = 9.7766e13;
+const double Sellmeir_omega_3 = 9.7766e13; */
 
 
 typedef struct {
@@ -193,5 +196,6 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 //void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
 void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEParams *odeObj);
 void DELME_ArgonDispersion(double* omg);
+void DELME_SilicaDispersion(double* omg);
 void DELME_AndrewPreformed(double* omg, Material* mat);
 void readGlobalParameters(char *inFile);
