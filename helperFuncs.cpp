@@ -1,9 +1,99 @@
 #include "BPPE.h"
 
 void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<double> *sourceRight, Structure& theStructure) {
+	complex<double>* Am1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* Am2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* GAm1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* GAm2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+
+	// Pass forward through boundaries 
+	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
+
+	// Set right source
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		odeObj->y[i + 2*numActiveOmega] = real(sourceRight[i]);
+		odeObj->y[i + 3*numActiveOmega] = imag(sourceRight[i]);
+	}
+
+	// Pass backward through boundaries
+	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
+
+	// Reset left source to ensure consistency
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		odeObj->y[i] = real(sourceLeft[i]);
+		odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
+	}
+
+	// -------------------------------
+	// Set first guess to LHS Am
+	for (int k = 0; k < numActiveOmega; k++) {
+		Am1[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
+	}
+
+	// Pass forward through boundaries 
+	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
+
+	// Set map of LHS Am to RHS
+	for (int j = 0; j < numActiveOmega; j++) {
+		GAm1[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+	}
+
+	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
+
+	// -------------------------------
+	// Set second guess with r.v.
+	default_random_engine gen;
+	uniform_real_distribution<double> dis(0.0, 1e3);
+
+	// Reset left source to ensure consistency
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		Am2[i] = dis(gen);
+
+		odeObj->y[i] = real(sourceLeft[i]);
+		odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
+		odeObj->y[i + 2*numActiveOmega] = real(Am2[i]);
+		odeObj->y[i + 3*numActiveOmega] = imag(Am2[i]);
+	}
+
+	// Set map of LHS Am to RHS
+	for (int j = 0; j < numActiveOmega; j++) {
+		GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+	}
+
+	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
+
+	// -------------------------------
 	for (int its = 0; its < 3; its++) {
+		for (int k = 0; k < numActiveOmega; k++){
+			odeObj->y[k] = real(sourceLeft[k]);
+			odeObj->y[k + numActiveOmega] = imag(sourceLeft[k]);
+
+			complex<double> secant;
+			if(abs(GAm1[k] - GAm2[k]) < DBL_MIN) {
+				odeObj->y[k + 2*numActiveOmega] = real(Am2[k]);
+				odeObj->y[k + 3*numActiveOmega] = imag(Am2[k]);
+			}
+
+			else{
+				secant = (Am1[k] * GAm2[k] - Am2[k] * GAm1[k]) / (GAm2[k] - GAm1[k]);
+				odeObj->y[k + 2*numActiveOmega] = real(secant);
+				odeObj->y[k + 3*numActiveOmega] = imag(secant);
+			}
+
+			Am1[k] = Am2[k];
+			GAm1[k] = GAm2[k];
+			Am2[k] = secant;
+		}
 		// Pass forward through boundaries 
 		theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
+
+		// Set map of LHS Am to RHS
+		for (int j = 0; j < numActiveOmega; j++) {
+			GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+		}
 
 		// Set right source
 		for (int i = 0; i < numActiveOmega; i++)
@@ -14,17 +104,17 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 		// Pass backward through boundaries
 		theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
-
-		// Reset left source to ensure consistency
-		for (int i = 0; i < numActiveOmega; i++)
-		{
-			odeObj->y[i] = real(sourceLeft[i]);
-			odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
-		}
 	}
 	
 	// Output the reflected spectrum
 	write_out_eFieldAndSpectrumAtZlocation(0, 0, odeObj->y, 0.0, odeObj->ee_m, theStructure.m_layers.front().getMaterial().getK(), odeObj->em_b);
+	
+	// Reset left source to ensure consistency
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		odeObj->y[i] = real(sourceLeft[i]);
+		odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
+	}
 
 	// Pass forward through boundaries 
 	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
@@ -33,11 +123,11 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	write_out_eFieldAndSpectrumAtZlocation(0, 1, odeObj->y, theStructure.getThickness(), odeObj->ee_p, theStructure.m_layers.back().getMaterial().getK(), odeObj->ep_b);
 
 	// Set right source
-	/* for (int i = 0; i < numActiveOmega; i++)
+	for (int i = 0; i < numActiveOmega; i++)
 	{
-		y[i + 2*numActiveOmega] = real(ym_init[i]);
-		y[i + 3*numActiveOmega] = imag(ym_init[i]);
-	} */
+		odeObj->y[i + 2*numActiveOmega] = real(sourceRight[i]);
+		odeObj->y[i + 3*numActiveOmega] = imag(sourceRight[i]);
+	}
 
 	// Pass backward through boundaries
 	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
@@ -50,6 +140,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	}
 
 }
+
 
 void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams) {
     double ht = (1.0 * domain_t) / double(num_t);
@@ -108,7 +199,8 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	/* random_device rd;
 	mt19937 gen(rd()); */
 	default_random_engine gen;
-	uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
+	//uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
+	uniform_real_distribution<double> dis(0.0, NOISE_MAGNITUDE);
 	
 	/* complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
@@ -219,12 +311,21 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	/* cout << "Finished iteration 4" << endl;
 	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
 	for (int k = 0; k < sizeRoot/2; k++){
+		// -- Relative noise
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
+
+		// -- Pure white noise
 		gsl_vector_set(u, k, dis(gen));
 		gsl_vector_set(u, k + sizeRoot/2, dis(gen));
+
+		// -- Colored noise
+		//gsl_vector_set(u, k, dis(gen) * odeObj->y[k + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, dis(gen) * odeObj->y[k + numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k, dis(gen) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, dis(gen) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 	}
 
 
