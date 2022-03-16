@@ -470,7 +470,16 @@ void iterateBPPE()
 	printf("Setting multiroot function\n");
 	gsl_multiroot_function f = {&mapG, sizeRoot, &myRootParams};
 	nonlinear_time_tmp = omp_get_wtime();
-	gsl_multiroot_fsolver_set(s, &f, u);
+
+	status = gsl_multiroot_fsolver_set(s, &f, u);
+
+	if (status == GSL_EBADFUNC) {
+			printf("\nERROR: GSL fsolver returned GSL_EBADFUNC. The iteration scheme encountered a singular point.\n");
+	}
+	if (status == GSL_ESING) {
+		printf("\nERROR: GSL fsolver returned GSL_ESING. The first estimate of the Jacobian is singular.\n");
+	}	
+
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
