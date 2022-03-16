@@ -104,7 +104,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		double change = 0.0;                      // dN/dt
 		double current = 0.0;                     // Current to be exported to UPPE
 		double current_change = 0.0e0;            // Current change for differential equation
-		double ve = 0.0; //1/tauCollision;
+		double ve = 3.33e14; 
 		double fv1 = 0.0e0, fv2 = 0.0e0;
 
 		odeObj->rho[0] = electrons;
