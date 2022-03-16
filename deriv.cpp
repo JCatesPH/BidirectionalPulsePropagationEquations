@@ -104,7 +104,9 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		double change = 0.0;                      // dN/dt
 		double current = 0.0;                     // Current to be exported to UPPE
 		double current_change = 0.0e0;            // Current change for differential equation
-		double ve = 3.33e14; 
+		double ve = 3.33e14;                      // Electron-ion collision frequency
+		double vr = 1 / odeObj->recombTime;       // Recombination frequency
+		double gamma = odeObj->sigmaBremsstrahlung / odeObj->ionE;
 		double fv1 = 0.0e0, fv2 = 0.0e0;
 
 		odeObj->rho[0] = electrons;
@@ -114,9 +116,9 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 			// First, MPI ionization is calculated
 			change = neutrals * odeObj->mpi_sigmaK * ht * pow(fieldIntensity, odeObj->mpi_k);
 			// Next, the avalanche ionization
-			change += odeObj->sigmaBremsstrahlung * fieldIntensity * electrons / odeObj->ionE;
+			change += gamma * fieldIntensity * electrons;
 			// Last, recombination term is computed
-			change -= electrons / odeObj->recombTime;
+			change -= vr * electrons;
 			electrons += change;
 			neutrals -= change;
 			// Don't allow neutrals dip below zero

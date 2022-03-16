@@ -52,8 +52,8 @@ void generateSilicaMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &
 	theMaterialDB.addMaterial(vacuum);
 
 	Material silica("Silica", n0_Silica, n2_Silica, chi2_Silica, chi3_Silica);
-	silica.setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime); 
-	//silica.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k); // MPI ONLY
+	//silica.setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime); 
+	silica.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k); // MPI ONLY
 	theMaterialDB.addMaterial(silica);
 	
 
