@@ -25,8 +25,8 @@ if hasattr(sys, 'ps1'):
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
     #pathhead = '../DATA/Drude_2umL_fsol_031322'
     #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
-    pathhead = '../DATA/Durand2013_031322'
-    itnum = '0'
+    pathhead = '../DATA/Durand2013_031822'
+    itnum = '1'
 
 
 CLIGHT = 299792458
@@ -147,23 +147,24 @@ plt.savefig(pathhead + '/figs/inSpectrum.png')
 ######################################
 
 #%%
-""" df = pd.read_table(pathhead + '/kz_plasma.dat', header=0)
+df = pd.read_table(pathhead + '/n_Silica.dat', header=0)
 kz = df.values
 
 fig = plt.figure(8, dpi=200)
 plt.clf()
-plt.plot(kz[1:,0]/(2*np.pi)*1e-12, kz[1:,1]*CLIGHT/kz[1:,0], 
-    kz[1:,0]/(2*np.pi)*1e-12, kz[1:,2]*CLIGHT/kz[1:,0])
+plt.plot(kz[1:,0], kz[1:,1], 
+    #kz[1:,0], kz[1:,2]
+    )
 plt.legend(['Re[n]', 'Im[n]'])
-plt.xlabel(r'$f$ [THz]')
-plt.title('Refractive Index in Plasma')
-plt.xlim([20, 100])
-plt.ylim([0.0, 3])
-plt.axvline(omegPlasma/(2*np.pi)*1e-12, color='k', linestyle='--')
+plt.xlabel(r'$\lambda$ [$\mu$m]')
+plt.title('Refractive Index')
+plt.xlim([0, 10])
+#plt.ylim([0.0, 3])
+#plt.axvline(omegPlasma/(2*np.pi)*1e-12, color='k', linestyle='--')
 #plt.margins(x=0)
 plt.minorticks_on()
 #plt.tight_layout()
-plt.savefig(pathhead + '/figs/fig_nPlasma.png') """
+plt.savefig(pathhead + '/figs/fig_refractiveIndex.png') 
 
 ######################################
 

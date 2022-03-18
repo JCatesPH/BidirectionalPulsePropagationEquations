@@ -218,7 +218,7 @@ double *window;
 void createWindowFunc(double alpha){
 	window = (double*)malloc(sizeof(double) * num_t);
 	// Implements a Tukey window
-	for (int i = 0; i < num_t/8; i++) {
+	/* for (int i = 0; i < num_t/8; i++) {
 		window[i] = 0.0;
 	}
 	for (int i=num_t/8; i < (int)((1+alpha)*num_t/8); i++) {
@@ -232,8 +232,8 @@ void createWindowFunc(double alpha){
 	}
 	for (int i = 7*num_t/8; i < num_t; i++) {
 		window[i] = 0.0;
-	}
-	/* for (int i=0; i < (int)(alpha*num_t/2); i++) {
+	} */
+	for (int i=0; i < (int)(alpha*num_t/2); i++) {
 		window[i] = 0.5 * (1.0 - cos(2.0*M_PI*i/(alpha*num_t))) + 1e-15;
 	}
 	for (int i=(int)(alpha*num_t/2); i <= num_t/2; i++) {
@@ -241,7 +241,7 @@ void createWindowFunc(double alpha){
 	}
 	for (int i=1; i <= num_t/2; i++) {
 		window[num_t-i] = window[i];
-	} */
+	}
 
 	char windowFile[STRING_BUFFER_SIZE];
 	snprintf(windowFile, sizeof(char) * STRING_BUFFER_SIZE, "%swindowFunc.dat", SIM_DATA_OUTPUT);

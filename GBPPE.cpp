@@ -218,9 +218,9 @@ int main(int argc, char *argv[])
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 
-	int num10ums = (myStructure.getThickness() - RHSbufferLayerThickness) / 10e-6;
-	for (int n = 1; n < num10ums; n++){
-		monitorZlocations.push_back(LHSsourceLayerThickness + n*10e-6);
+	int numMon = (myStructure.getThickness() - RHSbufferLayerThickness) / 50e-6;
+	for (int n = 1; n < numMon; n++){
+		monitorZlocations.push_back(LHSsourceLayerThickness + n*50e-6);
 	}
 	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness);
 

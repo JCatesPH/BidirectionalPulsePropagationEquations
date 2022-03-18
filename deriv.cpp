@@ -116,9 +116,9 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 			// First, MPI ionization is calculated
 			change = neutrals * odeObj->mpi_sigmaK * ht * pow(fieldIntensity, odeObj->mpi_k);
 			// Next, the avalanche ionization
-			change += gamma * fieldIntensity * electrons;
+			change += ht * gamma * fieldIntensity * electrons;
 			// Last, recombination term is computed
-			change -= vr * electrons;
+			change -= ht * vr * electrons;
 			electrons += change;
 			neutrals -= change;
 			// Don't allow neutrals dip below zero

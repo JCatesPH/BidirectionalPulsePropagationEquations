@@ -4,6 +4,7 @@ import glob
 import math
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 #from scipy.fftpack import fft, ifft
 #%matplotlib widget
@@ -21,8 +22,13 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = 'DATA'
-    itnum = '29'
+    pathhead = '../DATA/Durand2013_031822'
+    itnum = '1'
+
+#%%
+mpl.rcParams['font.family'] = 'Tahoma'
+plt.rcParams['font.size'] = 16
+plt.rcParams['axes.linewidth'] = 2
 
 #plt.ion()
 ######################################
@@ -526,7 +532,7 @@ plt.figure(figsize=(8, 6))
 plt.plot(eFieldT[:,0], eFieldT[:,1])
 #plt.semilogy(eFieldT[:,0], eFieldT[:,1]**2)
 plt.title(r'Transmitted pulse')
-plt.xlim([domT/2 - 3*taup, domT/2 + 3*taup])
+plt.xlim([domT/2 - 5*taup, domT/2 + 5*taup])
 plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
 plt.xlabel(r'$t$ [s]')
 plt.ylabel(r'$E(t)$ [V/m]')
