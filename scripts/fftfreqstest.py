@@ -11,8 +11,8 @@ CHARGE_E = 1.602176634e-19
 MASS_E = 9.10938356e-31
 
 #%% Set parameters
-num_t = 2**13
-dom_t = 1.2e-12
+num_t = 2**14
+dom_t = 2.4e-12
 delta_t = dom_t / num_t
 
 print('num_t = {}'.format(num_t))
@@ -65,7 +65,7 @@ print('cutoff for 6th = {:d}'.format(cutoff6th))
 print('cutoff for 7th = {:d}'.format(cutoff7th))
 print('cutoff for last = {:d}'.format(cutoffLast))
 
-customHarmonic = (15 + 0.5)*omeg0
+customHarmonic = 4*omeg0
 cutoffCustom = np.max(np.nonzero(omegArr < customHarmonic))
 print('custom cutoff = {:d}'.format(cutoffCustom))
 

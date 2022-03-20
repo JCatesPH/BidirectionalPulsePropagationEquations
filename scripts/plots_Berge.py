@@ -482,7 +482,7 @@ plotField(time_li[1:-1:2],
     filePath=pathhead + '/figs/Etz.png', 
     titleStr=None, 
     xlabelStr=r't [s]', 
-    xlims=[domT/2 - 4*taup, domT/2 + 6*taup])
+    xlims=[domT/2 - 20*taup, domT/2 + 20*taup])
 #plt.show()
 
 #%%
