@@ -147,9 +147,12 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
       last_index = (thread_id + 1) * col_frac;
     
     // This is when actual Jacobian computations begin
-    /* #ifdef VERBOSE_JAC_COMP
-      printf("Progress : [");
-    #endif */
+    #ifdef VERBOSE_JAC_COMP
+      #pragma omp single
+      {
+        printf("Progress : [");
+      }
+    #endif
     for (j = thread_id * col_frac; j < last_index; j++)
       {
         double xj = gsl_vector_get (x, j);
@@ -208,16 +211,27 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
             status = GSL_ESING;
           }
         }
-        prog++;
-        /* #ifdef VERBOSE_JAC_COMP
-          if ((double) prog / n > numdots / 10.0) {
-            printf("*");
+        #pragma omp atomic 
+        {
+          prog++;
+        }
+
+        #ifdef VERBOSE_JAC_COMP
+          #pragma omp critical 
+          {
+            if ((double) prog / n > numdots / 10.0) {
+              printf("*");
+              numdots++;
+            }
           }
-        #endif  */
+        #endif 
       }
-    /* #ifdef VERBOSE_JAC_COMP
-      printf("]\n");
-    #endif  */
+    #ifdef VERBOSE_JAC_COMP
+      #pragma omp single
+      {
+        printf("]\n");
+      }
+    #endif 
     #pragma omp barrier
     #ifdef VERBOSE_JAC_COMP
       printf("      Thread number %d information: \n", thread_id);
