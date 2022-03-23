@@ -212,9 +212,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
           }
         }
         #pragma omp atomic 
-        {
-          prog++;
-        }
+        prog += prog;
 
         #ifdef VERBOSE_JAC_COMP
           #pragma omp critical 

@@ -6,17 +6,13 @@
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
-	generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
+	//generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
-	//generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
+	generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
 }
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
 {
-	const double n0_Silica = 1.4395;
-	const double n2_Silica = 2.3e-20; // [m^2 / W]
-	const double chi3_Silica = (4 / 3) * epsilon_0 * cLight * pow(n0_Silica, 2) * n2_Silica;
-	const double chi2_Silica = 0.0;
 
 	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);

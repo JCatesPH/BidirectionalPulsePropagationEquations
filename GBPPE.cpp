@@ -468,6 +468,7 @@ void iterateBPPE()
 
 	// Tell GSL multiroot the function and initial guess
 	printf("Setting multiroot function\n");
+	fflush(stdout);
 	gsl_multiroot_function f = {&mapG, sizeRoot, &myRootParams};
 	nonlinear_time_tmp = omp_get_wtime();
 
