@@ -19,8 +19,8 @@ class ODEParams { // Class for ODE params
 		int doPlasmaCalc = 0;
 		double chi_2, chi_3, mpi_sigmaK, mpi_k, ionE, sigmaBremsstrahlung, recombTime;
 		double *omega, *kx, *rho, *y;
-		complex<double> *k, *ee_p, *ee_m, *nl_k, *nl_p, *j_e;
-		fftw_plan nk_f, ep_b, em_b, np_f, ep_f, em_f;
+		complex<double> *k, *ee_p, *ee_m, *p_nl, *jhat, *j_e;
+		fftw_plan p_ffft, j_ffft, ep_b, em_b, ep_f, em_f;
 
 		ODEParams() { // Default constructor (empty)
 			omega = nullptr;
@@ -30,9 +30,15 @@ class ODEParams { // Class for ODE params
 			k = nullptr;
 			ee_p = nullptr;
 			ee_m = nullptr;
-			nl_k = nullptr;
-			nl_p = nullptr;
+			p_nl = nullptr;
+			jhat = nullptr;
 			j_e = nullptr;
+			p_ffft = nullptr;
+			j_ffft = nullptr;
+			ep_b = nullptr;
+			em_b = nullptr;
+			ep_f = nullptr;
+			em_f = nullptr;
 		}
 
 		
@@ -44,15 +50,15 @@ class ODEParams { // Class for ODE params
 			free(y);
 			free(ee_p);
 			free(ee_m);
-			free(nl_k);
-			free(nl_p);
+			free(p_nl);
+			free(jhat);
 			free(j_e);
 
 			// Destroy fftw plans
-			fftw_destroy_plan(nk_f);
+			fftw_destroy_plan(p_ffft);
+			fftw_destroy_plan(j_ffft);
 			fftw_destroy_plan(ep_b);
 			fftw_destroy_plan(em_b);
-			fftw_destroy_plan(np_f);
 			fftw_destroy_plan(ep_f);
 			fftw_destroy_plan(em_f);
 		}

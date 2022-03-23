@@ -6,7 +6,6 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	ODEParams *odeObj = reinterpret_cast<ODEParams*>(odep);
 
 	const int num_tOver2 = num_t / 2;
-	const double clightSquared = pow(cLight, 2);
 	const double num_td = (double)num_t;
 
 	#pragma omp parallel for
@@ -41,11 +40,11 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	{
 		//odeObj->ee_p[i] = odeObj->ee_p[i] / num_td;
 		//odeObj->ee_m[i] = odeObj->ee_m[i] / num_td;
-		odeObj->nl_k[i] = odeObj->chi_2 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 2) + odeObj->chi_3 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 3);
+		odeObj->p_nl[i] = odeObj->chi_2 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 2) + odeObj->chi_3 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 3);
 	}
 	
-	fftw_execute(odeObj->nk_f);
-	normalizeFFT(odeObj->nl_k);
+	fftw_execute(odeObj->p_ffft);
+	normalizeFFT(odeObj->p_nl);
 
 	fftw_execute(odeObj->ep_f);
 	fftw_execute(odeObj->em_f);
@@ -58,44 +57,44 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	for (int i = 0; i < num_t; i++)
 	{	
 		// Calculate the current density
-		//odeObj->nl_p[i] = sig0 / (1.0 - 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+		//odeObj->jhat[i] = sig0 / (1.0 - 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
 		//const double w = sig0 / (1.0 + pow(odeObj->omega[i]*tauCollision, 2));
-		//odeObj->nl_p[i] = w * (1.0 + 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
-		odeObj->nl_p[i] = 0.0;
+		//odeObj->jhat[i] = w * (1.0 + 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+		odeObj->jhat[i] = 0.0;
 
 		// Calculate the polarization
-		//odeObj->nl_k[i] = (1.0 - omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
-		//odeObj->nl_k[i] = (-omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		//odeObj->nl_k[i] = (-omeg_p2 * tauCollision / (pow(odeObj->omega[i], 2) * tauCollision + 1.0i * odeObj->omega[i])) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		//odeObj->nl_k[i] = odeObj->nl_k[i] / sqrt((double)num_t);
-		//odeObj->nl_k[i] = odeObj->nl_k[i] / sqrt(2.0*M_PI);
-		//odeObj->nl_k[i] = ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		odeObj->nl_k[i] += ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+		//odeObj->p_nl[i] = (1.0 - omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+		//odeObj->p_nl[i] = (-omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+		//odeObj->p_nl[i] = (-omeg_p2 * tauCollision / (pow(odeObj->omega[i], 2) * tauCollision + 1.0i * odeObj->omega[i])) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+		//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt((double)num_t);
+		//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt(2.0*M_PI);
+		//odeObj->p_nl[i] = ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+		odeObj->p_nl[i] += ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
 	}
 
-	//fftw_execute(odeObj->nk_f);
-	//normalizeFFT(nl_k, 1);
+	//fftw_execute(odeObj->p_ffft);
+	//normalizeFFT(p_nl, 1);
 
 	// ---------------------------------
 	#else
 
 	fftw_execute(odeObj->ep_b);
 	fftw_execute(odeObj->em_b);
-	normalizeFFT(odeObj->ee_p);
-	normalizeFFT(odeObj->ee_m);
-	applyWindow(odeObj->ee_p);
-	applyWindow(odeObj->ee_m);
+	normalizeFFT(odeObj->ee_p, fftnorm);
+	normalizeFFT(odeObj->ee_m, fftnorm);
+	//applyWindow(odeObj->ee_p);
+	//applyWindow(odeObj->ee_m);
 
 	#pragma omp parallel for
 	for (int i = 0; i < num_t; i++)
 	{
 		//odeObj->ee_p[i] = odeObj->ee_p[i] / num_td;
 		//odeObj->ee_m[i] = odeObj->ee_m[i] / num_td;
-		odeObj->nl_k[i] = odeObj->chi_2 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 2) + odeObj->chi_3 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 3);
+		odeObj->p_nl[i] = odeObj->chi_2 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 2) + odeObj->chi_3 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 3);
 	}
 	
-	fftw_execute(odeObj->nk_f);
-	normalizeFFT(odeObj->nl_k);
+	fftw_execute(odeObj->p_ffft);
+	normalizeFFT(odeObj->p_nl, fftnorm);
 
 	if (odeObj->doPlasmaCalc == 3) {
 		double ht = domain_t / num_td;
@@ -142,10 +141,10 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		//if (z == distanceSourceToSample)
 		
 
-		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
+		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called jhat which is then used in the Integrate()
 		//applyWindow(odeObj->j_e);
-		fftw_execute(odeObj->np_f);
-		normalizeFFT(odeObj->nl_p);
+		fftw_execute(odeObj->j_ffft);
+		normalizeFFT(odeObj->jhat, fftnorm);
 	}
 	else if (odeObj->doPlasmaCalc == 2) {
 
@@ -195,10 +194,10 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		//if (z == distanceSourceToSample)
 		
 
-		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called nl_p which is then used in the Integrate()
+		// I THINK.. this takes the Current j_e and forewardFFTs it into the array called jhat which is then used in the Integrate()
 		//applyWindow(odeObj->j_e);
-		fftw_execute(odeObj->np_f);
-		normalizeFFT(odeObj->nl_p);
+		fftw_execute(odeObj->j_ffft);
+		normalizeFFT(odeObj->jhat, fftnorm);
 
 	}
 	else if (odeObj->doPlasmaCalc == 1){
@@ -269,14 +268,14 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		
 
 		//applyWindow(odeObj->j_e);
-		fftw_execute(odeObj->np_f);
-		normalizeFFT(odeObj->nl_p);
+		fftw_execute(odeObj->j_ffft);
+		normalizeFFT(odeObj->jhat, fftnorm);
 	}
 	else if (odeObj->doPlasmaCalc == 0){
 		#pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
-			odeObj->nl_p[i] = 0.0;
+			odeObj->jhat[i] = 0.0;
 		}
 
 	}
@@ -300,12 +299,12 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	}
 	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
-		//complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->nl_k[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->nl_p[i])*exp(-1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->nl_k[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->nl_p[i])*exp(-1.0i*(odeObj->k[i])*z);
+		//complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(-1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
+		complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(-1.0i*(odeObj->k[i])*z);
 		f[i] = real(deltazA);
 		f[i + num_tOver2 + 1] = imag(deltazA);
-		//deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->nl_k[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->nl_p[i])*exp(1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->nl_k[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->nl_p[i])*exp(1.0i*(odeObj->k[i])*z);
+		//deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
+		deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(1.0i*(odeObj->k[i])*z);
 		f[i + num_t + 2] = real(deltazA);
 		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
 
@@ -325,7 +324,7 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 			integral[i] = 0.0;
 		}
 		else {
-			integral[i] += -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*pow(cLight, 2))*odeObj->nl_k[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*pow(cLight, 2)*epsilon_0)*odeObj->nl_p[i])* exp(-1.0i*real(odeObj->k[i]) * z)*exp(-1.0*abs(imag(odeObj->k[i]))*z)*zStep;
+			integral[i] += -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*pow(cLight, 2))*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*pow(cLight, 2)*epsilon_0)*odeObj->jhat[i])* exp(-1.0i*real(odeObj->k[i]) * z)*exp(-1.0*abs(imag(odeObj->k[i]))*z)*zStep;
 		}
 	}
 	return;

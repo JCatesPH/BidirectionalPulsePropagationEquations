@@ -23,7 +23,7 @@ int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_
 double domain_t, zStepMaterial1, alpha_tukey;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
-double *omegaArray, *timeValuesArray, *kx;
+double *omegaArray, *timeValuesArray, *kx, fftnorm;
 complex<double> *sourceLeft, *sourceRight;
 //fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
@@ -826,7 +826,7 @@ void readGlobalParameters(char *inFile) {
 	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
 	numActiveOmega = num_t / 2 + 1;
 	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
-	l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
+	fftnorm = sqrt((double)num_t);
 
 	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");
 	zStepMaterial1 = getDoubleParameterValueByName("initialZStep");

@@ -11,7 +11,7 @@ double getDoubleParameterValueByName(char *paramName);
 double vnorm(const double *v, const int n);
 void fill_omg_k(double*omg, double*kx, MaterialDB &theMaterialDB);
 //void initializeY(double *y, complex<double> *yp_init);
-void normalizeFFT(complex<double>* arr);
+void normalizeFFT(complex<double>* arr, double c);
 
 void createWindowFunc(double alpha);
 void applyWindow(complex<double>* arr);

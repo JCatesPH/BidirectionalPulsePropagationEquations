@@ -124,8 +124,8 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 #endif
 
 	fftw_execute(e_b);
-	normalizeFFT(ee);
-	applyWindow(ee);
+	normalizeFFT(ee, fftnorm);
+	//applyWindow(ee);
 
 	FILE *fp;
 	//errno_t err;
@@ -198,10 +198,10 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEPar
 
 	fftw_execute(odeObj->ep_b);
 	fftw_execute(odeObj->em_b);
-	normalizeFFT(odeObj->ee_p);
-	normalizeFFT(odeObj->ee_m);
-	applyWindow(odeObj->ee_p);
-	applyWindow(odeObj->ee_m);
+	normalizeFFT(odeObj->ee_p, fftnorm);
+	normalizeFFT(odeObj->ee_m, fftnorm);
+	//applyWindow(odeObj->ee_p);
+	//applyWindow(odeObj->ee_m);
 
 
 	FILE* fp;

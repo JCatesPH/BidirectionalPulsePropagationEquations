@@ -1,6 +1,7 @@
 #pragma once
 // constants in SI units
 const double cLight = 299792458; //speed of light [m / s]
+const double clightSquared = 8.9875517813681764e16;
 const double epsilon_0 = 8.85418782e-12; //permittivity of free space [W * s / V^2]
 const double mu_0 = 1.2566e-6; // vacuum permeability
 const double charge_e = 1.602176634e-19; //electron charge

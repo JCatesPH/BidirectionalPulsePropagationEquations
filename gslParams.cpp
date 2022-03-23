@@ -13,13 +13,13 @@ ODEParams::ODEParams(int nT, double *omg) { // Constructor definition
 	// Allocate complex arrays
 	ee_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 	ee_m = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-	nl_k = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-	nl_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	p_nl = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	jhat = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 	j_e = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 
 	// Allocate fftw plans
-	nk_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	np_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	p_ffft = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&p_nl[0]), reinterpret_cast<fftw_complex*>(&p_nl[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	j_ffft = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&jhat[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
 	ep_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	em_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	ep_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
@@ -32,8 +32,8 @@ ODEParams::ODEParams(int nT, double *omg) { // Constructor definition
 
 		ee_p[i] = 0.0;
 		ee_m[i] = 0.0;
-		nl_k[i] = 0.0;
-		nl_p[i] = 0.0;
+		p_nl[i] = 0.0;
+		jhat[i] = 0.0;
 		j_e[i] = 0.0;
 	}
 
@@ -82,13 +82,13 @@ ODEParams::ODEParams(const ODEParams &p1) {  // Copy constructor
 	y = (double*)malloc(sizeof(double)*(4*numOmeg));
 	ee_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 	ee_m = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-	nl_k = (complex<double>*)malloc(sizeof(complex<double>)*numT);
-	nl_p = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	p_nl = (complex<double>*)malloc(sizeof(complex<double>)*numT);
+	jhat = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 	j_e = (complex<double>*)malloc(sizeof(complex<double>)*numT);
 
 	// Allocate fftw plans
-	nk_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&nl_k[0]), reinterpret_cast<fftw_complex*>(&nl_k[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	np_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&nl_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	p_ffft = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&p_nl[0]), reinterpret_cast<fftw_complex*>(&p_nl[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	j_ffft = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&jhat[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
 	ep_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	em_b = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
 	ep_f = fftw_plan_dft_1d(numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
@@ -99,8 +99,8 @@ ODEParams::ODEParams(const ODEParams &p1) {  // Copy constructor
 
 		ee_p[i] = p1.ee_p[i];
 		ee_m[i] = p1.ee_m[i];
-		nl_k[i] = p1.nl_k[i];
-		nl_p[i] = p1.nl_p[i];
+		p_nl[i] = p1.p_nl[i];
+		jhat[i] = p1.jhat[i];
 		j_e[i] = p1.j_e[i];
 	}
 

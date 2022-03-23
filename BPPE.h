@@ -81,6 +81,7 @@ extern int num_Threads;
 //const int num_iterations = 5; //number of BPPE iterations
 const int numDimensionsMinusOne = 0; //(1+1) dimension (0) or (2+1) dimension (1)
 const int normType = -1;
+extern double fftnorm;
 //const double zStepMaterial1 = 0.01 * microns; // Step for integration
 extern double zStepMaterial1;
 
