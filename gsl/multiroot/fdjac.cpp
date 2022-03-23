@@ -221,6 +221,7 @@ gsl_multiroot_fdjacobian (gsl_multiroot_function * F,
           {
             if ((double) prog / n > numdots / 10.0) {
               printf("*");
+              fflush(stdout);
               numdots++;
             }
           }
