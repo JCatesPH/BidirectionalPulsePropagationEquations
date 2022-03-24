@@ -10,14 +10,11 @@
 #include <gsl/gsl_odeiv2.h>
 #include "gsl/gsl_math.h"
 #include "Materials.h"
-
 //#define VERBOSE_BOUNDARY 
-
-// global functions defined in main.cpp file
-void boundary(double z, complex<double>* k_0, complex<double>* k_1, double* y);
 
 //Forward declarations
 class Boundary;
+void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 
 //typedef struct {
 //
@@ -199,14 +196,6 @@ public:
         }
     }
 
-    void doBoundaryUpdate(double aBoundaryzPos, double* y) {
-        if (m_boundaries.size() > 0) {
-            for (std::list<Boundary>::reverse_iterator it = m_boundaries.rbegin(); it != m_boundaries.rend(); ++it) {
-                if(it->m_zPos == aBoundaryzPos)
-                    boundary(it->m_zPos, it->hiSideLayer->getMaterial().getK(), it->lowSideLayer->getMaterial().getK(), y);
-            }
-        }
-    }
 
     void writeStructureLayoutToASCIIFile(string aFilePath) {
         if (true) { printf("Writing Structure Layout file %s\n", aFilePath.c_str()); }
