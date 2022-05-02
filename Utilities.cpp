@@ -177,19 +177,19 @@ void fill_omg_k(double*omg, double*kx, MaterialDB &theMaterialDB) {
 
 			else if (j == num_x / 2) {
 				for (int i = 0; i <= num_t/2; i++) {
-					kx[i + numActiveOmega] = (2.0 * M_PI / domain_x) * j;
-					omg[i + numActiveOmega] = (2.0 * M_PI / domain_t) * i;
+					kx[i + numOmX] = (2.0 * M_PI / domain_x) * j;
+					omg[i + j * numOmX] = (2.0 * M_PI / domain_t) * i;
 				}
 			}
 
 			else {
 				for (int i = 0; i < num_t; i++) {
-					kx[i + (j-1)*num_t + (num_t / 2 + 1)] = (2.0 * M_PI / domain_x ) * j;
+					kx[i + (j-1)*num_t + numActiveOmega] = (2.0 * M_PI / domain_x ) * j;
 					if (i <= num_t / 2) {
-						omg[i + (j-1)*num_t + (num_t/2 + 1)] = (2.0 * M_PI / domain_t) * i;
+						omg[i + (j-1)*num_t + numActiveOmega] = (2.0 * M_PI / domain_t) * i;
 					}
 					else {
-						omg[i + (j-1)*num_t + (num_t/2 + 1)] = (2.0 * M_PI / domain_t) * ((double)i - num_t);
+						omg[i + (j-1)*num_t + numActiveOmega] = (2.0 * M_PI / domain_t) * ((double)i - num_t);
 					}
 				}
 			}
