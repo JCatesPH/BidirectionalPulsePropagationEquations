@@ -176,26 +176,23 @@ typedef struct {
 //void doNonlinearPartofBPPE();
 int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f);
 void iterateBPPE();
-void writeInputEfield(std::complex<double>* ee_p);
-void writeInputSpectrum(std::complex<double>* yp_init);
+
 //void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams);
 //void initalizeYarray(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void write2DtoFile(std::complex<double>* ee_p);
 //void fillYfromYpAndYm(double* y, std::complex<double>* yp_init, std::complex<double>* ym0_init);
 //void initalizeArrays(std::complex<double>* ym1_init, std::complex<double>* ym0_init, std::complex<double>* integral);
-void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y);
 //void update_guess(complex<double>*yp_init, complex<double>*f0, complex<double>*ym0_init, double*y, complex<double>*integral);
 void writeSimParameters();
 void generateLayers(MaterialDB &myMaterialsDB, Structure &theStructure);
 void setupPointMonitorLocations(MaterialDB& myMaterialsDB, Structure& theStructure);
 //void set_guess(complex<double>* ee_p, complex<double>* yp_init, complex<double>* ym0_init, complex<double>* ym1_init, complex<double>* ym1_temp, double* y, fftw_plan ep_f, complex<double>* ee_m, fftw_plan em_b, fftw_plan ep_b, complex<double>* integral);
-void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, complex<double>*ee, complex<double>*k, fftw_plan e_b);
+
 //void am_to_zero(double*y);
 //int new_initial_data(complex<double>*ym0_init, complex<double>*ym1_init, complex<double>*ym1_temp, complex<double>*yp_init, double*y, complex<double>*integral);
 int dAdz(double z, const double y[], double f[], void *params);
 void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<double>*integral);
 //void write_multicolumnMonitor(int iterationNo, double theZpos, complex<double>* eep, complex<double>* eem, double* ne, complex<double>* j_e);
-void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEParams *odeObj);
 void DELME_ArgonDispersion(double* omg);
 void DELME_SilicaDispersion(double* omg);
 void DELME_AndrewPreformed(double* omg, Material* mat);
