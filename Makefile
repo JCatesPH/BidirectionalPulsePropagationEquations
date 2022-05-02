@@ -18,7 +18,7 @@ LDFLAGS += -L"/Scratch3/jalen/.local/lib"  # If on Boyle
 # --- Custom variables ---
 OBJFILES = GBPPE.o Materials.o Structure.o createLayers.o Utilities.o deriv.o output.o helperFuncs.o gslParams.o
 TARGET = test.out
-HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h helperFuncs.h gslParams.h
+HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h helperFuncs.h gslParams.h output.h
 
 # --- Variables for compiling custom GSL library ---
 GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o gsl/multiroot/broyden.o gsl/multiroot/dnewton.o gsl/multiroot/fdjac.o

@@ -22,8 +22,8 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA/silica_indexMatched_150TWcm2_4umL_042822'
-    itnum = '23'
+    pathhead = '../DATA/silica_indexMatched_100TWcm2_4umL_042722'
+    itnum = '37'
 
 #%%
 mpl.rcParams['font.family'] = 'Tahoma'
@@ -103,6 +103,7 @@ omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
 nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
 sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1]
+freqLowerCutoff = int(df.loc[df['Variable'] == 'freqLowerCutoff'].values[0,1])
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
 #freqUpperCutoff = 8192
 numT = df.loc[df['Variable'] == 'num_t'].values[0,1]
@@ -199,7 +200,7 @@ dOm = abs(eSpectrumT[1,0] - eSpectrumT[0,0])
 print('dOmega = {:.2e}'.format(dOm))
 
 #%% Plot the transmitted spectrum
-plotSpectrum([eSpectrumT[:freqUpperCutoff,0]/omeg0], [eSpectrumT[:freqUpperCutoff,3]**2*intensityFactor], [labstr], 
+plotSpectrum([eSpectrumT[freqLowerCutoff:freqUpperCutoff,0]/omeg0], [eSpectrumT[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor], [labstr], 
     filePath=pathhead + '/figs/EwT.png', 
     titleStr='Transmitted Spectrum', 
     xlabelStr=r'$\omega/\omega_0$')
@@ -212,15 +213,15 @@ df = pd.read_table(pathhead + '/Spectrum_iteration_' + itnum + '_Reflected.dat',
 eSpectrumR = df.values
 
 #%% Plot the reflected spectrum
-plotSpectrum([eSpectrumR[:freqUpperCutoff,0]/omeg0], [eSpectrumR[:freqUpperCutoff,3]**2*intensityFactor], [labstr], 
+plotSpectrum([eSpectrumR[freqLowerCutoff:freqUpperCutoff,0]/omeg0], [eSpectrumR[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor], [labstr], 
     filePath=pathhead + '/figs/EwR.png', 
     titleStr='Reflected Spectrum', 
     xlabelStr=r'$\omega/\omega_0$')
 ######################################
 
 #%% Plot both reflected and transmitted spectra
-plotSpectrum([eSpectrumT[:freqUpperCutoff,0]/omeg0, eSpectrumR[:freqUpperCutoff,0]/omeg0], 
-    [eSpectrumT[:freqUpperCutoff,3]**2*intensityFactor, eSpectrumR[:freqUpperCutoff,3]**2*intensityFactor], 
+plotSpectrum([eSpectrumT[freqLowerCutoff:freqUpperCutoff,0]/omeg0, eSpectrumR[freqLowerCutoff:freqUpperCutoff,0]/omeg0], 
+    [eSpectrumT[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor, eSpectrumR[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor], 
     ['Transmitted', 'Reflected'], 
     filePath=pathhead + '/figs/EwBoth.png', 
     titleStr='Both Spectra', 
@@ -353,8 +354,8 @@ for pointmon in pmon_li:
     upperFreq_THz = np.max(np.nonzero(omeg / (2*np.pi) < 100e12))
 
     # Plot forward-prop spectrum
-    plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
-        [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor], 
+    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+        [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/EwP_' + zm + '.png', 
         titleStr=r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
@@ -375,24 +376,24 @@ for pointmon in pmon_li:
     #plt.show() """
 
     # Plot backward-prop spectrum
-    plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
-        [np.abs(eOmM[:freqUpperCutoff])**2*intensityFactor], 
+    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+        [np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/EwM_' + zm + '.png', 
         titleStr=r'Backward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
 
     # Plot total spectrum
-    plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
-        [np.abs(eOmTotal[:freqUpperCutoff])**2*intensityFactor], 
+    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+        [np.abs(eOmTotal[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/Ew_' + zm + '.png', 
         titleStr=r'Spectrum of total field at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
 
     # Plot both spectra
-    plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
-        [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor, np.abs(eOmM[:freqUpperCutoff])**2*intensityFactor], 
+    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0, omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+        [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor, np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         ['Transmitted', 'Reflected'], 
         filePath=pathhead + '/figs/EwBoth_' + zm + '.png', 
         titleStr=r'Both spectra at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
@@ -497,6 +498,22 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
 print(pmon_li)
 print(zmon_li)
 
+#%% Plot the first and last few spectra in domain
+redOmega_li = [omeg_li[0], omeg_li[-2], omeg_li[-1]]
+redMinus_li = [spectraM_li[0], spectraM_li[-2], spectraM_li[-1]]
+redMon_li = [zmon_li[0], zmon_li[-2], zmon_li[-1]]
+
+fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff] / omeg0 for omeg in redOmega_li], 
+    [np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor for eOmM in redMinus_li], 
+    redMon_li, 
+    filePath=pathhead + '/figs/Ew_FirstLast.png', 
+    #titleStr=r'Forward THz spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
+    titleStr='Backward-propagating Spectra',
+    xlabelStr=r'$\omega/\omega_0$')
+#axs.set_ylim([1e-9,1e-6])
+#axs.set_xlim([0, 60])
+#fig.savefig(pathhead + '/figs/EwMz.png')
+
 #%%
 plotField(time_li[1:-1:2], 
     field_li[1:-1:2], 
@@ -521,8 +538,8 @@ plotField(time_li[1:-1:2],
 axs.axvline(omega_pe / (2*np.pi) * 1e-12, color='k', linestyle='--')
 fig.savefig(pathhead + '/figs/EwPz_THz.png') """
 
-fig, axs = plotSpectrum([omeg[:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
-    [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor for eOmP in spectraP_li], 
+fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
+    [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor for eOmP in spectraP_li], 
     zmon_li, 
     filePath=pathhead + '/figs/EwPz.png', 
     #titleStr=r'Forward THz spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
@@ -532,8 +549,8 @@ fig, axs = plotSpectrum([omeg[:freqUpperCutoff] / omeg0 for omeg in omeg_li],
 #axs.set_xlim([0, 60])
 fig.savefig(pathhead + '/figs/EwPz.png')
 
-fig, axs = plotSpectrum([omeg[:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
-    [np.abs(eOmM[:freqUpperCutoff])**2*intensityFactor for eOmM in spectraM_li], 
+fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
+    [np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor for eOmM in spectraM_li], 
     zmon_li, 
     filePath=pathhead + '/figs/EwMz.png', 
     #titleStr=r'Forward THz spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
