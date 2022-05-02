@@ -15,7 +15,9 @@ class ODEParams { // Class for ODE params
 		
     public:
 		int numT = -666;
+		int numX = -666;
 		int numOmeg = -666;
+		int numOmX = -666;
 		int doPlasmaCalc = 0;
 		double chi_2, chi_3, mpi_sigmaK, mpi_k, ionE, sigmaBremsstrahlung, recombTime;
 		double *omega, *kx, *rho, *y;
@@ -43,6 +45,8 @@ class ODEParams { // Class for ODE params
 
 		
 		ODEParams(int nT, double *omg); // Constructor definition used most often
+
+		ODEParams(int nT, int nX, double *omg, double* kperp);
 
 		~ODEParams() { // Destructor definition
 			// Free arrays in heap

@@ -30,8 +30,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 
 	fftw_execute(odeObj->ep_b);
 	fftw_execute(odeObj->em_b);
-	normalizeFFT(odeObj->ee_p);
-	normalizeFFT(odeObj->ee_m);
+	normalizeFFT(odeObj->ee_p, fftnorm);
+	normalizeFFT(odeObj->ee_m, fftnorm);
 	applyWindow(odeObj->ee_p);
 	applyWindow(odeObj->ee_m);
 
@@ -44,12 +44,12 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	}
 	
 	fftw_execute(odeObj->p_ffft);
-	normalizeFFT(odeObj->p_nl);
+	normalizeFFT(odeObj->p_nl, fftnorm);
 
 	fftw_execute(odeObj->ep_f);
 	fftw_execute(odeObj->em_f);
-	normalizeFFT(odeObj->ee_p);
-	normalizeFFT(odeObj->ee_m);
+	normalizeFFT(odeObj->ee_p, fftnorm);
+	normalizeFFT(odeObj->ee_m, fftnorm);
 
 	const double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
 	const double omeg_p2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0); 
@@ -103,7 +103,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		double change = 0.0;                      // dN/dt
 		double current = 0.0;                     // Current to be exported to UPPE
 		double current_change = 0.0e0;            // Current change for differential equation
-		double ve = 3.33e14;                      // Electron-ion collision frequency
+		double ve = 1 / tauCollision;                      // Electron-ion collision frequency
 		double vr = 1 / odeObj->recombTime;       // Recombination frequency
 		double gamma = odeObj->sigmaBremsstrahlung / odeObj->ionE;
 		double fv1 = 0.0e0, fv2 = 0.0e0;
@@ -154,7 +154,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		double change = 0.0;    
 		double current = 0.0;                                       // Current to be exported to UPPE
 		double current_change = 0.0e0;                              // Current change for differential equation
-		double ve = 0.0; //1/tauCollision;
+		double ve = 1/tauCollision;
 		double fv1 = 0.0e0, fv2 = 0.0e0;
 
 		odeObj->rho[0] = electrons;

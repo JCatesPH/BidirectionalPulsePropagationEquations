@@ -15,12 +15,12 @@ Simulation mySimulation("andrewApplication1");
 MaterialDB myMaterialsDB("myFirstMaterialDB");
 
 // This block of vars were orignally inside main()
-double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0;
+double sampleLayerThickness, I_0, A_0, tau, lambda_0, omega_0, waist;
 double LHSsourceLayerThickness, RHSbufferLayerThickness;
 double rho_0;
 double twoColorSH_amplitude, twoColorSH_phase;
-int num_t, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, l_0, num_Threads;
-double domain_t, zStepMaterial1, alpha_tukey;
+int num_t, num_x, freqLowerCutoff, freqUpperCutoff, numActiveOmega, numActiveOmega2, numOmX, num_Threads;
+double domain_t, domain_x, zStepMaterial1, alpha_tukey;
 vector<double> monitorZlocations;
 int GSLerrorFlag, p, oFlag, VERBOSE;
 double *omegaArray, *timeValuesArray, *kx, fftnorm;
@@ -48,12 +48,14 @@ int main(int argc, char *argv[])
 	sourceLeftParams->relativeIntensity = twoColorSH_amplitude;
 	sourceLeftParams->relativePhase = twoColorSH_phase;
 	sourceLeftParams->pulseDuration = tau;
+	sourceLeftParams->pulseWaist = waist;
 
 	sourceRightParams->A0 = 0.0;
 	sourceRightParams->omega0 = 2 * M_PI*cLight / lambda_0;
 	sourceRightParams->relativeIntensity = twoColorSH_amplitude;
 	sourceRightParams->relativePhase = twoColorSH_phase;
 	sourceRightParams->pulseDuration = tau;
+	sourceLeftParams->pulseWaist = waist;
 	
 	/* ============================================== */
 	/* == Do some setup and output simulation info    */
@@ -67,7 +69,7 @@ int main(int argc, char *argv[])
 	char *datetime = ctime(&now);
 
 	if (VERBOSE >= 0) {
-		cout << "GBPPE code - ACMS Ver.1" << endl;
+		cout << "2D-BPPE code - ACMS Ver.0" << endl;
 		cout << "The current date and time: " << datetime << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
 		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
@@ -96,11 +98,6 @@ int main(int argc, char *argv[])
 
 	printf("Structure generated and point monitor locations set..\n");
 	
-	sourceLeft = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	sourceRight = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
-	
-	//y = (double*)malloc(sizeof(double) * 4 * numActiveOmega);
-
 #ifndef _WIN64
 	fftw_import_system_wisdom();
 	char wisdomFilePath[STRING_BUFFER_SIZE];
@@ -116,7 +113,17 @@ int main(int argc, char *argv[])
 #endif
 	
 	omegaArray = (double*)malloc(sizeof(double)*num_t);
-	kx = NULL;
+	if (numDimensionsMinusOne == 1) {
+		kx = (double*)malloc(sizeof(double)*num_x);
+		sourceLeft = (complex<double>*)malloc(sizeof(complex<double>) * numOmX);
+		sourceRight = (complex<double>*)malloc(sizeof(complex<double>) * numOmX);
+	}
+	else {
+		kx = NULL;
+		sourceLeft = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+		sourceRight = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	}
+	
 
 	#ifndef _WIN64
 	printf(" SAVING mywisdomfile...\n");
@@ -150,10 +157,20 @@ int main(int argc, char *argv[])
 
 	/* ============================================== */
 	/* == Generate sources */
-	complex<double> *eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
-	complex<double> *eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
-	fftw_plan eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
-	fftw_plan eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	complex<double> *eFieldPlus, *eFieldMinus;
+	fftw_plan eFieldPlusForwardFFT, eFieldMinusForwardFFT;
+	if (numDimensionsMinusOne == 1) {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t*num_x);
+		eFieldPlusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_2d(num_x, num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	}
+	else {
+		eFieldPlus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		eFieldMinus = (complex<double>*)malloc(sizeof(complex<double>)*num_t);
+		eFieldPlusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), reinterpret_cast<fftw_complex*>(&eFieldPlus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+		eFieldMinusForwardFFT = fftw_plan_dft_1d(num_t, reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), reinterpret_cast<fftw_complex*>(&eFieldMinus[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	}
 
 	if (VERBOSE >=3) printf("Generating the right-hand side source.\n");
 	generateTwoColorPulse(eFieldMinus, eFieldMinusForwardFFT, sourceRight, sourceRightParams);
@@ -217,12 +234,31 @@ int main(int argc, char *argv[])
 
 void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-
-	int numMon = (myStructure.getThickness() - RHSbufferLayerThickness) / 50e-6;
+	double slabLen = myStructure.getThickness() - RHSbufferLayerThickness - LHSsourceLayerThickness;
+	// Create monitors evenly spaced through domain
+	/* double monInterval = 0.5e-6;
+	int numMon = (myStructure.getThickness() - RHSbufferLayerThickness) / monInterval;
 	for (int n = 1; n < numMon; n++){
-		monitorZlocations.push_back(LHSsourceLayerThickness + n*50e-6);
+		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
 	}
-	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness);
+	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); */
+
+	// Create monitors at beginnning of nonlinear region
+	double monInterval = 5e-9;
+	double monStop = 100e-9;
+	int numMon = monStop / monInterval;
+	
+	if (monStop > myStructure.getThickness() - RHSbufferLayerThickness) {
+		cout << "Check conditions for point monitors." << endl;
+		exit(-1);
+	}
+	
+	for (int n = 1; n < numMon; n++){
+		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
+	}
+
+	monitorZlocations.push_back(LHSsourceLayerThickness + slabLen / 2.0); // Add monitor to middle of slab
+	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
 
 }
 
@@ -233,12 +269,19 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
 
 	// Initialize GSL ODE objects
+	int arrSize;
+	if (numDimensionsMinusOne == 1) {
+		arrSize = numOmX;
+	}
+	else {
+		arrSize = numActiveOmega;
+	}
 	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
-	gsl_odeiv2_step * gslStep = gsl_odeiv2_step_alloc(stepType, 4 * numActiveOmega);
+	gsl_odeiv2_step *gslStep = gsl_odeiv2_step_alloc(stepType, 4 * arrSize);
+	gsl_odeiv2_evolve *gslEvolve = gsl_odeiv2_evolve_alloc(4 * arrSize);
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
-	gsl_odeiv2_evolve * gslEvolve = gsl_odeiv2_evolve_alloc(4 * numActiveOmega);
-
-	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * numActiveOmega), rootObj->getODEparams()};
+	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * arrSize), rootObj->getODEparams()};
+	
 	gsl_odeiv2_evolve_reset(gslEvolve);
 
 	double *yloc = (rootObj->getODEparams())->y;
@@ -266,7 +309,10 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         // Skip the LHS layer and the RHS layers
         if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
         {
-            boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), yloc);
+            boundary(lit->getLowSideBoundary()->m_zPos, 
+				lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), 
+				lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), 
+				yloc);
             /* rootObj->getODEparams()->k = lit->getMaterial().getK();
             rootObj->getODEparams()->chi_2 = lit->getMaterial().getChi2();
             rootObj->getODEparams()->chi_3 = lit->getMaterial().getChi3();
@@ -301,11 +347,11 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
                     GSLerrorFlag = gsl_odeiv2_evolve_apply(gslEvolve, gslControl, gslStep, &sys, &zPosition, zRight, &zStepSize, yloc);
 
-					for (int k = 0; k < numActiveOmega; k++){
+					for (int k = 0; k < arrSize; k++){
 						if(yloc[k] != yloc[k]) foundNaN++;
-						if(yloc[k + numActiveOmega] != yloc[k + numActiveOmega]) foundNaN++;
-						if(yloc[k + 2 * numActiveOmega] != yloc[k + 2 * numActiveOmega]) foundNaN++;
-						if(yloc[k + 3 * numActiveOmega] != yloc[k + 3 * numActiveOmega]) foundNaN++;
+						if(yloc[k + arrSize] != yloc[k + arrSize]) foundNaN++;
+						if(yloc[k + 2 * arrSize] != yloc[k + 2 * arrSize]) foundNaN++;
+						if(yloc[k + 3 * arrSize] != yloc[k + 3 * arrSize]) foundNaN++;
 					}
 
 					if (foundNaN >= 1) {
@@ -349,13 +395,16 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
         }
         //  Finally do the lowside boundary of the last assumed Vacuum layer
         if (lit->getHiSideBoundary() == NULL) {
-            boundary(lit->getLowSideBoundary()->m_zPos, lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), yloc);
+            boundary(lit->getLowSideBoundary()->m_zPos, 
+				lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), 
+				lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), 
+				yloc);
         }
     }
 
 	for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
-		gsl_vector_set(f, k, yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]));
-		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]));
+		gsl_vector_set(f, k, yloc[k + 2 * arrSize + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]));
+		gsl_vector_set(f, k + rootObj->getSizeRoot()/2, yloc[k + 3 * arrSize + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]));
 	}
 
 
@@ -373,9 +422,9 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 		//fflush(stdout);
 	//}
 
-	for (int k = 0; k < numActiveOmega; k++){
-		yloc[k + 2*numActiveOmega] = real(sourceRight[k]);
-		yloc[k + 3*numActiveOmega] = imag(sourceRight[k]);
+	for (int k = 0; k < arrSize; k++){
+		yloc[k + 2*arrSize] = real(sourceRight[k]);
+		yloc[k + 3*arrSize] = imag(sourceRight[k]);
 	}
 
 	myStructure.doBackwardPassThroughAllBoundaries(yloc);
@@ -385,11 +434,11 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
     gsl_odeiv2_evolve_free(gslEvolve);
     gsl_odeiv2_step_free(gslStep);
 
-	for (int k = 0; k < numActiveOmega; k++){
+	for (int k = 0; k < arrSize; k++){
 		if(yloc[k] != yloc[k]) foundNaN++;
-		if(yloc[k + numActiveOmega] != yloc[k + numActiveOmega]) foundNaN++;
-		if(yloc[k + 2 * numActiveOmega] != yloc[k + 2 * numActiveOmega]) foundNaN++;
-		if(yloc[k + 3 * numActiveOmega] != yloc[k + 3 * numActiveOmega]) foundNaN++;
+		if(yloc[k + arrSize] != yloc[k + arrSize]) foundNaN++;
+		if(yloc[k + 2 * arrSize] != yloc[k + 2 * arrSize]) foundNaN++;
+		if(yloc[k + 3 * arrSize] != yloc[k + 3 * arrSize]) foundNaN++;
 	}
 
 	if (foundNaN >= 1) 
@@ -401,11 +450,20 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 void iterateBPPE()
 {
 	// Find the size of the problem with omega cutoffs
-	int sizeRoot = 2*(freqUpperCutoff - freqLowerCutoff + 1);
+	int sizeRoot;
+	ODEParams myODEParams(num_t, omegaArray);
+	if (numDimensionsMinusOne == 1) {
+		sizeRoot = 2 * num_x * (freqUpperCutoff - freqLowerCutoff + 1);
+		//*myODEParams = ODEParams(num_t, num_x, omegaArray, kx);
+	}
+	else {
+		sizeRoot = 2 * (freqUpperCutoff - freqLowerCutoff + 1);
+		//*myODEParams = ODEParams(num_t, omegaArray);
+	}
 
     // Create the gslParams objects
-    ODEParams myODEParams(num_t, omegaArray);
     RootParams myRootParams(&myODEParams, sizeRoot);
+
 	//RootParams myRootParams(num_t, omegaArray, sizeRoot);
 
     // Fill material-specific parameters with values from first layer
@@ -431,7 +489,7 @@ void iterateBPPE()
 	printf("Allocating multiroot solver\n");
 	const gsl_multiroot_fsolver_type *T;
     gsl_multiroot_fsolver *s;
-	T = gsl_multiroot_fsolver_hybrid;
+	T = gsl_multiroot_fsolver_hybrids;
 
 	nonlinear_time_initial = omp_get_wtime();
 	s = gsl_multiroot_fsolver_alloc(T, sizeRoot);
@@ -456,8 +514,9 @@ void iterateBPPE()
 	feclearexcept(FE_ALL_EXCEPT); */
 
 	fprintf(localLogFile, "Time spent finding initial guess : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
+	fclose(localLogFile);
 	nonlinear_time_initial = omp_get_wtime();
-
+	
 	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
 	myRootParams.setOutParam(1);
 	mapG(u, &myRootParams, tmp);
@@ -484,10 +543,12 @@ void iterateBPPE()
 	nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 	printf("Finished setting multiroot function in %.2f seconds.\n", nonlinear_time);
 
+	localLogFile = fopen(timeLogFname, "a");
 	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n\n", omp_get_wtime() - nonlinear_time_initial);
 	fprintf(localLogFile, "============================================================================\n");
 	fprintf(localLogFile, "| Iteration Number | Time in seconds  | 2-norm of step  | 2-norm of map    |\n");
 	fprintf(localLogFile, "============================================================================\n");
+	fclose(localLogFile);
 	nonlinear_time_initial = omp_get_wtime();
 
 	// Compute the condition number of the Jacobian
@@ -525,10 +586,12 @@ void iterateBPPE()
 		nonlinear_time = omp_get_wtime() - nonlinear_time_tmp;
 		printf("Iteration %d completed in %.3f seconds.\n", myRootParams.getItNum(), nonlinear_time);
 		
+		localLogFile = fopen(timeLogFname, "a");
 		fprintf(localLogFile, "|%18d|%18.3f|%18.5e|%18.5e|\n", myRootParams.getItNum(), nonlinear_time, dxnorm, fnorm);
+		fclose(localLogFile);
 
 		myRootParams.setItNum(myRootParams.getItNum() + 1);
-		fflush(stdout);
+		//fflush(stdout);
 	}
 	while (status == GSL_CONTINUE && myRootParams.getItNum() < 25000);
 
@@ -536,8 +599,10 @@ void iterateBPPE()
 	printf("==========================================================\n");
 	printf("Multiroot solver completed in %.2f seconds.\n\n", nonlinear_time_total);
 
+	localLogFile = fopen(timeLogFname, "a");
 	fprintf(localLogFile, "============================================================================\n");
 	fprintf(localLogFile, "Quasi-Newton scheme has stopped after : %f [s]\n", nonlinear_time_total);
+	fprintf(localLogFile, "Scheme return code : %d \n", status);
 	fclose(localLogFile);
 
 	
@@ -667,6 +732,8 @@ void DELME_SilicaDispersion(double* omg) {
 	Material *SilicaMat;
 	SilicaMat = myMaterialsDB.getMaterialByName("Silica");
 
+	Material *SilicaLinearMat = myMaterialsDB.getMaterialByName("SilicaLinear");
+
 	complex<double> n0;
 	double lambda;
 	
@@ -705,6 +772,8 @@ void DELME_SilicaDispersion(double* omg) {
 		//n0 += DBL_EPSILON;
 
 		SilicaMat->m_k[i] = omg[i] * n0 / cLight;
+
+		SilicaLinearMat->m_k[i] = omg[i] * n0 / cLight;
 
 		fprintf(fp, "%.7g\t%.17g\t%.17g \n", lambda, real(n0), imag(n0));
 	}
@@ -753,7 +822,7 @@ void writeSimParameters()
 		fprintf(fp, "shift           \t%.17g\t/*FILL */\n", shift);
 		fprintf(fp, "numDimensionsMinusOne \t%.17g\t/*(1+1) dimension (0) or (2+1) dimension (1) */\n", (double)numDimensionsMinusOne);
 		//fprintf(fp, "plasmaOnOff     \t%d\t/*plasma on (1) or off (0) */\n", plasmaOnOff);
-		fprintf(fp, "l_0               \t%.17g\t/*FILL */\n", (double)l_0);
+		//fprintf(fp, "l_0               \t%.17g\t/*FILL */\n", (double)l_0);
 		fprintf(fp, "numActiveOmega    \t%.17g\t/*FILL */\n", (double)numActiveOmega);
 		//fprintf(fp, "numActiveOmega2   \t%.17g\t/*FILL */\n", (double)numActiveOmega2);
 		fprintf(fp, "omegaPlasmaDamping \t%.17g\t/*plasma damping */\n", omegaPlasmaDamping);
@@ -813,6 +882,7 @@ void readGlobalParameters(char *inFile) {
 	twoColorSH_phase = getDoubleParameterValueByName("twoColorPhase");
 	tau = getDoubleParameterValueByName("pulseDuration");
 	lambda_0 = getDoubleParameterValueByName("fundamentalWavelength"); 
+	waist = getDoubleParameterValueByName("pulseWaist"); 
 
 	A_0 = sqrt(2.0 * I_0 / (epsilon_0*cLight));
 	omega_0 = 2 * M_PI*cLight / lambda_0;
@@ -821,12 +891,15 @@ void readGlobalParameters(char *inFile) {
 	num_t = getIntParameterValueByName("numTimePoints");
 	//num_t = pow(2, 17);
 	domain_t = getDoubleParameterValueByName("timeDomainSize");
+	num_x = getIntParameterValueByName("numTransversePoints");
+	domain_x = getDoubleParameterValueByName("transverseDomainSize");
 
 	//freqUpperCutoff = num_t / 2;
 	freqLowerCutoff = getIntParameterValueByName("omegLowerCutoff");
 	freqUpperCutoff = getIntParameterValueByName("omegUpperCutoff");
 	numActiveOmega = num_t / 2 + 1;
 	//numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
+	numOmX = num_t*num_x / 2 + 2;
 	fftnorm = sqrt((double)num_t);
 
 	sampleLayerThickness = getDoubleParameterValueByName("sampleLayerThickness");

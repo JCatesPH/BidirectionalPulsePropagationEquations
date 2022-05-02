@@ -24,9 +24,9 @@ private:
 	double m_chi_3;
 	int m_doPlasmaCalc = 0;
 	double m_mpi_sigmaK = 0.0, m_mpi_k =0.0, m_ionE = 0.0, m_sigmaBremsstrahlung = 0.0, m_recombTime;
+	int m_numK;
 
 	//complex<double>* m_k=nullptr;
-	int m_numActiveOmega = 0;
 public:
 	Material() : m_name("Undefined Material"), m_n0(0.0), m_n2(0.0), m_chi_2(666.666), m_chi_3(333.333) {}
 	Material(string aName, double n0, double n2, double chi_2, double chi_3) : m_name(aName), m_n0(n0), m_n2(n2), m_chi_2(chi_2), m_chi_3(chi_3) {
@@ -115,10 +115,10 @@ public:
 
 	complex<double>* getK() {return m_k; }
 		
-	complex<double>* mallocK(int theNumActiveOmega) {
-		m_numActiveOmega = theNumActiveOmega;
+	complex<double>* mallocK(int arrSize) { // For 1D: arrSize = numActiveOmega
+		m_numK = arrSize;
 		if (m_k == nullptr) {
-			m_k = (complex<double>*)malloc(sizeof(complex<double>) * m_numActiveOmega);
+			m_k = (complex<double>*)malloc(sizeof(complex<double>) * m_numK);
 			if (!m_k) {
 				cout << "Memory Allocation of K-array Failed for material " << m_name << endl;
 				exit(1);
@@ -131,8 +131,21 @@ public:
 		return m_k;
 	}
 
+	void fillK(double* omg, double* kx) {
+		for (int i = 0; i < m_numK; i++)
+		{
+			if (i == 0) {
+				m_k[i] = 0.0;
+			}	
+			else {
+				m_k[i] = copysign(1.0, omg[i]) * sqrt(pow(omg[i] *getIndex(omg[i], kx[i]), 2) / clightSquared - pow(kx[i], 2));
+			}
+		}
+		//m_matInfoAsString.append("    k[1] = "); m_matInfoAsString.append(to_string(real(m_k[1])));
+	}
+
 	void fillK(double* omg) {
-		for (int i = 0; i <m_numActiveOmega; i++)
+		for (int i = 0; i < m_numK; i++)
 		{
 			if (i == 0) 
 				m_k[i] = 0.0;
@@ -182,10 +195,22 @@ public:
 		outFile.close();
 }
 
-	void initAllMaterialKs(double* omg, int numOmega) {
+	void initAllMaterialKs(int numDim, int arrSize, double* omg, double* kx) {
+		/* int arrSize;
+		if (numDimensionsMinusOne == 1) {
+			arrSize = numOmX;
+		}
+		else {
+			arrSize = numActiveOmega;
+		} */
 		for (Material& aMaterial : m_materials) {
-			aMaterial.mallocK(numOmega);
-			aMaterial.fillK(omg);
+			aMaterial.mallocK(arrSize);
+			if (numDim == 1) {
+				aMaterial.fillK(omg, kx);	
+			}
+			else {
+				aMaterial.fillK(omg);
+			}
 			if (false) 	cout << "   Filled k in material:" << aMaterial.serializedToString() << endl;
 		}
 	}

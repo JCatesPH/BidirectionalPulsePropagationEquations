@@ -47,6 +47,7 @@
 #include "Structure.h"
 #include "Utilities.h"
 #include "gslParams.h"
+#include "output.h"
 
 /* ============================================== */
 
@@ -59,7 +60,7 @@ using namespace std;
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e3
+#define NOISE_MAGNITUDE 1.0e-3
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -103,7 +104,7 @@ const double num_atoms = 2.1e26;  //number of atoms in silica [1/m^3] (See Duran
 extern double rho_0;
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
-const double tauCollision = 190.0e-15; // <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
+const double tauCollision = 3.0e-15; // 190.0e-15; <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
 /* const double mpi_sigmaK = 3.4e-128;
 const double mpi_k = 8.0; */
 const double FUDGE_FACTOR = 1.0;
@@ -114,17 +115,19 @@ const double Znaught = FUDGE_FACTOR * (1.0 / (epsilon_0 * cLight));
 
 
 // domain parameters
-extern int num_t;
-extern double domain_t;
+extern int num_t, num_x;
+extern double domain_t, domain_x;
 extern int numActiveOmega;
-const int num_x = int(pow(2, 6)); //number of x points
-const double domain_x = 125.0e-6; //x domain
+//const int num_x = int(pow(2, 6)); //number of x points
+//const double domain_x = 125.0e-6; //x domain
 extern int freqLowerCutoff; 
 extern int freqUpperCutoff;
 const double shift = 1.0e-9;
 //const int numActiveOmega = num_t / 2 + 1; //num_x * num_t / 2 + 2;
 //const int numActiveOmega2 = numActiveOmega - (num_t / 2 + 1);
 //const int l_0 = (num_t / 2 + 1)*(num_x / 2 + 1);
+extern int numOmX;
+extern double *kx;
 
 extern double LHSsourceLayerThickness; //distance from laser source to slab
 extern double RHSbufferLayerThickness; //distance from slab to receiver
@@ -170,6 +173,7 @@ typedef struct {
 	double relativePhase;
 	double pulseDuration;
 	double omega0;
+	double pulseWaist;
 }pulseparam_type;
 
 

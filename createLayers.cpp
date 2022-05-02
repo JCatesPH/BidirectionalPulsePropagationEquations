@@ -6,9 +6,9 @@
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
-	//generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
+	generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
-	generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
+	//generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
 }
 
 void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)
@@ -16,8 +16,8 @@ void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structur
 
 	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
-	Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	theMaterialDB.addMaterial(argon);
+	//Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
+	//theMaterialDB.addMaterial(argon);
 	Material mat1("dieMat1", n0_Material1, n2_Material1, chi2_Material1, chi3_Material1);
 	theMaterialDB.addMaterial(mat1);
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
@@ -25,7 +25,7 @@ void generateLayerTestMaterialsAndStructure(MaterialDB &theMaterialDB,  Structur
 	
 
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
-    theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+    theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat1"), sampleLayerThickness, zStepMaterial1);
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }
 
@@ -51,12 +51,17 @@ void generateSilicaMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &
 	silica.setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime); 
 	//silica.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k); // MPI ONLY
 	theMaterialDB.addMaterial(silica);
+
+	Material silicaLin("SilicaLinear", n0_Silica, 0.0, 0.0, 0.0);
+	theMaterialDB.addMaterial(silicaLin);
 	
 
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), LHSsourceLayerThickness, zStepMaterial1);
     //theStructure.addLayer(theMaterialDB.getMaterialByName("dieMat2"), sampleLayerThickness, zStepMaterial1);
+	theStructure.addLayer(theMaterialDB.getMaterialByName("SilicaLinear"), LHSsourceLayerThickness, zStepMaterial1);
 	theStructure.addLayer(theMaterialDB.getMaterialByName("Silica"), sampleLayerThickness, zStepMaterial1);
-	theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
+	theStructure.addLayer(theMaterialDB.getMaterialByName("SilicaLinear"), RHSbufferLayerThickness, zStepMaterial1);
+	//theStructure.addLayer(theMaterialDB.getMaterialByName("Vacuum"), RHSbufferLayerThickness, zStepMaterial1);
 }
 
 void generateApp1MaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &theStructure)

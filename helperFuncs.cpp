@@ -6,8 +6,10 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	complex<double>* GAm1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* GAm2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 
+	write_out_eFieldAndSpectrumAtZlocation(0, 0, odeObj->y, 0.0, odeObj->ee_m, theStructure.m_layers.front().getMaterial().getK(), odeObj->em_b);
 	// Pass forward through boundaries 
 	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
+	write_out_eFieldAndSpectrumAtZlocation(0, 1, odeObj->y, theStructure.getThickness(), odeObj->ee_p, theStructure.m_layers.back().getMaterial().getK(), odeObj->ep_b);
 
 	// Set right source
 	for (int i = 0; i < numActiveOmega; i++)
@@ -45,7 +47,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	// -------------------------------
 	// Set second guess with r.v.
 	default_random_engine gen;
-	uniform_real_distribution<double> dis(0.0, 1e3);
+	uniform_real_distribution<double> dis(0.0, 1e2);
 
 	// Reset left source to ensure consistency
 	for (int i = 0; i < numActiveOmega; i++)
@@ -107,7 +109,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	}
 	
 	// Output the reflected spectrum
-	write_out_eFieldAndSpectrumAtZlocation(0, 0, odeObj->y, 0.0, odeObj->ee_m, theStructure.m_layers.front().getMaterial().getK(), odeObj->em_b);
+	//write_out_eFieldAndSpectrumAtZlocation(0, 0, odeObj->y, 0.0, odeObj->ee_m, theStructure.m_layers.front().getMaterial().getK(), odeObj->em_b);
 	
 	// Reset left source to ensure consistency
 	for (int i = 0; i < numActiveOmega; i++)
@@ -120,7 +122,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	theStructure.doForwardPassThroughAllBoundaries(odeObj->y);
 
 	// Output the transmitted spectrum 
-	write_out_eFieldAndSpectrumAtZlocation(0, 1, odeObj->y, theStructure.getThickness(), odeObj->ee_p, theStructure.m_layers.back().getMaterial().getK(), odeObj->ep_b);
+	//write_out_eFieldAndSpectrumAtZlocation(0, 1, odeObj->y, theStructure.getThickness(), odeObj->ee_p, theStructure.m_layers.back().getMaterial().getK(), odeObj->ep_b);
 
 	// Set right source
 	for (int i = 0; i < numActiveOmega; i++)
@@ -143,49 +145,60 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 
 void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams) {
-    double ht = (1.0 * domain_t) / double(num_t);
+    double ht = domain_t / double(num_t);
 	int o;
+	if (numDimensionsMinusOne == 1) {
+		double hx = domain_x / double(num_x);
+		for (int j = 0; j < num_x; j++) {
+			for (int i = 0; i < num_t; i++) {
+				double r = (-domain_x/2.0) + hx * ((double)j + 1);
+				double s = (-domain_t/2.0) + ht * ((double)i + 1);
+				ee[i + num_t * j] = pparams->A0 * (sqrt(1.0 - pparams->relativeIntensity) * exp(-2.0 * log(2.0) * pow(s, 2) / pow(pparams->pulseDuration, 2)) * exp(-2.0 * log(2.0) * pow(r, 2) / pow(pparams->pulseWaist, 2)) * cos(pparams->omega0 * s)
+								+ sqrt(pparams->relativeIntensity) * exp(-8.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * exp(-2.0 * log(2.0) * pow(r, 2) / pow(pparams->pulseWaist, 2)) * cos(2.0 * pparams->omega0 * s + pparams->relativePhase));
+				}
+		}
+		writeInputEfield(ee);
 
-    for (int i = 0; i < num_t; i++) {
-        double s = (-domain_t/2.0) + ht * ((double)i + 1);
-        ee[i] = pparams->A0 * (sqrt(1.0 - pparams->relativeIntensity) * exp(-2.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(pparams->omega0 * s)
-                        + sqrt(pparams->relativeIntensity) *       exp(-8.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(2.0 * pparams->omega0 * s + pparams->relativePhase));
-		//ee[i] = 0.0;
+		fftw_execute(e_f);
+		normalizeFFT(ee, fftnorm);
+		
+		for (int j = 0; j <= num_x / 2; j++) {
+			if (j == 0) {
+				for (int i = 0; i < numActiveOmega; i++) {
+					source[i] = ee[i];
+				}
+			}
+			else if (j == num_x / 2) {
+				for (int i = 0; i < numActiveOmega; i++) {
+					source[i + numOmX - numActiveOmega] = ee[i + num_t * j];
+				}
+			}
+			else {
+				for (int i = 0; i < num_t; i++) {
+					source[i + (j - 1) * num_t + numActiveOmega] = ee[i + num_t * j];
+				}
+			}
+		}
 	}
-    writeInputEfield(ee);
+	else {
+		for (int i = 0; i < num_t; i++) {
+			double s = (-domain_t/2.0) + ht * ((double)i + 1);
+			ee[i] = pparams->A0 * (sqrt(1.0 - pparams->relativeIntensity) * exp(-2.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(pparams->omega0 * s)
+							+ sqrt(pparams->relativeIntensity) *       exp(-8.0 * log(2.0) * pow(s, 2) / (pow(pparams->pulseDuration, 2))) * cos(2.0 * pparams->omega0 * s + pparams->relativePhase));
+			//ee[i] = 0.0;
+		}
+		writeInputEfield(ee);
 
-    fftw_execute(e_f);
-    normalizeFFT(ee);
-
-	for (int i = 0; i < numActiveOmega; i++) {
-		source[i] = ee[i];
+		fftw_execute(e_f);
+		normalizeFFT(ee, fftnorm);
+		for (int i = 0; i < numActiveOmega; i++) {
+			source[i] = ee[i];
+		}
 	}
 	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE);
 }
 
 
-void boundary(double z, complex<double>*k_0, complex<double>*k_1, double *y) {
-
-	complex<double> sp, sm;
-	for (int i = 1; i < numActiveOmega; i++)
-	{
-		if (i >= freqLowerCutoff && i <= freqUpperCutoff) {
-			complex<double> aPlus = y[i] + 1.0i*y[i + numActiveOmega];
-			complex<double> aMinus = y[i + 2 * numActiveOmega] + 1.0i*y[i + 3 * numActiveOmega];
-
-			sp = (exp(1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aPlus + exp(-1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aMinus);
-
-			sm = (exp(1.0i*(k_0[i] + k_1[i])*z)*(k_1[i] - k_0[i]) / (2.0*k_1[i]) * aPlus + exp(-1.0i*(k_0[i] - k_1[i])*z)*(k_0[i] + k_1[i]) / (2.0*k_1[i]) * aMinus);
-			
-			y[i] = real(sp);
-			y[i + numActiveOmega] = imag(sp);
-			y[i + 2 * numActiveOmega] = real(sm);
-			y[i + 3 * numActiveOmega] = imag(sm);
-		}
-	}
-	if (VERBOSE >= 5) { cout << "       Done Boundary() for z = " << z << endl;}
-	return;
-}
 
 
 void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
@@ -318,14 +331,16 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
 
 		// -- Pure white noise
-		gsl_vector_set(u, k, dis(gen));
-		gsl_vector_set(u, k + sizeRoot/2, dis(gen));
+		//gsl_vector_set(u, k, dis(gen));
+		//gsl_vector_set(u, k + sizeRoot/2, dis(gen));
 
 		// -- Colored noise
 		//gsl_vector_set(u, k, dis(gen) * odeObj->y[k + freqLowerCutoff]);
 		//gsl_vector_set(u, k + sizeRoot/2, dis(gen) * odeObj->y[k + numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k, dis(gen) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k + sizeRoot/2, dis(gen) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		gsl_vector_set(u, k, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)) );
+		gsl_vector_set(u, k + sizeRoot/2, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)));
 	}
 
 

@@ -45,6 +45,54 @@ ODEParams::ODEParams(int nT, double *omg) { // Constructor definition
 	}
 }
 
+ODEParams::ODEParams(int nT, int nX, double *omg, double* kperp) { // Constructor definition
+	// Takes parameters to set values that are global.
+	numT = nT;
+	numX = nX;
+	numOmeg = numT / 2 + 1;
+	numOmX = numT * numX / 2 + 2;
+	omega = omg;
+
+	// Allocates necessary double arrays
+	rho = (double*)malloc(sizeof(double)*numT*numX);
+	y = (double*)malloc(sizeof(double)*(4*numOmX));
+
+	// Allocate complex arrays
+	ee_p = (complex<double>*)malloc(sizeof(complex<double>)*numT*numX);
+	ee_m = (complex<double>*)malloc(sizeof(complex<double>)*numT*numX);
+	p_nl = (complex<double>*)malloc(sizeof(complex<double>)*numT*numX);
+	jhat = (complex<double>*)malloc(sizeof(complex<double>)*numT*numX);
+	j_e = (complex<double>*)malloc(sizeof(complex<double>)*numT*numX);
+
+	// Allocate fftw plans
+	p_ffft = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&p_nl[0]), reinterpret_cast<fftw_complex*>(&p_nl[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	j_ffft = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&j_e[0]), reinterpret_cast<fftw_complex*>(&jhat[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	ep_b = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+	em_b = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_BACKWARD, FFTW_WISDOM_TYPE );
+	ep_f = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&ee_p[0]), reinterpret_cast<fftw_complex*>(&ee_p[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+	em_f = fftw_plan_dft_2d(numX, numT, reinterpret_cast<fftw_complex*>(&ee_m[0]), reinterpret_cast<fftw_complex*>(&ee_m[0]), FFTW_FORWARD, FFTW_WISDOM_TYPE );
+
+
+	// Initialize arrays
+	for (int i = 0; i < numT*numX; i++) {
+		rho[i] = 0.0;
+
+		ee_p[i] = 0.0;
+		ee_m[i] = 0.0;
+		p_nl[i] = 0.0;
+		jhat[i] = 0.0;
+		j_e[i] = 0.0;
+	}
+
+	for (int i = 0; i < numOmX; i++) {
+		y[i] = 0.0;
+		y[i + numOmX] = 0.0;
+		y[i + 2*numOmX] = 0.0;
+		y[i + 3*numOmX] = 0.0;
+	}
+}
+
+
 void ODEParams::fillParams(Material myMat) {
 	// Load plasma parameters
 	doPlasmaCalc = myMat.getdoPlasmaCalc();
