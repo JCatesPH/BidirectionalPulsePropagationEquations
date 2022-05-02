@@ -25,7 +25,8 @@ if hasattr(sys, 'ps1'):
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
     #pathhead = '../DATA/Drude_2umL_fsol_031322'
     #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
-    pathhead = '../DATA/Durand2013_031822'
+    #pathhead = '../DATA/Durand2013_031822'
+    pathhead = '../DATA/testing2D'
     itnum = '1'
 
 

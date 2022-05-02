@@ -22,13 +22,14 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA/Durand2013_031822'
-    itnum = '1'
+    pathhead = '../DATA/silica_indexMatched_150TWcm2_4umL_042822'
+    itnum = '23'
 
 #%%
 mpl.rcParams['font.family'] = 'Tahoma'
-plt.rcParams['font.size'] = 16
+plt.rcParams['font.size'] = 14
 plt.rcParams['axes.linewidth'] = 2
+stdfigsize = (6.66, 5)
 
 #plt.ion()
 ######################################
@@ -64,25 +65,27 @@ def plotField(timeArr, fieldArr, labelArr, filePath, titleStr=None, xlabelStr=r'
     fig.savefig(filePath)
     return fig, axs
 
-def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$'):
-    fig, axs = plt.subplots(figsize=(11, 9))
+def plotSpectrum(freqArr, spectrumArr, labelArr, filePath, titleStr=None, xlabelStr=r'$\omega/\omega_0$', xlims=None):
+    fig, axs = plt.subplots(figsize=stdfigsize, dpi=400)
 
     for freqs, spectrum, label in zip(freqArr, spectrumArr, labelArr):
         axs.semilogy(freqs, spectrum, label=label)
 
     #ax2.semilogy(df['t [s]'], neVec)
     if titleStr is not None:
-        axs.set_title(titleStr, fontsize=18)
+        axs.set_title(titleStr)
     #axs.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
-    axs.set_xlabel(xlabelStr, fontsize=16)
+    axs.set_xlabel(xlabelStr)
     #axs.set_ylabel(r'Re[$E(t)$] [V/m]')
-    #axs.set_xlim([0.0, np.max(freqArr)])
-    axs.tick_params(axis='both', which='major', labelsize=14)
-    axs.grid(which='major')
+    if xlims is not None:
+        axs.set_xlim(xlims)
+    #axs.grid(which='major')
     axs.margins(x=0)
     axs.legend()
 
-    fig.savefig(filePath)
+    plt.tight_layout()
+
+    fig.savefig(filePath, dpi=400, bbox_inches='tight')
     return fig, axs
 
 
@@ -261,7 +264,7 @@ for pointmon in pmon_li:
     plt.clf()
     plt.semilogy(df['t [s]'], neVec)
     plt.title(r'Electron density at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
-    plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
+    #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.grid(which='major')
     plt.xlim([np.mean(df['t [s]']) - 2*taup, np.mean(df['t [s]']) + 2*taup])
@@ -331,7 +334,8 @@ for pointmon in pmon_li:
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_+(t) + E_-(t)]$ [V/m]')
     plt.grid(which='major')
-    plt.legend()
+    #plt.legend()
+    plt.xlim([np.mean(df['t [s]']) - 5*taup, np.mean(df['t [s]']) + 5*taup])
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_total_' + zm + '.png')
@@ -358,7 +362,7 @@ for pointmon in pmon_li:
         xlabelStr=r'$\omega/\omega_0$')
 
 
-    fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12], 
+    """ fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12], 
         [np.abs(eOmP[:upperFreq_THz])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/EwP_THz_' + zm + '.png', 
@@ -368,7 +372,7 @@ for pointmon in pmon_li:
     #axs.set_ylim([1e-9,1e-6])
     axs.axvline(omega_pe / (2*np.pi) * 1e-12, color='k', linestyle='--')
     fig.savefig(pathhead + '/figs/EwP_THz_' + zm + '.png')
-    #plt.show()
+    #plt.show() """
 
     # Plot backward-prop spectrum
     plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
@@ -383,33 +387,46 @@ for pointmon in pmon_li:
         [np.abs(eOmTotal[:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/Ew_' + zm + '.png', 
-        titleStr=r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
+        titleStr=r'Spectrum of total field at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
+        xlabelStr=r'$\omega/\omega_0$')
+
+    # Plot both spectra
+    plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
+        [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor, np.abs(eOmM[:freqUpperCutoff])**2*intensityFactor], 
+        ['Transmitted', 'Reflected'], 
+        filePath=pathhead + '/figs/EwBoth_' + zm + '.png', 
+        titleStr=r'Both spectra at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
 
     # Plot the plasma density and EtP
-    fig, ax1 = plt.subplots(figsize=(11, 9))
+    fig, ax1 = plt.subplots(figsize=stdfigsize, dpi=400)
 
     ax2 = ax1.twinx()
 
     ax1.plot(df['t [s]'], df['Re(Ept) [V/m]'], '-', color='lightcoral')
     ax1.set_ylabel(r'Re[$E(t)$] [V/m]', fontsize=14)
 
-    ax2.semilogy(df['t [s]'], neVec)
-    ax1.set_title(r'Electron density and forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
+    ax2.semilogy(df['t [s]'], neVec*1e-6)
+    #ax1.set_title(r'Electron density and forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     ax1.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
     ax1.tick_params(axis='both', which='major', labelsize=12)
     ax2.tick_params(axis='both', which='major', labelsize=12)
     ax1.set_xlabel(r'$t$ [s]', fontsize=14)
-    ax2.set_ylabel(r'$N_e$', fontsize=14)
-    ax1.set_xlim([np.mean(df['t [s]']) - 3*taup, np.mean(df['t [s]']) + 3*taup])
+    ax2.set_ylabel(r'$\rho$ [cm$^{-3}$]', fontsize=14)
+    ax1.set_xlim([np.mean(df['t [s]']) - 20*taup, np.mean(df['t [s]']) + 20*taup])
+    ax1.set_title(r'Field and carrier density at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     ax2.grid(which='major')
     ax1.margins(x=0)
 
-    plt.savefig(pathhead + '/figs/Ne_EtP_' + zm + 'nm.png')
-    #plt.show()
+    plt.savefig(pathhead + '/figs/Ne_EtP_' + zm + 'nm.png', dpi=400, bbox_inches='tight')
+
+    ax1.plot(df['t [s]'], df['Re(Emt) [V/m]'], '-', color='mediumpurple')
+
+    plt.savefig(pathhead + '/figs/Ne_EtP_EtM_' + zm + 'nm.png', dpi=400, bbox_inches='tight')
+    plt.show()
 
     # Plot transmitted and forward spectrum in THz
-    plt.clf()
+    """ plt.clf()
     plt.semilogy(omeg[:upperFreq_THz] / (2*np.pi), np.abs(eOmP[:upperFreq_THz])**2*intensityFactor, 'b-o', label='fwd; ' + labstr)
     #plt.semilogy(omeg[:upperFreq_THz] / (np.pi), np.abs(eOmTotal[:upperFreq_THz])**2, 'r-o', label='total; ' + labstr)
     plt.semilogy(eSpectrumT[:upperFreq_THz,0] / (2*np.pi), np.abs(eSpectrumT[:upperFreq_THz,3])**2*intensityFactor, 'r-o', label='trans; ' + labstr)
@@ -426,15 +443,15 @@ for pointmon in pmon_li:
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Ew-EwT_THz_' + zm + '.png')
-    #plt.show()
+    #plt.show() """
 
     # Plot the FFT of the current
-    plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
+    """ plotSpectrum([omeg[:freqUpperCutoff]/omeg0], 
         [np.abs(JeOm[:freqUpperCutoff])], 
         [r'J_e'], 
         filePath=pathhead + '/figs/JeOm_' + zm + '.png', 
         titleStr=r'Current density at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
-        xlabelStr=r'$\omega/\omega_0$')
+        xlabelStr=r'$\omega/\omega_0$') """
 
 plt.close('all')
 
@@ -447,7 +464,8 @@ zmon_li = [] # List of point monitor locations
 time_li = []
 field_li = []
 omeg_li= []
-spectra_li = []
+spectraP_li = []
+spectraM_li = []
 
 # Use glob to find all filenames
 for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
@@ -455,7 +473,7 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
     nameli = name.split('_')
     #print(nameli)
     zloc = nameli[-1].split('nm')
-    zloc = str(float(zloc[0]) - sourceThickness*1e9)
+    zloc = str((float(zloc[0]) - sourceThickness*1e9) * 1e-3)
     #print('Location of point monitor: {} nm'.format(zloc))
     zmon_li.append(zloc)
     df = pd.read_table(name, 
@@ -467,10 +485,14 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
     eP = df['Re(Ept) [V/m]'].values + 1.0j * df['Im(Ept) [V/m]'].values
     eOmP = np.fft.fft(eP) / np.sqrt(len(eP))
 
+    eM = df['Re(Emt) [V/m]'].values + 1.0j * df['Im(Emt) [V/m]'].values
+    eOmM = np.fft.fft(eM) / np.sqrt(len(eM))
+
     time_li.append(df['t [s]'].values)
     field_li.append(np.real(eP))
     omeg_li.append(omeg)
-    spectra_li.append(eOmP)
+    spectraP_li.append(eOmP)
+    spectraM_li.append(eOmM)
 
 print(pmon_li)
 print(zmon_li)
@@ -487,7 +509,7 @@ plotField(time_li[1:-1:2],
 
 #%%
 #omega_pe = plasmaFreq(4e24)
-fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12 for omeg in omeg_li], 
+""" fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12 for omeg in omeg_li], 
     [np.abs(eOmP[:upperFreq_THz])**2*intensityFactor for eOmP in spectra_li], 
     zmon_li, 
     filePath=pathhead + '/figs/EwPz_THz.png', 
@@ -497,30 +519,41 @@ fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12 for omeg in om
 #axs.set_ylim([1e-9,1e-6])
 #axs.set_xlim([0, 60])
 axs.axvline(omega_pe / (2*np.pi) * 1e-12, color='k', linestyle='--')
-fig.savefig(pathhead + '/figs/EwPz_THz.png')
+fig.savefig(pathhead + '/figs/EwPz_THz.png') """
 
 fig, axs = plotSpectrum([omeg[:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
-    [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor for eOmP in spectra_li], 
+    [np.abs(eOmP[:freqUpperCutoff])**2*intensityFactor for eOmP in spectraP_li], 
     zmon_li, 
     filePath=pathhead + '/figs/EwPz.png', 
     #titleStr=r'Forward THz spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
-    titleStr='',
+    titleStr='Forward-propagating Spectra',
     xlabelStr=r'$\omega/\omega_0$')
 #axs.set_ylim([1e-9,1e-6])
 #axs.set_xlim([0, 60])
 fig.savefig(pathhead + '/figs/EwPz.png')
 
+fig, axs = plotSpectrum([omeg[:freqUpperCutoff] / omeg0 for omeg in omeg_li], 
+    [np.abs(eOmM[:freqUpperCutoff])**2*intensityFactor for eOmM in spectraM_li], 
+    zmon_li, 
+    filePath=pathhead + '/figs/EwMz.png', 
+    #titleStr=r'Forward THz spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
+    titleStr='Backward-propagating Spectra',
+    xlabelStr=r'$\omega/\omega_0$')
+#axs.set_ylim([1e-9,1e-6])
+#axs.set_xlim([0, 60])
+fig.savefig(pathhead + '/figs/EwMz.png')
+
 #plt.show()
 
 #%% Plot the transmitted THz spectrum
-upperFreq_THz = np.max(np.nonzero(eSpectrumT[:halfT,0] / (2*np.pi) < 100e12))
+""" upperFreq_THz = np.max(np.nonzero(eSpectrumT[:halfT,0] / (2*np.pi) < 100e12))
 fig, axs = plotSpectrum([eSpectrumT[:upperFreq_THz,0]/(2*np.pi)*1e-12], [eSpectrumT[:upperFreq_THz,3]**2*intensityFactor], [labstr], 
     filePath=pathhead + '/figs/EwT_THz.png', 
     titleStr='THz Spectrum of Transmitted Field', 
     xlabelStr=r'f [THz]')
 
 axs.axvline(omega_pe / (2*np.pi) * 1e-12, color='k', linestyle='--')
-fig.savefig(pathhead + '/figs/EwT_THz.png')
+fig.savefig(pathhead + '/figs/EwT_THz.png') """
 
 #%% Read in forward-propagating pulse
 df = pd.read_table(pathhead + '/Efield_iteration_' + itnum + '_Transmitted.dat', header=0)

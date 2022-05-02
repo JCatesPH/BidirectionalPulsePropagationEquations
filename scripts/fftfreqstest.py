@@ -31,7 +31,7 @@ print('min_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / max_omeg))
 print('max_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / delta_om))
 
 #%% Use the central frequency for further analysis
-lamb0 = 1.9e-6
+lamb0 = 10e-6
 omeg0 = 2 * np.pi * CLIGHT / lamb0 
 maxHarm = int(max_omeg / omeg0)
 
@@ -78,7 +78,7 @@ print('cutoff for 0.21 = {:d}'.format(cutoffOm1))
 print('cutoff for 6.7 = {:d}'.format(cutoffOm2))
 
 # %%
-numE = 1.0e27
+numE = 1.0e25
 omegPlasma = np.sqrt(CHARGE_E**2*numE/(EPS0*MASS_E))
 
 print("For {:} electrons, the plasma frequency is: {:.3e} 1/s".format(numE, omegPlasma))
@@ -107,24 +107,6 @@ dat = {'nE [m^-3]' : numE_li, 'omeg_p' : omegp_li, 'lambda_0' : lamb_li, 'Half P
 df = pd.DataFrame(data = dat)
 df
 # %%
-lamb0 = 3e-6
-omeg0 = 2 * np.pi * CLIGHT / lamb0 
-numE_li = [1e23, 1e24, 1e25, 1e26, 1e27]
-omegp_li = []
-ratio_li = []
-pcr_li = []
-for numE in numE_li:
-    omegPlasma = np.sqrt(CHARGE_E**2*numE/(EPS0*MASS_E))
-    omegp_li.append(omegPlasma)
 
-    ratio = omeg0 / omegPlasma
-    ratio_li.append(ratio)
-
-    halfCritPower = (17 * (omeg0 / omegPlasma)**2) / 2
-    pcr_li.append(halfCritPower)
-
-dat = {'nE [m^-3]' : numE_li, 'omeg_p' : omegp_li, 'omeg0/omegp' : ratio_li, 'Half P_cr [GW]' : pcr_li}
-df = pd.DataFrame(data = dat)
-df
 
 # %%

@@ -20,7 +20,8 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA/DBR_fsol_031022'
+    #pathhead = '../DATA/DBR_fsol_031022'
+    pathhead = '../DATA/testing2D'
     itnum = '5'
 
 
