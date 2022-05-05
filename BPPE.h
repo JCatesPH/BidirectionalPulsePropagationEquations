@@ -30,7 +30,7 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_odeiv2.h>
 #include <gsl/gsl_vector.h>
-#include "gsl/gsl_multiroots.h"
+#include "gsl/gsl_multimin.h"
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_linalg.h>
 #include "gsl/gsl_math.h"
@@ -61,6 +61,7 @@ using namespace std;
 //#define DO_ARGON_PLASMA
 
 #define NOISE_MAGNITUDE 1.0e-3
+#define LINGUESS_MAX 1e4
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -87,13 +88,13 @@ extern double fftnorm;
 extern double zStepMaterial1;
 
 // GSL ODE API parameters
-const double ode_epsabs = 1e-10;
-const double ode_epsrel = 1e-7;
+const double ode_epsabs = 1e-9;
+const double ode_epsrel = 1e-6;
 const int ode_nmax = 1e6;
 
 // GSL Quasi-Newton API parameters
-const double root_epsabs = 1e-10;
-const double root_epsrel = 1e-7;
+const double root_epsabs = 1e-9;
+const double root_epsrel = 1e-6;
 
 
 // plasma parameters
@@ -178,7 +179,7 @@ typedef struct {
 
 
 //void doNonlinearPartofBPPE();
-int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f);
+double mapG(const gsl_vector *ym_guess, void *rootparams);
 void iterateBPPE();
 
 //void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* source, pulseparam_type *pparams);

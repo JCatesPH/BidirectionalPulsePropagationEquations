@@ -21,8 +21,8 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA/DBR_fsol_031022'
-    pathhead = '../DATA/testing2D'
-    itnum = '5'
+    pathhead = '../DATA/testing_2Dmin_inStep1e5_050522'
+    itnum = '5000'
 
 
 CLIGHT = 299792458

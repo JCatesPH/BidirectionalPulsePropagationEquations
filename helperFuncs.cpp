@@ -39,7 +39,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 	// Set map of LHS Am to RHS
 	for (int j = 0; j < numActiveOmega; j++) {
-		GAm1[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+		GAm1[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 	}
 
 	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
@@ -47,7 +47,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	// -------------------------------
 	// Set second guess with r.v.
 	default_random_engine gen;
-	uniform_real_distribution<double> dis(0.0, 1e2);
+	uniform_real_distribution<double> dis(0.0, LINGUESS_MAX);
 
 	// Reset left source to ensure consistency
 	for (int i = 0; i < numActiveOmega; i++)
@@ -62,7 +62,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 	// Set map of LHS Am to RHS
 	for (int j = 0; j < numActiveOmega; j++) {
-		GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+		GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 	}
 
 	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
@@ -94,7 +94,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 		// Set map of LHS Am to RHS
 		for (int j = 0; j < numActiveOmega; j++) {
-			GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+			GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 		}
 
 		// Set right source

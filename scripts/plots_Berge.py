@@ -291,7 +291,7 @@ for pointmon in pmon_li:
     # Use max density to calculate plasma frequency
     omega_pe = plasmaFreq(np.max(neVec))
     #omega_pe = plasmaFreq(1.1e25)
-    print('Maximum electron density : {:.1e}\n Plasma frequency: {:.3e}'.format(np.max(neVec), omega_pe))
+    print('Maximum electron density : {:.1e}\n Plasma frequency: {:.3e}\n wp/w0: {:.3e}'.format(np.max(neVec), omega_pe, omega_pe/omeg0))
 
     # Plot the forward-propagating pulse
     plt.clf()
@@ -354,7 +354,7 @@ for pointmon in pmon_li:
     upperFreq_THz = np.max(np.nonzero(omeg / (2*np.pi) < 100e12))
 
     # Plot forward-prop spectrum
-    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+    fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/EwP_' + zm + '.png', 
@@ -362,6 +362,8 @@ for pointmon in pmon_li:
         #titleStr='',
         xlabelStr=r'$\omega/\omega_0$')
 
+    axs.axvline(omega_pe / omeg0, color='k', linestyle='--')
+    fig.savefig(pathhead + '/figs/EwP_' + zm + '.png')
 
     """ fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12], 
         [np.abs(eOmP[:upperFreq_THz])**2*intensityFactor], 
@@ -392,12 +394,15 @@ for pointmon in pmon_li:
         xlabelStr=r'$\omega/\omega_0$')
 
     # Plot both spectra
-    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0, omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+    fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0, omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor, np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
-        ['Transmitted', 'Reflected'], 
+        [r'$A_+$', r'$A_-$'], 
         filePath=pathhead + '/figs/EwBoth_' + zm + '.png', 
         titleStr=r'Both spectra at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
+
+    axs.axvline(omega_pe / omeg0, color='k', linestyle='--')
+    fig.savefig(pathhead + '/figs/EwBoth_' + zm + '.png')
 
     # Plot the plasma density and EtP
     fig, ax1 = plt.subplots(figsize=stdfigsize, dpi=400)
@@ -463,7 +468,8 @@ plt.close('all')
 pmon_li = [] # List of point monitor files
 zmon_li = [] # List of point monitor locations
 time_li = []
-field_li = []
+fieldP_li = []
+fieldM_li = []
 omeg_li= []
 spectraP_li = []
 spectraM_li = []
@@ -490,7 +496,8 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
     eOmM = np.fft.fft(eM) / np.sqrt(len(eM))
 
     time_li.append(df['t [s]'].values)
-    field_li.append(np.real(eP))
+    fieldP_li.append(np.real(eP))
+    fieldM_li.append(np.real(eM))
     omeg_li.append(omeg)
     spectraP_li.append(eOmP)
     spectraM_li.append(eOmM)
@@ -516,7 +523,7 @@ fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff] / omeg0 for omeg 
 
 #%%
 plotField(time_li[1:-1:2], 
-    field_li[1:-1:2], 
+    fieldP_li[1:-1:2], 
     zmon_li[1:-1:2], 
     filePath=pathhead + '/figs/Etz.png', 
     titleStr=None, 
@@ -626,5 +633,34 @@ lstSqFit = np.linalg.lstsq(A, eFieldR[:,1], rcond=None)
 print("The reflected field has linear fit with parameters:\n  m={:}\n  c={:}".format(lstSqFit[0][0], lstSqFit[0][1]))
 
 
+#############################################
+# %%
+# Get data from specific point monitor
+index = 1
+eForward = fieldP_li[index]
+eBackward = fieldM_li[index]
+tArr = 1.2e-12 - time_li[index]
+zLoc = zmon_li[index]
+
+# %% Plot both with scaled backscattered
+rFactor = 1e4 # Scaling factor for backscattered
+
+plt.clf()
+plt.figure(figsize=(8, 6))
+
+plt.plot(tArr, eForward)
+plt.plot(tArr - 1e-13, rFactor * eBackward)
+
+plt.title(r'Both fields at $z=${:.2f} $\mu$m'.format(float(zLoc)))
+plt.xlabel(r'$t$ [s]')
+plt.ylabel(r'$E(t)$ [V/m]')
+plt.legend([r'$E_+$' , r'$E_-$ (*{:.1e} and shifted)'.format(rFactor)])
+
+plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.grid(which='major')
+plt.tight_layout()
+plt.xlim([-2e-13,2e-13])
+#plt.show()
+plt.savefig(pathhead + '/figs/Et_ScaledBack.png')
 
 # %%

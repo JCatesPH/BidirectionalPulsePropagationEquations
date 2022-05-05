@@ -21,13 +21,13 @@ TARGET = test.out
 HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createLayers.h helperFuncs.h gslParams.h output.h
 
 # --- Variables for compiling custom GSL library ---
-GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o gsl/multiroot/broyden.o gsl/multiroot/dnewton.o gsl/multiroot/fdjac.o
-GSLHEADERS = gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multiroot/gsl_multiroots.h
+GSL_MULTIMINOBJS = gsl/multimin/convergence.o gsl/multimin/fminimizer.o gsl/multimin/simplex2.o 
+GSLHEADERS = gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multimin/gsl_multimin.h
 
-GSLOBJS = $(GSL_MULTIROOTOBJS)
+GSLOBJS = $(GSL_MULTIMINOBJS)
 
-MYGSLLIBS = libmultroot.a
-MYLIBFLAGS = -L. -lmultroot
+MYGSLLIBS = libmultmin.a
+MYLIBFLAGS = -L. -lmultmin
 
 
 # --- Rule 1 ---
@@ -40,7 +40,7 @@ testWOmygsl: $(OBJFILES) $(HEADERS)
 mygsl: $(GSLOBJS) $(GSLHEADERS)
 	$(CC) -o mygslobj.o $(GSLOBJS) $(LDFLAGS)
 
-libmultroot.a: $(GSL_MULTIROOTOBJS) $(GSLHEADERS)
+libmultmin.a: $(GSL_MULTIMINOBJS) $(GSLHEADERS)
 	ar $(ARFLAGS) $@ $^
 
 rootfind: rootfindtest.cpp

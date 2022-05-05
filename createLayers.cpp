@@ -6,8 +6,8 @@
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
 	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
-	generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
-	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
+	//generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
+	generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
 }
 
@@ -99,8 +99,6 @@ void generateDefectMaterialsAndStructure(MaterialDB& theMaterialDB, Structure& t
 	theMaterialDB.addMaterial(mat1);
 	Material mat2("dieMat2", n0_Material2, n2_Material2, chi2_Material2, chi3_Material2);
 	theMaterialDB.addMaterial(mat2);
-	Material argon("Argon", n0_Argon, n2_Argon, chi2_Argon, chi3_Argon);
-	theMaterialDB.addMaterial(argon);
 
 	const double lamb0 = 630e-9; // Wavelength (MAKE SURE CORRESPONDS TO ACTUAL WAVELENGTH)
 	const double thickness1 = lamb0 / (4.0 * n0_Material1);

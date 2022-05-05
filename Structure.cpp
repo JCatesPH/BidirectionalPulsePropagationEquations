@@ -33,9 +33,9 @@ void boundary(double z, complex<double>*beta0, complex<double>*beta1, double *y)
                 complex<double> aPlus = y[i] + 1.0i*y[i + numActiveOmega];
                 complex<double> aMinus = y[i + 2 * numActiveOmega] + 1.0i*y[i + 3 * numActiveOmega];
 
-                sp = (exp(1.0i*(beta0[i] - beta1[i])*z)*(beta0[i] + beta1[i]) / (2.0*beta1[i]) * aPlus + exp(-1.0i*(beta0[i] + beta1[i])*z)*(beta1[i] - beta0[i]) / (2.0*beta1[i]) * aMinus);
+                sp = (exp(-1.0i*(beta0[i] - beta1[i])*z)*(beta0[i] + beta1[i]) / (2.0*beta1[i]) * aPlus + exp(1.0i*(beta0[i] + beta1[i])*z)*(beta1[i] - beta0[i]) / (2.0*beta1[i]) * aMinus);
 
-                sm = (exp(1.0i*(beta0[i] + beta1[i])*z)*(beta1[i] - beta0[i]) / (2.0*beta1[i]) * aPlus + exp(-1.0i*(beta0[i] - beta1[i])*z)*(beta0[i] + beta1[i]) / (2.0*beta1[i]) * aMinus);
+                sm = (exp(-1.0i*(beta0[i] + beta1[i])*z)*(beta1[i] - beta0[i]) / (2.0*beta1[i]) * aPlus + exp(1.0i*(beta0[i] - beta1[i])*z)*(beta0[i] + beta1[i]) / (2.0*beta1[i]) * aMinus);
                 
                 y[i] = real(sp);
                 y[i + numActiveOmega] = imag(sp);
