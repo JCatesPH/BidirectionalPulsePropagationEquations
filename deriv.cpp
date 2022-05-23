@@ -1,5 +1,13 @@
 #include "BPPE.h"
 
+
+double atomicDensityProfile(double z) {
+	double z0 = LHSsourceLayerThickness + sampleLayerThickness;
+	double n_max = 2.0e26;
+	return (n_max / M_PI) / (pow(z - z0, 2) + pow(n_max, 2));
+}
+
+
 int dAdz(double z, const double y[], double f[], void *odep) {
 
 	//odeparam_type *p = reinterpret_cast<odeparam_type*>(odep);
@@ -7,6 +15,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 
 	const int num_tOver2 = num_t / 2;
 	const double num_td = (double)num_t;
+	double num_atoms;
 
 	#pragma omp parallel for
 	for (int i = 0; i < numActiveOmega; i++)
@@ -94,9 +103,9 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	}
 	
 	fftw_execute(odeObj->p_ffft);
-	normalizeFFT(odeObj->p_nl, fftnorm);
+	normalizeFFT(odeObj->p_nl, fftnorm); 
 
-	if (odeObj->doPlasmaCalc == 3) {
+	if (odeObj->doPlasmaCalc == 3) { // MPI, Avalanche, & Recombination
 		double ht = domain_t / num_td;
 		double neutrals = num_atoms - rho_0;      // Neutral particles
 		double electrons = rho_0;                 // background Electrons
@@ -146,9 +155,10 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		fftw_execute(odeObj->j_ffft);
 		normalizeFFT(odeObj->jhat, fftnorm);
 	}
-	else if (odeObj->doPlasmaCalc == 2) {
+	else if (odeObj->doPlasmaCalc == 2) { // MPI
 
 		double ht = domain_t / num_td;
+		num_atoms = atomicDensityProfile(z);
 		double neutrals = num_atoms - rho_0;                          // Neutral particles
 		double electrons = rho_0;                      // background Electrons
 		double change = 0.0;    
@@ -200,7 +210,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		normalizeFFT(odeObj->jhat, fftnorm);
 
 	}
-	else if (odeObj->doPlasmaCalc == 1){
+	else if (odeObj->doPlasmaCalc == 1){ // QST
 		double ht = domain_t / num_td;
 		double neutrals = num_atoms - rho_0;  // Neutral particles
 		double electrons = rho_0; 
@@ -335,4 +345,3 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 	}
 	return;
 }
-

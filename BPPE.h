@@ -99,7 +99,7 @@ const double root_epsrel = 1e-6;
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
 //const double num_atoms = 2.0e25;  //number of atoms in gas [1/m^3]
-const double num_atoms = 2.1e26;  //number of atoms in silica [1/m^3] (See Durand 2013 paper)
+//const double num_atoms = 2.1e26;  //number of atoms in silica [1/m^3] (See Durand 2013 paper)
 //const double rho_0 = 9.0e24; // initial electron density
 extern double rho_0;
 const double j_e0 = 0.0;
@@ -156,7 +156,7 @@ const double chi2_Material2 = 0.0; //-1.0 * chi_2;
 
 //const double A_0 = sqrt(2.0 * I_0 / (epsilon_0*n0_Vacuum*cLight)); //pulse peak amplitude
 //const double Keldysh = omega_0 * sqrt(2.0 * u_Argon*charge_e) / A_0; //keldysh parameter
-const double omegaPlasma = sqrt(num_atoms*pow(charge_e,2)/(mass_e*epsilon_0)); //fully-ionized plasma frequency
+//const double omegaPlasma = sqrt(num_atoms*pow(charge_e,2)/(mass_e*epsilon_0)); //fully-ionized plasma frequency
 
 //sellemeier parameters
 /* const double Sellmeir_chi_1_1 = 2.4272;

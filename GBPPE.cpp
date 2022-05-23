@@ -693,8 +693,8 @@ void DELME_ArgonDispersion(double* omg) {
 
 	complex<double> n0;
 	double lambda;
-	double raylighFactor = 32.0 * pow(M_PI, 3) / (3.0 * pow(num_atoms,2)) * num_atoms;
-	double rayleighScattering = 0.0;
+	//double raylighFactor = 32.0 * pow(M_PI, 3) / (3.0 * pow(num_atoms,2)) * num_atoms;
+	//double rayleighScattering = 0.0;
 	
 	char dispersionFile[STRING_BUFFER_SIZE];
 	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Argon.dat", SIM_DATA_OUTPUT);
@@ -731,7 +731,7 @@ void DELME_ArgonDispersion(double* omg) {
 
 
 		//n0 += 1.0i * 8.0 * pow(M_PI, 3) / (3 * num_atoms * pow(lambda,4)) * pow(pow(n0, 2) - 1.0, 2);
-		rayleighScattering = raylighFactor / pow(lambda*1e-6, 4) * pow(real(n0)-1.0, 2);
+		//rayleighScattering = raylighFactor / pow(lambda*1e-6, 4) * pow(real(n0)-1.0, 2);
 		//n0 += 1.0i * rayleighScattering;
 
 		//n0 = 1.00026; // COMMENT OUT! THIS USED FOR TESTING
@@ -838,7 +838,7 @@ void writeSimParameters()
 		fprintf(fp, "num_x           \t%.17g\t/*number of x pos */\n", (double)num_x);
 		fprintf(fp, "domain_t        \t%.17g\t/*time domain */\n", domain_t);
 		fprintf(fp, "domain_x        \t%.17g\t/*x domain */\n", domain_x);
-		fprintf(fp, "num_atoms       \t%.17g\t/*number of atoms in gas */\n", num_atoms);
+		//fprintf(fp, "num_atoms       \t%.17g\t/*number of atoms in gas */\n", num_atoms);
 		fprintf(fp, "rho_0           \t%.17g\t/* initial electron density */\n", rho_0);
 		fprintf(fp, "j_e0            \t%.17g\t/* initial current density */\n", j_e0);
 		fprintf(fp, "freqUpperCutoff \t%d\t/* upper frequency cut-off */\n", freqUpperCutoff);
