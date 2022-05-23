@@ -253,13 +253,28 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 		exit(-1);
 	}
 	
-	for (int n = 1; n < numMon; n++){
+	monitorZlocations.push_back(0.01e-6); // Place monitor at z0
+	monitorZlocations.push_back(2.5e-6);
+	monitorZlocations.push_back(LHSsourceLayerThickness / 2); // Between z0 and z1
+	monitorZlocations.push_back(7.5e-6);
+
+	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
 		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
 	}
 
-	monitorZlocations.push_back(LHSsourceLayerThickness + slabLen / 2.0); // Add monitor to middle of slab
-	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
+	double monStart = LHSsourceLayerThickness + 200e-9;
+	monInterval = 100e-9;
+	monStop = LHSsourceLayerThickness + 3.9e-6;
+	numMon = (monStop - monStart) / monInterval + 1;
+	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
+		monitorZlocations.push_back(monStart + n*monInterval);
+	}
 
+	//monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
+	monitorZlocations.push_back(myStructure.getThickness() - 7.5e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness / 2); // Add monitor midway after slab
+	monitorZlocations.push_back(myStructure.getThickness() - 2.5e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - 0.01e-6); // Add monitor to very end of domain
 }
 
 
@@ -313,6 +328,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 				lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), 
 				lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), 
 				yloc);
+		}
             /* rootObj->getODEparams()->k = lit->getMaterial().getK();
             rootObj->getODEparams()->chi_2 = lit->getMaterial().getChi2();
             rootObj->getODEparams()->chi_3 = lit->getMaterial().getChi3();
@@ -392,7 +408,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 
             //integrate(zPosition, zStepSize, params, y, integral);
             
-        }
+        //}
         //  Finally do the lowside boundary of the last assumed Vacuum layer
         if (lit->getHiSideBoundary() == NULL) {
             boundary(lit->getLowSideBoundary()->m_zPos, 
@@ -422,10 +438,10 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 		//fflush(stdout);
 	//}
 
-	for (int k = 0; k < arrSize; k++){
+	/* for (int k = 0; k < arrSize; k++){
 		yloc[k + 2*arrSize] = real(sourceRight[k]);
 		yloc[k + 3*arrSize] = imag(sourceRight[k]);
-	}
+	} */
 
 	myStructure.doBackwardPassThroughAllBoundaries(yloc);
 
@@ -734,8 +750,14 @@ void DELME_SilicaDispersion(double* omg) {
 
 	Material *SilicaLinearMat = myMaterialsDB.getMaterialByName("SilicaLinear");
 
-	complex<double> n0;
+	complex<double> n0, epsr;
 	double lambda;
+
+	// - Define the Debye model parameters
+	const double eps_inf = 2.34;
+	const double eps_s = 1.75;
+	const double tau_Debye = 2.65e-15;
+	const double sigma0 = 2e3;
 	
 	char dispersionFile[STRING_BUFFER_SIZE];
 	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Silica.dat", SIM_DATA_OUTPUT);
@@ -756,7 +778,7 @@ void DELME_SilicaDispersion(double* omg) {
 	{
 		lambda = 2 * M_PI*cLight / omg[i] * 1e6;
 		
-		if (lambda > 0.21 && lambda < 6.7) {
+		/* if (lambda > 0.21 && lambda < 6.7) {
 			// Sellmeier formula from https://doi.org/10.1364/JOSA.55.001205 valid for 0.21-6.7 um at 20.C
 			n0 = sqrt(complex<double>(1+0.6961663/(1-pow(0.0684043/lambda,2))+0.4079426/(1-pow(0.1162414/lambda,2))+0.8974794/(1-pow(9.896161/lambda,2))));
 		}
@@ -767,7 +789,10 @@ void DELME_SilicaDispersion(double* omg) {
 		else {
 			//n0 = sqrt(complex<double>(1.0603 + 1.59989 / lambda - 1.97666 / pow(lambda,2) + 0.864072 / pow(lambda,3) - 0.108171 / pow(lambda,4)));
 			n0 = 1.5;
-		}
+		} */
+
+		epsr = eps_inf + sigma0 / (1.0i * omg[i] * epsilon_0) + (eps_s - eps_inf) / (1.0 + 1.0i * omg[i] * tau_Debye);
+		n0 = sqrt(epsr);
 
 		//n0 += DBL_EPSILON;
 

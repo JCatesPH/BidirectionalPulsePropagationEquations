@@ -22,8 +22,9 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA/silica_indexMatched_100TWcm2_4umL_042722'
-    itnum = '37'
+    #pathhead = '../DATA/silica_indexMatchedKerr_100TWcm2_4umL_050522'
+    pathhead = '../DATA/silica_fdtdComp_Kerr_052022'
+    itnum = '110'
 
 #%%
 mpl.rcParams['font.family'] = 'Tahoma'
@@ -291,7 +292,7 @@ for pointmon in pmon_li:
     # Use max density to calculate plasma frequency
     omega_pe = plasmaFreq(np.max(neVec))
     #omega_pe = plasmaFreq(1.1e25)
-    print('Maximum electron density : {:.1e}\n Plasma frequency: {:.3e}'.format(np.max(neVec), omega_pe))
+    print('Maximum electron density : {:.1e}\n Plasma frequency: {:.3e}\n wp/w0: {:.3e}'.format(np.max(neVec), omega_pe, omega_pe/omeg0))
 
     # Plot the forward-propagating pulse
     plt.clf()
@@ -354,7 +355,7 @@ for pointmon in pmon_li:
     upperFreq_THz = np.max(np.nonzero(omeg / (2*np.pi) < 100e12))
 
     # Plot forward-prop spectrum
-    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+    fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
         [labstr], 
         filePath=pathhead + '/figs/EwP_' + zm + '.png', 
@@ -362,6 +363,8 @@ for pointmon in pmon_li:
         #titleStr='',
         xlabelStr=r'$\omega/\omega_0$')
 
+    axs.axvline(omega_pe / omeg0, color='k', linestyle='--')
+    fig.savefig(pathhead + '/figs/EwP_' + zm + '.png')
 
     """ fig, axs = plotSpectrum([omeg[:upperFreq_THz] / (2*np.pi) * 1e-12], 
         [np.abs(eOmP[:upperFreq_THz])**2*intensityFactor], 
@@ -392,12 +395,15 @@ for pointmon in pmon_li:
         xlabelStr=r'$\omega/\omega_0$')
 
     # Plot both spectra
-    plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0, omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
+    fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0, omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor, np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
-        ['Transmitted', 'Reflected'], 
+        [r'$A_+$', r'$A_-$'], 
         filePath=pathhead + '/figs/EwBoth_' + zm + '.png', 
         titleStr=r'Both spectra at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
+
+    axs.axvline(omega_pe / omeg0, color='k', linestyle='--')
+    fig.savefig(pathhead + '/figs/EwBoth_' + zm + '.png')
 
     # Plot the plasma density and EtP
     fig, ax1 = plt.subplots(figsize=stdfigsize, dpi=400)
@@ -424,7 +430,7 @@ for pointmon in pmon_li:
     ax1.plot(df['t [s]'], df['Re(Emt) [V/m]'], '-', color='mediumpurple')
 
     plt.savefig(pathhead + '/figs/Ne_EtP_EtM_' + zm + 'nm.png', dpi=400, bbox_inches='tight')
-    plt.show()
+    #plt.show()
 
     # Plot transmitted and forward spectrum in THz
     """ plt.clf()
@@ -463,7 +469,8 @@ plt.close('all')
 pmon_li = [] # List of point monitor files
 zmon_li = [] # List of point monitor locations
 time_li = []
-field_li = []
+fieldP_li = []
+fieldM_li = []
 omeg_li= []
 spectraP_li = []
 spectraM_li = []
@@ -490,7 +497,8 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
     eOmM = np.fft.fft(eM) / np.sqrt(len(eM))
 
     time_li.append(df['t [s]'].values)
-    field_li.append(np.real(eP))
+    fieldP_li.append(eP)
+    fieldM_li.append(eM)
     omeg_li.append(omeg)
     spectraP_li.append(eOmP)
     spectraM_li.append(eOmM)
@@ -516,7 +524,7 @@ fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff] / omeg0 for omeg 
 
 #%%
 plotField(time_li[1:-1:2], 
-    field_li[1:-1:2], 
+    fieldP_li[1:-1:2], 
     zmon_li[1:-1:2], 
     filePath=pathhead + '/figs/Etz.png', 
     titleStr=None, 
@@ -625,6 +633,36 @@ A = np.vstack([eFieldR[:,0].T, np.ones(len(eFieldR[:,0]))]).T
 lstSqFit = np.linalg.lstsq(A, eFieldR[:,1], rcond=None)
 print("The reflected field has linear fit with parameters:\n  m={:}\n  c={:}".format(lstSqFit[0][0], lstSqFit[0][1]))
 
+
+#############################################
+# %%
+# Get data from specific point monitor
+index = 1
+eForward = fieldP_li[index]
+eBackward = fieldM_li[index]
+tArr = 1.2e-12 - time_li[index]
+zLoc = zmon_li[index]
+
+# %% Plot both with scaled backscattered
+rFactor = 1e4 # Scaling factor for backscattered
+
+plt.clf()
+plt.figure(figsize=(8, 6))
+
+plt.plot(tArr, eForward)
+plt.plot(tArr, rFactor * eBackward)
+
+plt.title(r'Both fields at $z=${:.2f} $\mu$m'.format(float(zLoc)))
+plt.xlabel(r'$t$ [s]')
+plt.ylabel(r'$E(t)$ [V/m]')
+plt.legend([r'$E_+$' , r'$E_-$ (*{:.1e})'.format(rFactor)])
+
+plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
+plt.grid(which='major')
+plt.tight_layout()
+plt.xlim([-2e-13,2e-13])
+#plt.show()
+plt.savefig(pathhead + '/figs/Et_ScaledBack.png')
 
 
 # %%

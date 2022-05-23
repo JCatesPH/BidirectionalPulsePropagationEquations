@@ -13,8 +13,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	{
 		//const complex<double> phaseFactor = exp(1.0i * real(odeObj->k[i]) * z) * exp(-1.0 * abs(imag(odeObj->k[i])) * z);
 		//const complex<double> phaseFactor2 = exp(-1.0i * real(odeObj->k[i]) * z) * exp(-1.0 * abs(imag(odeObj->k[i])) * z);
-		const complex<double> phaseFactor = exp(1.0i * odeObj->k[i] * z);
-		const complex<double> phaseFactor2 = exp(-1.0i * odeObj->k[i] * z);
+		const complex<double> phaseFactor = exp(-1.0i * odeObj->k[i] * z);
+		const complex<double> phaseFactor2 = exp(1.0i * odeObj->k[i] * z);
 
 		odeObj->ee_p[i] = (y[i] + 1.0i * y[i + numActiveOmega]) * phaseFactor;
 		odeObj->ee_m[i] = (y[i + 2 * numActiveOmega] + 1.0i * y[i + 3 * numActiveOmega]) * phaseFactor2;
@@ -132,7 +132,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		for (int i = 0; i < num_t - 1; i++)
 		{
 			fv2 = real(odeObj->ee_p[i + 1] + odeObj->ee_m[i + 1]);
-			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			current_change = ht * (pow(charge_e, 2) / mass_e) * odeObj->rho[i+1] * (fv1 + fv2) * 0.5 - ht * ve * current;
 			fv1 = fv2;
 			current += current_change;
 			odeObj->j_e[i + 1] = current;
@@ -185,7 +185,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
 			// Second order method (Kolja)
 			fv2 = real(odeObj->ee_p[i + 1] + odeObj->ee_m[i + 1]);
-			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * current;
+			current_change = ht * (pow(charge_e, 2) / mass_e) * odeObj->rho[i+1] * (fv1 + fv2) * 0.5 - ht * ve * current;
 			fv1 = fv2;
 			current += current_change;
 			odeObj->j_e[i + 1] = current;
@@ -261,7 +261,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 			//	current_change = delta_t*(pow(cnst_e,2)/cnst_me)*electrons*real(aptr[t])-delta_t*ve*current;	
 			// Second order method (Kolja)
 			fv2 = real(odeObj->ee_p[i+1] + odeObj->ee_m[i+1]);
-			current_change = ht * (pow(charge_e, 2) / mass_e) * electrons * (fv1 + fv2) * 0.5 - ht * ve * real(odeObj->j_e[i]);
+			current_change = ht * (pow(charge_e, 2) / mass_e) * odeObj->rho[i+1] * (fv1 + fv2) * 0.5 - ht * ve * real(odeObj->j_e[i]);
 			fv1 = fv2;
 			odeObj->j_e[i + 1] = odeObj->j_e[i] + current_change;
 		}
@@ -300,11 +300,15 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
 		//complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(-1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(-1.0i*(odeObj->k[i])*z);
+		complex<double> deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
+				+ odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0) * odeObj->jhat[i]
+			) * exp(1.0i*(odeObj->k[i])*z);
 		f[i] = real(deltazA);
 		f[i + num_tOver2 + 1] = imag(deltazA);
 		//deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(1.0i*(odeObj->k[i])*z);
+		deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
+				+ odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0) * odeObj->jhat[i]
+			) * exp(-1.0i*(odeObj->k[i])*z);
 		f[i + num_t + 2] = real(deltazA);
 		f[i + 3 * num_tOver2 + 3] = imag(deltazA); 
 
@@ -324,7 +328,9 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 			integral[i] = 0.0;
 		}
 		else {
-			integral[i] += -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*pow(cLight, 2))*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*pow(cLight, 2)*epsilon_0)*odeObj->jhat[i])* exp(-1.0i*real(odeObj->k[i]) * z)*exp(-1.0*abs(imag(odeObj->k[i]))*z)*zStep;
+			integral[i] += (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*pow(cLight, 2)) * odeObj->p_nl[i] 
+					+ odeObj->omega[i] / (2.0*(odeObj->k[i])*pow(cLight, 2)*epsilon_0) * odeObj->jhat[i]
+				) * exp(-1.0i*real(odeObj->k[i]) * z)*exp(-1.0*abs(imag(odeObj->k[i]))*z)*zStep;
 		}
 	}
 	return;

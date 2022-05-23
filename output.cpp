@@ -52,14 +52,14 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 		{
 			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * (zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
 			//ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
-			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * k[i] * z);
+			ee[i] = (y[i] + 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
 		}
 
 		for (int i = 1; i < num_t / 2; i++)
 		{
 			//ee[num_t - i] = (y[i] - 1.0i*y[i + num_t / 2 + 1])*exp(1.0i*conj(k[i])*(zPosition + RHSbufferLayerThickness));		// phase corrections by Andrew (2021-01-25)
 			//ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * real(k[i]) * z) * exp(-1.0 * abs(imag(k[i])) * z);
-			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(-1.0i * k[i] * z);
+			ee[num_t - i] = (y[i] - 1.0i * y[i + num_t / 2 + 1]) * exp(1.0i * k[i] * z);
 		}
 	}
 	else {
@@ -184,12 +184,12 @@ void write_multicolumnMonitor(int iterationNo, double theZpos, double *y, ODEPar
 	int num_tOver2 = num_t/2;
 	for (int i = 0; i <= num_tOver2; i++)
 	{
-		const complex<double> phaseFactor = exp(1.0i * real(odeObj->k[i]) * theZpos) * exp(-1.0 * abs(imag(odeObj->k[i])) * theZpos);
+		const complex<double> phaseFactor = exp(-1.0i * real(odeObj->k[i]) * theZpos) * exp(1.0 * abs(imag(odeObj->k[i])) * theZpos);
 		odeObj->ee_p[i] = (y[i] + 1.0i * y[i + num_tOver2 + 1]) * phaseFactor;
 		odeObj->ee_m[num_t - i - 1] = (y[i + num_t + 2] - 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor;
 
 		if (i > 0 && i < num_tOver2) {
-			const complex<double> phaseFactor2 = exp(-1.0i * real(odeObj->k[i]) * theZpos) * exp(1.0 * abs(imag(odeObj->k[i])) * theZpos);
+			const complex<double> phaseFactor2 = exp(1.0i * real(odeObj->k[i]) * theZpos) * exp(-1.0 * abs(imag(odeObj->k[i])) * theZpos);
 			odeObj->ee_p[num_t - i] = (y[i] - 1.0i * y[i + num_tOver2 + 1]) * phaseFactor2;
 			odeObj->ee_m[i] = (y[i + num_t + 2] + 1.0i * y[i + 3 * num_tOver2 + 3]) * phaseFactor2;
 		}

@@ -39,7 +39,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 	// Set map of LHS Am to RHS
 	for (int j = 0; j < numActiveOmega; j++) {
-		GAm1[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+		GAm1[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 	}
 
 	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
@@ -52,7 +52,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 	// Reset left source to ensure consistency
 	for (int i = 0; i < numActiveOmega; i++)
 	{
-		Am2[i] = dis(gen);
+		Am2[i] = dis(gen) + 1.0i * dis(gen);
 
 		odeObj->y[i] = real(sourceLeft[i]);
 		odeObj->y[i + numActiveOmega] = imag(sourceLeft[i]);
@@ -62,7 +62,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 	// Set map of LHS Am to RHS
 	for (int j = 0; j < numActiveOmega; j++) {
-		GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+		GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 	}
 
 	theStructure.doBackwardPassThroughAllBoundaries(odeObj->y);
@@ -75,15 +75,15 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 			complex<double> secant;
 			if(abs(GAm1[k] - GAm2[k]) < DBL_MIN) {
-				odeObj->y[k + 2*numActiveOmega] = real(Am2[k]);
-				odeObj->y[k + 3*numActiveOmega] = imag(Am2[k]);
+				secant = Am2[k];
 			}
 
 			else{
 				secant = (Am1[k] * GAm2[k] - Am2[k] * GAm1[k]) / (GAm2[k] - GAm1[k]);
-				odeObj->y[k + 2*numActiveOmega] = real(secant);
-				odeObj->y[k + 3*numActiveOmega] = imag(secant);
 			}
+
+			odeObj->y[k + 2*numActiveOmega] = real(secant);
+			odeObj->y[k + 3*numActiveOmega] = imag(secant);
 
 			Am1[k] = Am2[k];
 			GAm1[k] = GAm2[k];
@@ -94,7 +94,7 @@ void doLinearProblem(ODEParams *odeObj, complex<double> *sourceLeft, complex<dou
 
 		// Set map of LHS Am to RHS
 		for (int j = 0; j < numActiveOmega; j++) {
-			GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(1.0i * odeObj->k[j] * theStructure.getThickness());
+			GAm2[j] = (odeObj->y[j + 2 * numActiveOmega] + 1.0i * odeObj->y[j + 3 * numActiveOmega]) * exp(-1.0i * odeObj->k[j] * theStructure.getThickness());
 		}
 
 		// Set right source

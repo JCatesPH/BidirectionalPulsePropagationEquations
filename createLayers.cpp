@@ -38,18 +38,22 @@ void generateSilicaMaterialsAndStructure(MaterialDB &theMaterialDB,  Structure &
 	const double chi2_Silica = 0.0;
 
 	// Parameters for ionization in Durand paper
-	const double mpi_sigmaK = 1.0e-224; // [m^(28) W^(-14) s^(-1)] MPI cross section
-	const double mpi_k = 14.0; // Photons for MPI
-	const double sigmaBremsstrahlung = 4.7e-25; // [m^2] Bremsstrahlung cross section
-	const double silicaUi = 1.44e-18; // [J] = 9 [eV] Ionization potential of silica
-	const double recombTime = 150e-15; // [s] Recombination time
+	//const double mpi_sigmaK = 1.0e-224; // [m^(28) W^(-14) s^(-1)] MPI cross section
+	//const double mpi_k = 14.0; // Photons for MPI
+	//const double sigmaBremsstrahlung = 4.7e-25; // [m^2] Bremsstrahlung cross section
+	//const double silicaUi = 1.44e-18; // [J] = 9 [eV] Ionization potential of silica
+	//const double recombTime = 150e-15; // [s] Recombination time
+
+	// -- (FAKE) MPI parameters
+	const double mpi_sigmaK = 1.0e-23;
+	const double mpi_k = 3.0;
 
 	Material vacuum("Vacuum", n0_Vacuum, 0.0, 0.0, 0.0);
 	theMaterialDB.addMaterial(vacuum);
 
 	Material silica("Silica", n0_Silica, n2_Silica, chi2_Silica, chi3_Silica);
-	silica.setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime); 
-	//silica.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k); // MPI ONLY
+	//silica.setAsPlasmaMaterial(3, mpi_sigmaK, mpi_k, sigmaBremsstrahlung, silicaUi, recombTime); 
+	silica.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k); // MPI ONLY
 	theMaterialDB.addMaterial(silica);
 
 	Material silicaLin("SilicaLinear", n0_Silica, 0.0, 0.0, 0.0);

@@ -11,8 +11,8 @@ CHARGE_E = 1.602176634e-19
 MASS_E = 9.10938356e-31
 
 #%% Set parameters
-num_t = 2**14
-dom_t = 2.4e-12
+num_t = 2**13
+dom_t = 1.2e-12
 delta_t = dom_t / num_t
 
 print('num_t = {}'.format(num_t))
@@ -31,7 +31,7 @@ print('min_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / max_omeg))
 print('max_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / delta_om))
 
 #%% Use the central frequency for further analysis
-lamb0 = 10e-6
+lamb0 = 1.9e-6
 omeg0 = 2 * np.pi * CLIGHT / lamb0 
 maxHarm = int(max_omeg / omeg0)
 
@@ -65,7 +65,7 @@ print('cutoff for 6th = {:d}'.format(cutoff6th))
 print('cutoff for 7th = {:d}'.format(cutoff7th))
 print('cutoff for last = {:d}'.format(cutoffLast))
 
-customHarmonic = 4*omeg0
+customHarmonic = 6*omeg0
 cutoffCustom = np.max(np.nonzero(omegArr < customHarmonic))
 print('custom cutoff = {:d}'.format(cutoffCustom))
 
