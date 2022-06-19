@@ -363,3 +363,76 @@ void updateGuess(double *ynew, complex<double> *sLeft, const gsl_vector *guessAm
 	}
 
 }
+
+
+
+void dGdA(const gsl_vector *Am_in, void *rootparams, gsl_vector *dG) {
+	RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
+	const int nRoot = rootObj->getSizeRoot();
+	//double epsrel = 1e-4;
+	double epsrel = GSL_SQRT_DBL_EPSILON; // 1.49e-8
+	//double epsrel = GSL_ROOT3_DBL_EPSILON;
+
+	const double G0 = rootObj->getGnorm();
+	//gsl_vector *Am_f = gsl_vector_alloc(nRoot);
+	//gsl_vector *Am_b = gsl_vector_alloc(nRoot);
+	//gsl_vector_memcpy(Am_f, Am_in);
+	//gsl_vector_memcpy(Am_b, Am_in);
+
+	#pragma omp parallel
+	{	
+		//printf("Creating local GSL objects in gradient..\n");
+		ODEParams private_odeObj = *(rootObj->getODEparams());
+    	RootParams private_rootObj(&private_odeObj, nRoot);
+		private_rootObj.setItNum(rootObj->getItNum());
+
+
+		int num_threads = omp_get_num_threads();
+		int col_frac = nRoot / num_threads;
+		int thread_id = omp_get_thread_num();
+		int last_index;
+
+		gsl_vector *Am_f;
+
+		if (thread_id == num_threads - 1)
+			last_index = nRoot;
+		else
+			last_index = (thread_id + 1) * col_frac;
+
+		#pragma omp critical
+		{
+			//printf("Allocating copy of guess in gradient..\n");
+			Am_f = gsl_vector_alloc(nRoot);
+		}
+		gsl_vector_memcpy(Am_f, Am_in);
+		//printf("Copied guess in gradient..\n");
+
+		//for (int j = 0; j < nRoot; j++){
+		for (int j = thread_id * col_frac; j < last_index; j++) {
+			double Aj = gsl_vector_get(Am_in, j);
+			double deltaA = epsrel * abs(Aj);
+			//double deltaA = epsrel;
+
+			if (deltaA == 0) {
+				deltaA = epsrel;
+			}
+
+			gsl_vector_set(Am_f, j, Aj + deltaA);
+			//gsl_vector_set(Am_b, j, Aj - deltaA);
+
+			double Gf = mapG(Am_f, &private_rootObj);
+			//double Gb = mapG(Am_b, rootparams);
+
+			gsl_vector_set(dG, j, (Gf-G0)/(deltaA));
+			//gsl_vector_set(dG, j, (Gf-Gb)/(2.0*deltaA));
+
+			gsl_vector_set(Am_f, j, Aj);
+			//gsl_vector_set(Am_b, j, Aj);
+		}
+	}
+}
+
+void GdG(const gsl_vector *Am_in, void *rootparams, double *G, gsl_vector *dG) {
+	*G = mapG(Am_in, rootparams);
+	dGdA(Am_in, rootparams, dG);
+}

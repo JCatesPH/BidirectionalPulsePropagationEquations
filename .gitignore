@@ -62,6 +62,7 @@ dkms.conf
 # Output files
 DATA*
 *.png
+*.mp4
 figs/
 n.dat
 *.dat

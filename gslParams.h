@@ -87,6 +87,7 @@ class RootParams {
 		int m_output = 0;
 		int m_intCondition = 0; 
 		int m_nRoot = -666;
+		double m_Gnorm;
 		ODEParams *m_odeObj = nullptr;
     public:
 		complex<double> *integral;
@@ -127,9 +128,11 @@ class RootParams {
 		int getIntCond() const { return m_intCondition; }
 		int getSizeRoot() const { return m_nRoot; }
 		ODEParams *getODEparams() const { return m_odeObj; }
+		double getGnorm() const { return m_Gnorm; }
 
 		void setItNum(int aItNum) { m_itnum = aItNum; }
 		void setOutParam(int aOutParam) { m_output = aOutParam; }
 		void setIntCond(int aIntCond) { m_intCondition = aIntCond; }
 		void setODEparams(ODEParams *aODEobj) { m_odeObj = aODEobj; }
+		void setGnorm(double fout) { m_Gnorm = fout; }
 };

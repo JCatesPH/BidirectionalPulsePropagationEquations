@@ -24,10 +24,13 @@ HEADERS = BPPE.h Materials.h physicalConstants.h Structure.h Utilities.h createL
 GSL_MULTIROOTOBJS = gsl/multiroot/convergence.o gsl/multiroot/dogleg.o gsl/multiroot/enorm.o gsl/multiroot/fsolver.o gsl/multiroot/hybrid.o gsl/multiroot/broyden.o gsl/multiroot/dnewton.o gsl/multiroot/fdjac.o
 GSLHEADERS = gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multiroot/gsl_multiroots.h
 
-GSLOBJS = $(GSL_MULTIROOTOBJS)
+GSL_MULTIMINOBJS = gsl/multimin/convergence.o gsl/multimin/fminimizer.o gsl/multimin/simplex2.o 
+GSLHEADERS += gsl/config.h gsl/gsl_math.h gsl/gsl_types.h gsl/multimin/gsl_multimin.h
 
-MYGSLLIBS = libmultroot.a
-MYLIBFLAGS = -L. -lmultroot
+GSLOBJS = $(GSL_MULTIROOTOBJS) $(GSL_MULTIMINOBJS)
+
+MYGSLLIBS = libmultroot.a libmultmin.a
+MYLIBFLAGS = -L. -lmultroot -L. -lmultmin
 
 
 # --- Rule 1 ---
@@ -41,6 +44,9 @@ mygsl: $(GSLOBJS) $(GSLHEADERS)
 	$(CC) -o mygslobj.o $(GSLOBJS) $(LDFLAGS)
 
 libmultroot.a: $(GSL_MULTIROOTOBJS) $(GSLHEADERS)
+	ar $(ARFLAGS) $@ $^
+
+libmultmin.a: $(GSL_MULTIMINOBJS) $(GSLHEADERS)
 	ar $(ARFLAGS) $@ $^
 
 rootfind: rootfindtest.cpp
