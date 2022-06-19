@@ -259,9 +259,9 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 	}
 	
 	monitorZlocations.push_back(0.01e-6); // Place monitor at z0
-	monitorZlocations.push_back(2.5e-6);
+	monitorZlocations.push_back(5.0e-6);
 	monitorZlocations.push_back(LHSsourceLayerThickness / 2); // Between z0 and z1
-	monitorZlocations.push_back(7.5e-6);
+	monitorZlocations.push_back(10.0e-6);
 
 	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
 		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
@@ -269,22 +269,23 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 
 	double monStart = LHSsourceLayerThickness + 200e-9;
 	monInterval = 100e-9;
-	monStop = LHSsourceLayerThickness + 3.9e-6;
+	monStop = LHSsourceLayerThickness + sampleLayerThickness;
 	numMon = (monStop - monStart) / monInterval + 1;
-	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
+	for (int n = 1; n < numMon; n++){ // Add series throughout slab
 		monitorZlocations.push_back(monStart + n*monInterval);
 	}
 
 	//monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
-	monitorZlocations.push_back(myStructure.getThickness() - 7.5e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - 10.0e-6);
 	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness / 2); // Add monitor midway after slab
-	monitorZlocations.push_back(myStructure.getThickness() - 2.5e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - 5.0e-6);
 	monitorZlocations.push_back(myStructure.getThickness() - 0.01e-6); // Add monitor to very end of domain
 }
 
 
 
-int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
+//int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
+double mapG(const gsl_vector *ym_guess, void *rootparams) {
     //rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
     RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
 
@@ -296,10 +297,11 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
 	else {
 		arrSize = numActiveOmega;
 	}
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
+	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk8pd;
 	gsl_odeiv2_step *gslStep = gsl_odeiv2_step_alloc(stepType, 4 * arrSize);
 	gsl_odeiv2_evolve *gslEvolve = gsl_odeiv2_evolve_alloc(4 * arrSize);
-	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_standard_new(ode_epsabs, ode_epsrel, 0.9, 0.1); // 3rd and 4th parameter set scaling factors of y(t) and y'(t) respectively
 	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * arrSize), rootObj->getODEparams()};
 	
 	gsl_odeiv2_evolve_reset(gslEvolve);
@@ -383,10 +385,14 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                     
 					if (GSLerrorFlag == GSL_SUCCESS) {
                         numZsteps++;
+
+						if (rootObj->getIntCond() != 0) {
+							integrate(zPosition, zStepSize, rootObj->getODEparams(), yloc, rootObj->integral);
+						}
                     }
                     else {
                         printf("error: driver returned %d\n", GSLerrorFlag);
-                        break;
+                        gsl_odeiv2_evolve_reset(gslEvolve);
                     }
 
                     nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
@@ -394,10 +400,7 @@ int mapG(const gsl_vector *ym_guess, void *rootparams, gsl_vector *f) {
                         printf("  I = %d, step = %d, z = %.8g, t = %d s\n", rootObj->getItNum(), numZsteps, zPosition, (int)nonlinear_time);
                         numzReports++;
                     }
-
-					if (rootObj->getIntCond() != 0) {
-						integrate(zPosition, zStepSize, rootObj->getODEparams(), yloc, rootObj->integral);
-					}
+	
                 }
 
 				if (rootObj->getOutParam() == 1) {
@@ -813,7 +816,7 @@ void DELME_SilicaDispersion(double* omg) {
 	const double eps_inf = 2.34;
 	const double eps_s = 1.75;
 	const double tau_Debye = 2.65e-15;
-	const double sigma0 = 2e3;
+	const double sigma0 = 0.0; //2e3;
 	
 	char dispersionFile[STRING_BUFFER_SIZE];
 	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Silica.dat", SIM_DATA_OUTPUT);

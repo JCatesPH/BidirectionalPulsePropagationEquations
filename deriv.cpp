@@ -2,11 +2,12 @@
 
 
 double atomicDensityProfile(double z) {
-	double z0 = LHSsourceLayerThickness + sampleLayerThickness;
+	double z0 = LHSsourceLayerThickness + sampleLayerThickness / 2.0;
+    double gamma2 = pow(0.75e-6, 2);
 	double n_max = 2.0e26;
-	return (n_max / M_PI) / (pow(z - z0, 2) + pow(n_max, 2));
-}
 
+	return n_max * (gamma2 / (pow(z - z0, 2) + gamma2));
+}
 
 int dAdz(double z, const double y[], double f[], void *odep) {
 
