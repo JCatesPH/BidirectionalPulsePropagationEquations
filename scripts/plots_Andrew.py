@@ -23,11 +23,11 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    #pathhead = '../DATA/Drude_2umL_fsol_031322'
+    pathhead = '../DATA/Drude_2umL_SecantSD_062122'
     #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
     #pathhead = '../DATA/Durand2013_031822'
-    pathhead = '../DATA/testing2D'
-    itnum = '1'
+    #pathhead = '../DATA/testing2D'
+    itnum = '5'
 
 
 CLIGHT = 299792458
@@ -71,7 +71,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
-nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
+#nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
 sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1]
 sampleThickness = df.loc[df['Variable'] == 'sampleLayerThickness'].values[0,1]
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
@@ -148,7 +148,7 @@ plt.savefig(pathhead + '/figs/inSpectrum.png')
 ######################################
 
 #%%
-df = pd.read_table(pathhead + '/n_Silica.dat', header=0)
+""" df = pd.read_table(pathhead + '/n_Silica.dat', header=0)
 kz = df.values
 
 fig = plt.figure(8, dpi=200)
@@ -165,7 +165,7 @@ plt.xlim([0, 10])
 #plt.margins(x=0)
 plt.minorticks_on()
 #plt.tight_layout()
-plt.savefig(pathhead + '/figs/fig_refractiveIndex.png') 
+plt.savefig(pathhead + '/figs/fig_refractiveIndex.png')  """
 
 ######################################
 

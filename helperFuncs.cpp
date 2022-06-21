@@ -203,7 +203,8 @@ void generateTwoColorPulse(complex<double>* ee, fftw_plan e_f, complex<double>* 
 
 void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	int sizeRoot = rootObj->getSizeRoot();
-	int itSecant = 1;
+	int itSecant = 10;
+	double f2norm;
 	//ODEParams *odeObj = rootObj->getODEparams();
 	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
 	complex<double> map1, map2, initGuess;
@@ -215,7 +216,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	//uniform_real_distribution<double> dis(-NOISE_MAGNITUDE, NOISE_MAGNITUDE);
 	uniform_real_distribution<double> dis(0.0, NOISE_MAGNITUDE);
 	
-	/* complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	complex<double>* integral1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* integral2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* Am_guess1 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
 	complex<double>* Am_guess2 = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
@@ -232,33 +233,52 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 		gsl_vector_set(u, k + sizeRoot/2, odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 	}
 
+	for (int k = 0; k < numActiveOmega; k++) {
+		//Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
+		Am_guess1[k] = gsl_vector_get(u, k) + 1.0i * gsl_vector_get(u, k + sizeRoot / 2);
+	}
+
 	// Use integral condition to inform guess
     rootObj->setOutParam(1); // Turn output on (1) or off (0)
     rootObj->setIntCond(1); // Set whether to calculate integral
 	rootObj->integral = integral1;
-	mapG(u, rootObj, tmp);
+	f2norm = mapG(u, rootObj);
+	printf(" Iteration = 1, ||G||_2 = %.7e\n", f2norm);
 
-	for (int k = 0; k < numActiveOmega; k++) {
+	/* for (int k = 0; k < numActiveOmega; k++) {
 		Am_guess1[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
-	}
+	} */
 
 	// Set the initial guess with y and uniform r.v.
 	for (int k = 0; k < sizeRoot/2; k++){
 		//gsl_vector_set(u, k, y[k + 2*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
 		//gsl_vector_set(u, k + sizeRoot/2, y[k + 3*numActiveOmega + freqLowerCutoff] + dis(gen) * INITIAL_GUESS_SEED_VALUE);
-		gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
-		gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+		
+		// Noisy linear solution
+		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
+
+		// Colored noise
+		gsl_vector_set(u, k, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)) );
+		gsl_vector_set(u, k + sizeRoot/2, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)));
+
+	}
+
+	for (int k = 0; k < numActiveOmega; k++) {
+		//Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
+		Am_guess2[k] = gsl_vector_get(u, k) + 1.0i * gsl_vector_get(u, k + sizeRoot / 2);
 	}
 
 	// Get second guess for secant method
     rootObj->setItNum(2);
     rootObj->setIntCond(2);
 	rootObj->integral = integral2;
-	mapG(u, rootObj, tmp);
+	f2norm = mapG(u, rootObj);
+	printf(" Iteration = 2, ||G||_2 = %.7e\n", f2norm);
 
-	for (int k = 0; k < numActiveOmega; k++) {
+	/* for (int k = 0; k < numActiveOmega; k++) {
 		Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
-	}
+	} */
 
 	// Do Secant update
 	for (int k = 0; k < sizeRoot/2; k++){
@@ -286,15 +306,18 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 			integral2[k] = 0.0;
 		}
 
+		for (int k = 0; k < numActiveOmega; k++) {
+			//Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
+			Am_guess2[k] = gsl_vector_get(u, k) + 1.0i * gsl_vector_get(u, k + sizeRoot / 2);
+		}
+
 		// Do another iteration
 		rootObj->setItNum(it);
 		rootObj->setIntCond(it); // Set whether to calculate integral
 		rootObj->integral = integral2;
-		mapG(u, rootObj, tmp);
+		f2norm = mapG(u, rootObj);
 
-		for (int k = 0; k < numActiveOmega; k++) {
-			Am_guess2[k] = odeObj->y[k + 2 * numActiveOmega] + 1.0i * odeObj->y[k + 3 * numActiveOmega];
-		}
+		printf(" Iteration = %d, ||G||_2 = %.7e\n", it, f2norm);
 
 		// Do Secant update
 		for (int k = 0; k < sizeRoot/2; k++){
@@ -318,17 +341,17 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 	free(Am_guess2);
 	free(integral1);
 	free(integral2);
-	gsl_vector_free(tmp); */
+	gsl_vector_free(tmp);
 	
 	
 	/* cout << "Finished iteration 4" << endl;
 	if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE); */
-	for (int k = 0; k < sizeRoot/2; k++){
+	/* for (int k = 0; k < sizeRoot/2; k++){
 		// -- Relative noise
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * odeObj->y[k + 2*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k));
-		//gsl_vector_set(u, k, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
+		//gsl_vector_set(u, k + sizeRoot/2, (1.0 + dis(gen)) * gsl_vector_get(u, k + sizeRoot/2));
 
 		// -- Pure white noise
 		//gsl_vector_set(u, k, dis(gen));
@@ -341,7 +364,7 @@ void generateGuess(gsl_vector *u, RootParams *rootObj, ODEParams *odeObj) {
 		//gsl_vector_set(u, k + sizeRoot/2, dis(gen) * odeObj->y[k + 3*numActiveOmega + freqLowerCutoff]);
 		gsl_vector_set(u, k, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)) );
 		gsl_vector_set(u, k + sizeRoot/2, dis(gen) * ((sizeRoot/2 - k) / (sizeRoot/2)));
-	}
+	} */
 
 
 	rootObj->setItNum(itSecant);

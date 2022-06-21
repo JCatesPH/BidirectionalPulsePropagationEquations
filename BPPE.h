@@ -56,11 +56,11 @@ using namespace std;
 
 //#define FFTW_WISDOM_TYPE FFTW_ESTIMATE
 #define FFTW_WISDOM_TYPE FFTW_PATIENT
-//#define DO_DRUDE_MODEL
+#define DO_DRUDE_MODEL
 //#define DO_CONSTPLASMA
 //#define DO_ARGON_PLASMA
 
-#define NOISE_MAGNITUDE 1.0e-2
+#define NOISE_MAGNITUDE 1.0e5
 
 // CODE parameters
 #define USE_CPP_BOUNDARY
@@ -92,9 +92,11 @@ const double ode_epsrel = 1e-7;
 const int ode_nmax = 1e6;
 
 // GSL Quasi-Newton API parameters
-const double root_epsabs = 1e-10;
-const double root_epsrel = 1e-7;
+const double root_epsabs = 1e-9;
+const double root_epsrel = 1e-6;
 
+extern int maxIter, outputInterval;
+extern double minInitStep, minStopCon, minTol;
 
 // plasma parameters
 //const int plasmaOnOff = 0; //plasma off (0) Using Andrew (1) Using UPPE MPI (2)
@@ -104,7 +106,7 @@ const double root_epsrel = 1e-7;
 extern double rho_0;
 const double j_e0 = 0.0;
 const double omegaPlasmaDamping = 2.0 * M_PI * 5.3e14; //2.0 * M_PI*5.3e12;  //plasma damping
-const double tauCollision = 3.0e-15; // 190.0e-15; <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
+const double tauCollision = 150.0e-15; //3.0e-15; // 190.0e-15; <- This number used in Berge paper. //26.9984566e-15; //1.88679e15; //mean collision time
 /* const double mpi_sigmaK = 3.4e-128;
 const double mpi_k = 8.0; */
 const double FUDGE_FACTOR = 1.0;

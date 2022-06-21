@@ -23,8 +23,8 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA/silica_indexMatchedKerr_100TWcm2_4umL_050522'
-    pathhead = '../DATA/silica_fdtdComp_Kerr_052022'
-    itnum = '110'
+    pathhead = '../DATA/Drude_5umL_bfgs2_061922'
+    itnum = '11'
 
 #%%
 mpl.rcParams['font.family'] = 'Tahoma'
@@ -102,7 +102,7 @@ df['Variable']=df['Variable'].str.strip()
 iIntensity = df.loc[df['Variable'] == 'I_0'].values[0,1]
 omeg0 = df.loc[df['Variable'] == 'omega_0'].values[0,1]
 taup = df.loc[df['Variable'] == 'tau'].values[0,1]
-nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
+#nAtoms = df.loc[df['Variable'] == 'num_atoms'].values[0,1]
 sourceThickness = df.loc[df['Variable'] == 'LHSsourceLayerThickness'].values[0,1]
 freqLowerCutoff = int(df.loc[df['Variable'] == 'freqLowerCutoff'].values[0,1])
 freqUpperCutoff = int(df.loc[df['Variable'] == 'freqUpperCutoff'].values[0,1])
@@ -225,7 +225,7 @@ plotSpectrum([eSpectrumT[freqLowerCutoff:freqUpperCutoff,0]/omeg0, eSpectrumR[fr
     [eSpectrumT[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor, eSpectrumR[freqLowerCutoff:freqUpperCutoff,3]**2*intensityFactor], 
     ['Transmitted', 'Reflected'], 
     filePath=pathhead + '/figs/EwBoth.png', 
-    titleStr='Both Spectra', 
+    #titleStr='Both Spectra', 
     xlabelStr=r'$\omega/\omega_0$')
 ####################################################################
 ####################################################################

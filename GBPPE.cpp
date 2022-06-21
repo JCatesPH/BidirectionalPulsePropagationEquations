@@ -11,7 +11,7 @@ using namespace std;
 
 // Create GLOBAL structure and Material database
 Structure myStructure("myFirstStructure");
-Simulation mySimulation("andrewApplication1");
+//Simulation mySimulation("andrewApplication1");
 MaterialDB myMaterialsDB("myFirstMaterialDB");
 
 // This block of vars were orignally inside main()
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 		cout << "2D-BPPE code - ACMS Ver.0" << endl;
 		cout << "The current date and time: " << datetime << endl;
 		cout << "Verbosity = "<< VERBOSE << endl << endl;
-		cout << "Working Directory = " << get_current_dir() << SIM_DATA_OUTPUT << endl << endl;
+		cout << "Working Directory = " << get_current_dir() << "/" << SIM_DATA_OUTPUT << endl << endl;
 	}
 
 	omp_set_num_threads(num_Threads);
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
 
 
 	fill_omg_k(omegaArray, kx, myMaterialsDB);
-	//DELME_ArgonDispersion(omegaArray);
-	DELME_SilicaDispersion(omegaArray);
+	DELME_ArgonDispersion(omegaArray);
+	//DELME_SilicaDispersion(omegaArray);
 	#ifdef DO_CONSTPLASMA
 		DELME_AndrewPreformed(omegaArray, myMaterialsDB.getMaterialByName("PlasmaMat"));
 	#endif
@@ -259,9 +259,9 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 	}
 	
 	monitorZlocations.push_back(0.01e-6); // Place monitor at z0
-	monitorZlocations.push_back(5.0e-6);
+	monitorZlocations.push_back(LHSsourceLayerThickness / 4);
 	monitorZlocations.push_back(LHSsourceLayerThickness / 2); // Between z0 and z1
-	monitorZlocations.push_back(10.0e-6);
+	monitorZlocations.push_back(3 * LHSsourceLayerThickness / 4);
 
 	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
 		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
@@ -276,9 +276,9 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 	}
 
 	//monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
-	monitorZlocations.push_back(myStructure.getThickness() - 10.0e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - 3 * LHSsourceLayerThickness / 4);
 	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness / 2); // Add monitor midway after slab
-	monitorZlocations.push_back(myStructure.getThickness() - 5.0e-6);
+	monitorZlocations.push_back(myStructure.getThickness() - LHSsourceLayerThickness / 4);
 	monitorZlocations.push_back(myStructure.getThickness() - 0.01e-6); // Add monitor to very end of domain
 }
 
@@ -297,8 +297,8 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 	else {
 		arrSize = numActiveOmega;
 	}
-	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk8pd;
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
+	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk8pd;
 	gsl_odeiv2_step *gslStep = gsl_odeiv2_step_alloc(stepType, 4 * arrSize);
 	gsl_odeiv2_evolve *gslEvolve = gsl_odeiv2_evolve_alloc(4 * arrSize);
 	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_standard_new(ode_epsabs, ode_epsrel, 0.9, 0.1); // 3rd and 4th parameter set scaling factors of y(t) and y'(t) respectively
@@ -391,7 +391,7 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 						}
                     }
                     else {
-                        printf("error: driver returned %d\n", GSLerrorFlag);
+                        printf("error: ODE driver returned %d\n", GSLerrorFlag);
                         gsl_odeiv2_evolve_reset(gslEvolve);
                     }
 
@@ -527,6 +527,7 @@ void iterateBPPE()
 	//const gsl_multimin_fminimizer_type *fminType = gsl_multimin_fminimizer_nmsimplex2;
     //gsl_multimin_fminimizer *gslSolver;
 	const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_vector_bfgs2;
+	//const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_steepest_descent;
 	//const gsl_multimin_fdfminimizer_type *fdfminType = gsl_multimin_fdfminimizer_conjugate_fr;
 	gsl_multimin_fdfminimizer *gslSolver_fdf;
 
@@ -816,7 +817,7 @@ void DELME_SilicaDispersion(double* omg) {
 	const double eps_inf = 2.34;
 	const double eps_s = 1.75;
 	const double tau_Debye = 2.65e-15;
-	const double sigma0 = 0.0; //2e3;
+	const double sigma0 = 2e3;
 	
 	char dispersionFile[STRING_BUFFER_SIZE];
 	snprintf(dispersionFile, sizeof(char) * STRING_BUFFER_SIZE, "%sn_Silica.dat", SIM_DATA_OUTPUT);

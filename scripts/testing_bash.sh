@@ -3,7 +3,7 @@
 make cleanall; make
 
 PARAMFILE_PREFIX="paramfiles/paramfile_Drude"
-DATA_PREFIX="DATA/GridSearch_032622/Drude"
+DATA_PREFIX="DATA/GridSearch_061922/Drude"
 
 if [ "$?" -ne 0 ]; then
     printf "\nMake returned errors..\n";
@@ -52,7 +52,7 @@ EOF
 printf "DATA_PREFIX = $DATA_PREFIX\n"
 printf "PARAMFILE_PREFIX = $PARAMFILE_PREFIX\n"
 
-for i in 10 20 30 40 50
+for i in 10
 do
     for j in 23 24 25
     do

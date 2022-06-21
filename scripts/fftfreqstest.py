@@ -65,7 +65,7 @@ print('cutoff for 6th = {:d}'.format(cutoff6th))
 print('cutoff for 7th = {:d}'.format(cutoff7th))
 print('cutoff for last = {:d}'.format(cutoffLast))
 
-customHarmonic = 6*omeg0
+customHarmonic = 10*omeg0
 cutoffCustom = np.max(np.nonzero(omegArr < customHarmonic))
 print('custom cutoff = {:d}'.format(cutoffCustom))
 
@@ -78,7 +78,7 @@ print('cutoff for 0.21 = {:d}'.format(cutoffOm1))
 print('cutoff for 6.7 = {:d}'.format(cutoffOm2))
 
 # %%
-numE = 1.0e25
+numE = 2.0e26
 omegPlasma = np.sqrt(CHARGE_E**2*numE/(EPS0*MASS_E))
 
 print("For {:} electrons, the plasma frequency is: {:.3e} 1/s".format(numE, omegPlasma))

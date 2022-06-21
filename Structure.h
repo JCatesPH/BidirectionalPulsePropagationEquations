@@ -262,26 +262,3 @@ public:
     }
 };
 
-class Simulation
-{
-public:
-    string m_simulationName;
-    MaterialDB* m_materialDatabase = NULL;
-    Structure* m_structure = NULL;
-    const double m_domain_t = 1500e-15; //time domain
-    const double m_domain_x = 125.0e-6; //x domain
-    const int m_numt = int(pow(2, 14)); //number of time points
-    const int m_numActiveOmega = m_numt / 2 + 1; //num_x * num_t / 2 + 2;
-    complex<double>* eFieldPlus = NULL;
-    complex<double>* eFieldMinus = NULL;
-
-
-public:
-    Simulation() { }
-    Simulation(string theSimulationName) : m_simulationName(theSimulationName) { }
-
-    void setMaterialDatabase(MaterialDB* aMaterialDatabase) { m_materialDatabase = aMaterialDatabase; }
-    MaterialDB* getMaterialDatabase() { return m_materialDatabase; }
-    void setStructure(Structure* aStructure) { m_structure = aStructure; }
-    Structure* getStructure() { return m_structure; }
-};

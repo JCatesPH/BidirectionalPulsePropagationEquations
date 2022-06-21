@@ -311,13 +311,15 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	#pragma omp parallel for
 	for (int i = freqLowerCutoff; i <= freqUpperCutoff; i++) {
 		//complex<double> deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(-1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		complex<double> deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
+		complex<double> deltazA = -(
+				1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
 				+ odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0) * odeObj->jhat[i]
 			) * exp(1.0i*(odeObj->k[i])*z);
 		f[i] = real(deltazA);
 		f[i + num_tOver2 + 1] = imag(deltazA);
 		//deltazA = -(1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared)*odeObj->p_nl[i] + odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0)*odeObj->jhat[i])*exp(1.0i*real(odeObj->k[i])*z)*exp(-1.0*abs(imag(odeObj->k[i]))*z);
-		deltazA = (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
+		deltazA = (
+				1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
 				+ odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0) * odeObj->jhat[i]
 			) * exp(-1.0i*(odeObj->k[i])*z);
 		f[i + num_t + 2] = real(deltazA);

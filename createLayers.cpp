@@ -5,8 +5,8 @@
 
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
-	generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
+	generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
+	//generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
 }
