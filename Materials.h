@@ -101,6 +101,10 @@ public:
 		ss << " ]";
 		m_matInfoAsString.append(ss.str());
 	}
+
+	void setStaticPlasma() {
+		m_doPlasmaCalc = 4;
+	}
 	//void getMaterialInformationAsString(string& aString) {
 	//	char materialAsCharacters[200];
 	//	sprintf_s(materialAsCharacters, "%s\t[n0=%g\tn2=%g\tchi2=%g\tk[1]=%g", m_name.c_str(), m_n0, m_n2, m_chi_2, real(m_k[1]));

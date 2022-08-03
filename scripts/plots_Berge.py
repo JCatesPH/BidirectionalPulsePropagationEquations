@@ -23,8 +23,9 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA/silica_indexMatchedKerr_100TWcm2_4umL_050522'
-    pathhead = '../DATA/Drude_5umL_bfgs2_061922'
-    itnum = '11'
+    pathhead = '../DATA/Drude_2umL_SD_062522'
+    #pathhead = '../DATA/DBR_sd_062322'
+    itnum = '12'
 
 #%%
 mpl.rcParams['font.family'] = 'Tahoma'
@@ -240,7 +241,8 @@ for name in glob.glob(pathhead + '/PointMon_iter_{}_*'.format(itnum)):
     nameli = name.split('_')
     #print(nameli)
     zloc = nameli[-1].split('nm')
-    zloc = str(float(zloc[0]) - sourceThickness*1e9)
+    #zloc = str(float(zloc[0]) - sourceThickness*1e9)
+    zloc = zloc[0]
     #print('Location of point monitor: {} nm'.format(zloc))
     zmon_li.append(zloc)
 
@@ -296,13 +298,13 @@ for pointmon in pmon_li:
 
     # Plot the forward-propagating pulse
     plt.clf()
-    plt.plot(df['t [s]'], df['Re(Ept) [V/m]'], label=labstr)
+    plt.plot(df['t [s]'], df['Re(Ept) [V/m]'])
     plt.title(r'Forward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_+(t)]$ [V/m]')
     plt.grid(which='major')
-    plt.legend()
+    #plt.legend()
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_forward_' + zm + '.png')
@@ -310,13 +312,13 @@ for pointmon in pmon_li:
 
     # Plot the backward-propagating pulse
     plt.clf()
-    plt.plot(df['t [s]'], df['Re(Emt) [V/m]'], label=labstr)
+    plt.plot(df['t [s]'], df['Re(Emt) [V/m]'])
     plt.title(r'Backward-propagating field at $z={:8.2f}$ $\mu$m'.format(zm_f*1e-3))
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
     plt.xlabel(r'$t$ [s]')
     plt.ylabel(r'Re$[E_-(t)]$ [V/m]')
     plt.grid(which='major')
-    plt.legend()
+    #plt.legend()
     plt.margins(x=0)
     plt.tight_layout()
     plt.savefig(pathhead + '/figs/Et_backward_' + zm + '.png')
@@ -357,7 +359,7 @@ for pointmon in pmon_li:
     # Plot forward-prop spectrum
     fig, axs = plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmP[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
-        [labstr], 
+        [], 
         filePath=pathhead + '/figs/EwP_' + zm + '.png', 
         titleStr=r'Forward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         #titleStr='',
@@ -381,7 +383,7 @@ for pointmon in pmon_li:
     # Plot backward-prop spectrum
     plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmM[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
-        [labstr], 
+        [], 
         filePath=pathhead + '/figs/EwM_' + zm + '.png', 
         titleStr=r'Backward-propagating spectrum at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
@@ -389,7 +391,7 @@ for pointmon in pmon_li:
     # Plot total spectrum
     plotSpectrum([omeg[freqLowerCutoff:freqUpperCutoff]/omeg0], 
         [np.abs(eOmTotal[freqLowerCutoff:freqUpperCutoff])**2*intensityFactor], 
-        [labstr], 
+        [], 
         filePath=pathhead + '/figs/Ew_' + zm + '.png', 
         titleStr=r'Spectrum of total field at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3), 
         xlabelStr=r'$\omega/\omega_0$')
@@ -420,7 +422,7 @@ for pointmon in pmon_li:
     ax2.tick_params(axis='both', which='major', labelsize=12)
     ax1.set_xlabel(r'$t$ [s]', fontsize=14)
     ax2.set_ylabel(r'$\rho$ [cm$^{-3}$]', fontsize=14)
-    ax1.set_xlim([np.mean(df['t [s]']) - 20*taup, np.mean(df['t [s]']) + 20*taup])
+    #ax1.set_xlim([np.mean(df['t [s]']) - 20*taup, np.mean(df['t [s]']) + 20*taup])
     ax1.set_title(r'Field and carrier density at $z={:6.2f}$ $\mu$m'.format(zm_f*1e-3))
     ax2.grid(which='major')
     ax1.margins(x=0)

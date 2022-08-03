@@ -35,8 +35,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		}
 	}
 
-	// DELETE ME : Drude model
-	#ifdef DO_DRUDE_MODEL
+
+	// ---------------------------------
 
 	fftw_execute(odeObj->ep_b);
 	fftw_execute(odeObj->em_b);
@@ -54,59 +54,42 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 	}
 	
 	fftw_execute(odeObj->p_ffft);
-	normalizeFFT(odeObj->p_nl, fftnorm);
-
-	fftw_execute(odeObj->ep_f);
-	fftw_execute(odeObj->em_f);
-	normalizeFFT(odeObj->ee_p, fftnorm);
-	normalizeFFT(odeObj->ee_m, fftnorm);
-
-	const double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
-	const double omeg_p2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0); 
-	#pragma omp parallel for
-	for (int i = 0; i < num_t; i++)
-	{	
-		// Calculate the current density
-		//odeObj->jhat[i] = sig0 / (1.0 - 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
-		//const double w = sig0 / (1.0 + pow(odeObj->omega[i]*tauCollision, 2));
-		//odeObj->jhat[i] = w * (1.0 + 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
-		odeObj->jhat[i] = 0.0;
-
-		// Calculate the polarization
-		//odeObj->p_nl[i] = (1.0 - omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
-		//odeObj->p_nl[i] = (-omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		//odeObj->p_nl[i] = (-omeg_p2 * tauCollision / (pow(odeObj->omega[i], 2) * tauCollision + 1.0i * odeObj->omega[i])) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt((double)num_t);
-		//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt(2.0*M_PI);
-		//odeObj->p_nl[i] = ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-		odeObj->p_nl[i] += ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
-	}
-
-	//fftw_execute(odeObj->p_ffft);
-	//normalizeFFT(p_nl, 1);
-
-	// ---------------------------------
-	#else
-
-	fftw_execute(odeObj->ep_b);
-	fftw_execute(odeObj->em_b);
-	normalizeFFT(odeObj->ee_p, fftnorm);
-	normalizeFFT(odeObj->ee_m, fftnorm);
-	//applyWindow(odeObj->ee_p);
-	//applyWindow(odeObj->ee_m);
-
-	#pragma omp parallel for
-	for (int i = 0; i < num_t; i++)
-	{
-		//odeObj->ee_p[i] = odeObj->ee_p[i] / num_td;
-		//odeObj->ee_m[i] = odeObj->ee_m[i] / num_td;
-		odeObj->p_nl[i] = odeObj->chi_2 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 2) + odeObj->chi_3 * pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]), 3);
-	}
-	
-	fftw_execute(odeObj->p_ffft);
 	normalizeFFT(odeObj->p_nl, fftnorm); 
 
-	if (odeObj->doPlasmaCalc == 3) { // MPI, Avalanche, & Recombination
+	// DELETE ME : Drude model
+	if (odeObj->doPlasmaCalc == 4) { // Drude model with static plasma
+		fftw_execute(odeObj->ep_f);
+		fftw_execute(odeObj->em_f);
+		normalizeFFT(odeObj->ee_p, fftnorm);
+		normalizeFFT(odeObj->ee_m, fftnorm);
+
+		const double sig0 = rho_0 * pow(charge_e, 2) * tauCollision / mass_e;
+		const double omeg_p2 = rho_0 * pow(charge_e, 2) / (mass_e * epsilon_0); 
+		#pragma omp parallel for
+		for (int i = 0; i < num_t; i++)
+		{	
+			// Calculate the current density
+			//odeObj->jhat[i] = sig0 / (1.0 - 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+			//const double w = sig0 / (1.0 + pow(odeObj->omega[i]*tauCollision, 2));
+			//odeObj->jhat[i] = w * (1.0 + 1.0i * odeObj->omega[i] * tauCollision) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+			odeObj->jhat[i] = 0.0;
+
+			// Calculate the polarization
+			//odeObj->p_nl[i] = (1.0 - omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i]+odeObj->ee_m[i]);
+			//odeObj->p_nl[i] = (-omeg_p2 / (pow(odeObj->omega[i], 2) + 1.0i * odeObj->omega[i] / tauCollision)) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+			//odeObj->p_nl[i] = (-omeg_p2 * tauCollision / (pow(odeObj->omega[i], 2) * tauCollision + 1.0i * odeObj->omega[i])) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+			//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt((double)num_t);
+			//odeObj->p_nl[i] = odeObj->p_nl[i] / sqrt(2.0*M_PI);
+			//odeObj->p_nl[i] = ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+			odeObj->p_nl[i] += ( -omeg_p2 / (odeObj->omega[i] * (odeObj->omega[i] + 1.0i / tauCollision)) ) * (odeObj->ee_p[i] + odeObj->ee_m[i]);
+		}
+
+		//fftw_execute(odeObj->p_ffft);
+		//normalizeFFT(p_nl, 1);
+	}
+	
+
+	else if (odeObj->doPlasmaCalc == 3) { // MPI, Avalanche, & Recombination
 		double ht = domain_t / num_td;
 		double neutrals = num_atoms - rho_0;      // Neutral particles
 		double electrons = rho_0;                 // background Electrons
@@ -121,7 +104,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		odeObj->rho[0] = electrons;
 		for (int i = 0; i < num_t - 1; i++)
 		{
-			double fieldIntensity = ( pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]),2) ) / Znaught ;  // MIRO real+real
+			double fieldIntensity = ( pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]),2) ) / (2.0 * Znaught) ;  // MIRO real+real
 			// First, MPI ionization is calculated
 			change = neutrals * odeObj->mpi_sigmaK * ht * pow(fieldIntensity, odeObj->mpi_k);
 			// Next, the avalanche ionization
@@ -171,7 +154,7 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		odeObj->rho[0] = electrons;
 		for (int i = 0; i < num_t - 1; i++)
 		{
-			double fieldIntensity = ( pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]),2) ) / Znaught ;  // MIRO real+real
+			double fieldIntensity = ( pow(real(odeObj->ee_p[i] + odeObj->ee_m[i]),2) ) / (2.0 * Znaught) ;  // MIRO real+real
 			change = neutrals * odeObj->mpi_sigmaK * ht * pow(fieldIntensity, odeObj->mpi_k);
 			electrons += change;
 			neutrals -= change;
@@ -182,7 +165,19 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 			odeObj->rho[i + 1] = electrons;
 		}
 
-		odeObj->j_e[0] = j_e0;
+		/* -- Fully spectral method --*/
+		for (int i = 0; i < num_t; i++)
+		{
+			odeObj->j_e[i] = (pow(charge_e, 2) / mass_e) * odeObj->rho[i] * real(odeObj->ee_p[i] + odeObj->ee_m[i]);
+		}
+		fftw_execute(odeObj->j_ffft);
+		for (int i = 0; i < num_t; i++)
+		{
+			odeObj->jhat[i] = odeObj->jhat[i] / (1.0i * odeObj->omega[i] + ve);
+		}
+		/* -- End of method -- */
+
+		/* odeObj->j_e[0] = j_e0;
 		fv1 = j_e0;
 		for (int i = 0; i < num_t - 1; i++)
 		{
@@ -209,6 +204,16 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		//applyWindow(odeObj->j_e);
 		fftw_execute(odeObj->j_ffft);
 		normalizeFFT(odeObj->jhat, fftnorm);
+		*/
+
+
+
+
+		if (odeObj->printAtomicProfile == 1) {
+			FILE* fp = fopen("atomicProfile.csv", "a");
+			fprintf(fp, "%18.6e, %18.6e\n", z, num_atoms);
+			fclose(fp);
+		}
 
 	}
 	else if (odeObj->doPlasmaCalc == 1){ // QST
@@ -286,6 +291,8 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		#pragma omp parallel for
 		for (int i = 0; i < num_t; i++)
 		{
+			odeObj->rho[i] = 0.0;
+			odeObj->j_e[i] = 0.0;
 			odeObj->jhat[i] = 0.0;
 		}
 
@@ -294,7 +301,6 @@ int dAdz(double z, const double y[], double f[], void *odep) {
 		cout << "ERROR: Invalid plasma parameter passed to func." << endl;
 		exit(EXIT_FAILURE);
 	}
-	#endif
 		
 	for (int i = 0; i < freqLowerCutoff; i++) {
 		f[i] = 0.0;
@@ -341,8 +347,8 @@ void integrate(double z, double zStep, ODEParams *odeObj, double*y, complex<doub
 			integral[i] = 0.0;
 		}
 		else {
-			integral[i] += (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*pow(cLight, 2)) * odeObj->p_nl[i] 
-					+ odeObj->omega[i] / (2.0*(odeObj->k[i])*pow(cLight, 2)*epsilon_0) * odeObj->jhat[i]
+			integral[i] += (1.0i*pow(odeObj->omega[i], 2) / (2.0*(odeObj->k[i])*clightSquared) * odeObj->p_nl[i] 
+					+ odeObj->omega[i] / (2.0*(odeObj->k[i])*clightSquared*epsilon_0) * odeObj->jhat[i]
 				) * exp(-1.0i*real(odeObj->k[i]) * z)*exp(-1.0*abs(imag(odeObj->k[i]))*z)*zStep;
 		}
 	}

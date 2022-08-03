@@ -98,30 +98,6 @@ void write_out_eFieldAndSpectrumAtZlocation(int num, int j, double*y, double z, 
 	}
 	if(fp2 != NULL) { fclose(fp2);  }		// COLM added to avoid errors
 
-#ifdef WRITE_OUT_REFLECTANCE
-	if (j == 0)
-	{
-		// COLM output Reflectance spectrum
-		char reflectanceFilePathName[STRING_BUFFER_SIZE];
-		snprintf(reflectanceFilePathName, sizeof(char) * STRING_BUFFER_SIZE, "%sReflectanceSpectrum_iteration_%i_%s.dat", SIM_DATA_OUTPUT, num, (j == 0 ? "Reflected" : "Transmitted"));
-		FILE* fp3;
-		//errno_t err3;
-		err3 = fopen_s(&fp3, reflectanceFilePathName, "w");
-		if (fp3 != NULL)
-		{
-			fprintf(fp3, "# omega [Hz] \tReflectance []\n");
-
-			for (int i = 0; i <= numActiveOmega; i++)
-			{
-				fprintf(fp3, "%g \t %+.17g \n", (M_PI / domain_t) * i, abs((ee[i] * ee[i]) / (eFieldPlusBACKUPCOLM[i] * eFieldPlusBACKUPCOLM[i])));		// COLM export in one column format
-			}
-		}
-		else {
-			printf("Failed to open file '%s'\n", reflectanceFilePathName);
-		}
-		if (fp3 != NULL) { fclose(fp3); }		// COLM added to avoid errors 
-	}
-#endif
 
 	fftw_execute(e_b);
 	normalizeFFT(ee, fftnorm);

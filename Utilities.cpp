@@ -202,9 +202,11 @@ void fill_omg_k(double*omg, double*kx, MaterialDB &theMaterialDB) {
 		{
 			if (i <= num_t / 2) {
 				omg[i] = (2.0 * M_PI / domain_t)*i;
+				//omg[i] = (M_PI / domain_t)*i;
 			}
 			else {
 				omg[i] = (2.0 * M_PI / domain_t)*((double)i - num_t);
+				//omg[i] = (M_PI / domain_t)*((double)i - num_t);
 			}
 		}
 		theMaterialDB.initAllMaterialKs(numDimensionsMinusOne, numActiveOmega, omg, kx);

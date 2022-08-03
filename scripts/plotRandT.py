@@ -20,9 +20,9 @@ else:
 # Set values if run in interactive mode (VSCode)
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
-    pathhead = '../DATA/DBR_bfgs_061622'
+    pathhead = '../DATA/DBR_bfgs2_ball_072822'
     #pathhead = '../DATA/testing2D'
-    itnum = '16'
+    itnum = '400'
 
 
 CLIGHT = 299792458
@@ -111,7 +111,7 @@ k0arr = omeg / 3e8
 plt.clf()
 plt.figure(figsize=stdfigsize, dpi=400)
 plt.semilogy(omeg/omeg0, Ez**2)
-plt.title(r'Input Amplitude Spectrum')
+plt.title(r'Input Spectrum')
 #plt.ticklabel_format(axis='x', style='sci', scilimits=(0,0))
 plt.xlabel(r'$\omega/\omega_0$')
 plt.grid(which='major')
@@ -132,11 +132,14 @@ eOmR = df.values[:,1] + 1j * df.values[:,2]
 
 halflen = int(len(omeg) / 2)
 
+df = pd.read_table(pathhead + '/Spectrum_iteration_1_Reflected.dat')
+eOmR_Linear = df.values[:,1] + 1j * df.values[:,2]
+
 #%%
 #plotSpectrum([omeg/omeg0], [np.abs(eOmT)**2], [''], pathhead + '/figs/TransmittedSpectrum.png')
 #plotSpectrum([omeg/omeg0], [np.abs(eOmR)**2], [''], pathhead + '/figs/ReflectedSpectrum.png')
 plotSpectrum([omeg[:freqUpperCutoff]/omeg0, omeg[:freqUpperCutoff]/omeg0], 
-    [np.abs(eOmT[:freqUpperCutoff])**2, np.abs(eOmR[:freqUpperCutoff])**2], 
+    [np.abs(eOmT[:freqUpperCutoff]), np.abs(eOmR[:freqUpperCutoff])], 
     ['Transmitted', 'Reflected'], 
     filePath=pathhead + '/figs/BothSpectra.png',
     titleStr='Transmitted and Reflected Spectra'
@@ -167,9 +170,11 @@ plt.savefig(pathhead + '/figs/TransmissionCoef.png')
 #plt.show()
 
 rcoef = (np.abs(eOmR[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
+rcoef_Linear = (np.abs(eOmR_Linear[lowerInd:upperInd]) / Ez[lowerInd:upperInd])**2
 
 plt.figure(figsize=stdfigsize, dpi=400)
 plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef)
+plt.plot(omeg[lowerInd:upperInd]/omeg0, rcoef_Linear, '--k')
 plt.xlabel(r'$\omega/\omega_0$')
 plt.ylabel(r'$R$')
 #plt.grid(which='major')

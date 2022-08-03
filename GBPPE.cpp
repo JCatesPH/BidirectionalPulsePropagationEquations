@@ -2,10 +2,10 @@
 // ACMS version 1
 
 //#include "stdafx.h"
-
 #include "BPPE.h"
 #include "createLayers.h"
 #include "helperFuncs.h"
+#include "geneticAlg.h"
 
 using namespace std;
 
@@ -27,10 +27,12 @@ double *omegaArray, *timeValuesArray, *kx, fftnorm;
 complex<double> *sourceLeft, *sourceRight;
 //fftw_plan nkForwardFFT, eFieldPlusForwardFFT, eFieldPlusBackwardFFT, eFieldMinusForwardFFT, eFieldMinusBackwardFFT, intBackwardFFT, npForwardFFT;
 char *paramFileBuffer, SIM_DATA_OUTPUT[30];
+string odeStepTypeParam;
 
 // Optimization parameters
 int maxIter, outputInterval;
 double minInitStep, minStopCon, minTol;
+double lagrangeMultiplier;
 // --
 
 int foundNaN = 0;
@@ -214,6 +216,7 @@ int main(int argc, char *argv[])
 	/* ============================================== */
 	/* == Primary computation */
 	iterateBPPE();
+	//geneticAlg_iterateBPPE();
 
 	dtime = omp_get_wtime() - dtime;
 	/* ============================================== */
@@ -258,17 +261,17 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 		exit(-1);
 	}
 	
-	monitorZlocations.push_back(0.01e-6); // Place monitor at z0
-	monitorZlocations.push_back(LHSsourceLayerThickness / 4);
+	//monitorZlocations.push_back(0.01e-6); // Place monitor at z0
+	//monitorZlocations.push_back(LHSsourceLayerThickness / 4);
 	monitorZlocations.push_back(LHSsourceLayerThickness / 2); // Between z0 and z1
-	monitorZlocations.push_back(3 * LHSsourceLayerThickness / 4);
+	//monitorZlocations.push_back(3 * LHSsourceLayerThickness / 4);
 
-	for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
+	/* for (int n = 1; n < numMon; n++){ // Add denser series at beginning of slab
 		monitorZlocations.push_back(LHSsourceLayerThickness + n*monInterval);
-	}
+	} */
 
-	double monStart = LHSsourceLayerThickness + 200e-9;
-	monInterval = 100e-9;
+	double monStart = LHSsourceLayerThickness;
+	monInterval = 1000e-9;
 	monStop = LHSsourceLayerThickness + sampleLayerThickness;
 	numMon = (monStop - monStart) / monInterval + 1;
 	for (int n = 1; n < numMon; n++){ // Add series throughout slab
@@ -276,10 +279,10 @@ void setupPointMonitorLocations(MaterialDB& theMaterialDB, Structure& theStructu
 	}
 
 	//monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness); // Add monitor to end of slab
-	monitorZlocations.push_back(myStructure.getThickness() - 3 * LHSsourceLayerThickness / 4);
+	//monitorZlocations.push_back(myStructure.getThickness() - 3 * RHSbufferLayerThickness / 4);
 	monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness / 2); // Add monitor midway after slab
-	monitorZlocations.push_back(myStructure.getThickness() - LHSsourceLayerThickness / 4);
-	monitorZlocations.push_back(myStructure.getThickness() - 0.01e-6); // Add monitor to very end of domain
+	//monitorZlocations.push_back(myStructure.getThickness() - RHSbufferLayerThickness / 4);
+	//monitorZlocations.push_back(myStructure.getThickness() - 0.01e-6); // Add monitor to very end of domain
 }
 
 
@@ -289,6 +292,16 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
     //rootparam_type *rparams = reinterpret_cast<rootparam_type*>(rootparams);
     RootParams *rootObj = reinterpret_cast<RootParams*>(rootparams);
 
+	double *yloc = (rootObj->getODEparams())->y;
+	complex<double> *linSol = rootObj->getLinSol();
+
+    double nonlinear_time_initial, nonlinear_time;
+
+	int numzReports, numZsteps = 0;
+	double zRight, zStepSize;
+	double zPosition = 0.0;
+	vector<double> endPoints;
+
 	// Initialize GSL ODE objects
 	int arrSize;
 	if (numDimensionsMinusOne == 1) {
@@ -297,23 +310,18 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 	else {
 		arrSize = numActiveOmega;
 	}
-	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
+	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkf45;
+	const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rkck;
 	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk8pd;
+	//const gsl_odeiv2_step_type * stepType = gsl_odeiv2_step_rk4;
+	//const gsl_odeiv2_step_type *stepType = (rootObj->getODEparams())->getStepType();
 	gsl_odeiv2_step *gslStep = gsl_odeiv2_step_alloc(stepType, 4 * arrSize);
 	gsl_odeiv2_evolve *gslEvolve = gsl_odeiv2_evolve_alloc(4 * arrSize);
-	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_standard_new(ode_epsabs, ode_epsrel, 0.9, 0.1); // 3rd and 4th parameter set scaling factors of y(t) and y'(t) respectively
+	//gsl_odeiv2_control * gslControl = gsl_odeiv2_control_standard_new(ode_epsabs, ode_epsrel, 0.9, 0.1); // 3rd and 4th parameter set scaling factors of y(t) and y'(t) respectively
+	gsl_odeiv2_control * gslControl = gsl_odeiv2_control_y_new(ode_epsabs, ode_epsrel);
 	gsl_odeiv2_system sys = { dAdz, NULL, (size_t)(4 * arrSize), rootObj->getODEparams()};
 	
 	gsl_odeiv2_evolve_reset(gslEvolve);
-
-	double *yloc = (rootObj->getODEparams())->y;
-
-    double nonlinear_time_initial, nonlinear_time;
-
-	int numzReports, numZsteps = 0;
-	double zRight, zStepSize;
-	double zPosition = 0.0;
-	vector<double> endPoints;
 
     nonlinear_time_initial = omp_get_wtime();
 
@@ -329,7 +337,8 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
     //cout << "  Going FORWARD through layers" << endl;
     for (std::list<Layer>::iterator lit = myStructure.m_layers.begin(); lit != myStructure.m_layers.end(); ++lit) {
         // Skip the LHS layer and the RHS layers
-        if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+        //if (lit->getLowSideBoundary() != NULL && lit->getHiSideBoundary() != NULL)
+		if (lit->getLowSideBoundary() != NULL)
         {
             boundary(lit->getLowSideBoundary()->m_zPos, 
 				lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), 
@@ -393,6 +402,7 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
                     else {
                         printf("error: ODE driver returned %d\n", GSLerrorFlag);
                         gsl_odeiv2_evolve_reset(gslEvolve);
+						break;
                     }
 
                     nonlinear_time = omp_get_wtime() - nonlinear_time_initial;
@@ -418,12 +428,12 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
             
         //}
         //  Finally do the lowside boundary of the last assumed Vacuum layer
-        if (lit->getHiSideBoundary() == NULL) {
+       /*  if (lit->getHiSideBoundary() == NULL) {
             boundary(lit->getLowSideBoundary()->m_zPos, 
 				lit->getLowSideBoundary()->lowSideLayer->getMaterial().getK(), 
 				lit->getLowSideBoundary()->hiSideLayer->getMaterial().getK(), 
 				yloc);
-        }
+        } */
     }
 
 
@@ -436,9 +446,17 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 		f2norm += pow(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(sourceRight[k + freqLowerCutoff]), 2);
 		f2norm += pow(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(sourceRight[k + freqLowerCutoff]), 2);
 	}
-	f2norm = sqrt(f2norm);
-	rootObj->setGnorm(f2norm);
+	//f2norm = sqrt(f2norm);
+	
+	if (rootObj->getLagrangeMult() > 0.0) {
+		for (int k = 0; k < rootObj->getSizeRoot()/2; k++){
+			f2norm += rootObj->getLagrangeMult() * pow(yloc[k + 2 * numActiveOmega + freqLowerCutoff] - real(linSol[k + freqLowerCutoff]), 2);
+			f2norm += rootObj->getLagrangeMult() * pow(yloc[k + 3 * numActiveOmega + freqLowerCutoff] - imag(linSol[k + freqLowerCutoff]), 2);
+		}
+	}
 
+
+	rootObj->setGnorm(f2norm);
 
 	if (rootObj->getOutParam() == 1) {
 		write_out_eFieldAndSpectrumAtZlocation(rootObj->getItNum(), 
@@ -454,12 +472,12 @@ double mapG(const gsl_vector *ym_guess, void *rootparams) {
 		//fflush(stdout);
 	//}
 
-	for (int k = 0; k < arrSize; k++){
+	/* for (int k = 0; k < arrSize; k++){
 		yloc[k + 2*arrSize] = real(sourceRight[k]);
 		yloc[k + 3*arrSize] = imag(sourceRight[k]);
 	}
 
-	myStructure.doBackwardPassThroughAllBoundaries(yloc);
+	myStructure.doBackwardPassThroughAllBoundaries(yloc); */
 
 	// Freeing ODE memory
 	gsl_odeiv2_control_free(gslControl);
@@ -485,6 +503,7 @@ void iterateBPPE()
 	// Find the size of the problem with omega cutoffs
 	int sizeRoot;
 	ODEParams myODEParams(num_t, omegaArray);
+	//myODEParams.setStepType(odeStepTypeParam);
 	if (numDimensionsMinusOne == 1) {
 		sizeRoot = 2 * num_x * (freqUpperCutoff - freqLowerCutoff + 1);
 		//*myODEParams = ODEParams(num_t, num_x, omegaArray, kx);
@@ -496,6 +515,8 @@ void iterateBPPE()
 
     // Create the gslParams objects
     RootParams myRootParams(&myODEParams, sizeRoot);
+	myRootParams.setSourceLeft(sourceLeft);
+	myRootParams.setLagrangeMult(lagrangeMultiplier);
 
 	//RootParams myRootParams(num_t, omegaArray, sizeRoot);
 
@@ -546,6 +567,14 @@ void iterateBPPE()
 	myODEParams.initializeY(sourceLeft);
 	printf("Doing linear problem..\n");
 	doLinearProblem(&myODEParams, sourceLeft, sourceRight, myStructure);
+
+	/* -- Set linear solution -- */
+	complex<double> *linearSol = (complex<double>*)malloc(sizeof(complex<double>) * numActiveOmega);
+	for (int i = 0; i < numActiveOmega; i++)
+	{
+		linearSol[i] = myODEParams.y[i + 2*numActiveOmega] + 1.0i * myODEParams.y[i + 3*numActiveOmega];
+	}
+	myRootParams.setLinSol(linearSol);
 	/* if(fetestexcept(FE_OVERFLOW | FE_INVALID | FE_DIVBYZERO)) raise(SIGFPE);
 	feclearexcept(FE_ALL_EXCEPT); */
 
@@ -559,7 +588,6 @@ void iterateBPPE()
 	fclose(localLogFile);
 	nonlinear_time_initial = omp_get_wtime();
 	
-	gsl_vector *tmp = gsl_vector_alloc(sizeRoot);
 	myRootParams.setOutParam(1);
 	mapG(u, &myRootParams);
 	myRootParams.setItNum(myRootParams.getItNum() + 1);
@@ -702,6 +730,7 @@ void iterateBPPE()
     //gsl_multiroot_fsolver_free(s);
 	//gsl_multimin_fminimizer_free(gslSolver);
 	gsl_multimin_fdfminimizer_free(gslSolver_fdf);
+	free(linearSol);
 	printf("Finished freeing solver memory.\n");
 	
 }
@@ -954,12 +983,16 @@ void writeSimParameters()
 	if (fp != NULL) { fclose(fp); }		// COLM added to avoid errors
 }
 
-
+ 
 void readGlobalParameters(char *inFile) {
 	paramFileBuffer = readParmetersFileToBuffer(inFile);
 	VERBOSE = getIntParameterValueByName("Verbosity");
 	getStringParameterValueByName("outputPath", SIM_DATA_OUTPUT);
 	num_Threads = getIntParameterValueByName("numThreads");
+
+	char tmp[30];
+	getStringParameterValueByName("odeStepType", tmp);
+	odeStepTypeParam = tmp;
 
 	// Load in pulse parameters
 	I_0 = getDoubleParameterValueByName("meanPumpIntensity");
@@ -1002,4 +1035,98 @@ void readGlobalParameters(char *inFile) {
 	minInitStep = getDoubleParameterValueByName("multiminInitStep");
 	minStopCon = getDoubleParameterValueByName("multiminStopCon");
 	minTol = getDoubleParameterValueByName("multiminTol");
+	lagrangeMultiplier = getDoubleParameterValueByName("lagrangeMultiplier");
 }
+
+// ==============================================================================================================================================
+
+
+void geneticAlg_iterateBPPE()
+{
+	// Find the size of the problem with omega cutoffs
+	int sizeRoot;
+	ODEParams myODEParams(num_t, omegaArray);
+	//myODEParams.setStepType(odeStepTypeParam);
+	if (numDimensionsMinusOne == 1) {
+		sizeRoot = 2 * num_x * (freqUpperCutoff - freqLowerCutoff + 1);
+		//*myODEParams = ODEParams(num_t, num_x, omegaArray, kx);
+	}
+	else {
+		sizeRoot = 2 * (freqUpperCutoff - freqLowerCutoff + 1);
+		//*myODEParams = ODEParams(num_t, omegaArray);
+	}
+
+    // Create the gslParams objects
+    RootParams myRootParams(&myODEParams, sizeRoot);
+
+	//RootParams myRootParams(num_t, omegaArray, sizeRoot);
+
+    // Fill material-specific parameters with values from first layer
+    //myRootParams.getODEparams()->fillParams(myStructure.m_layers.begin()->getMaterial());
+	myODEParams.fillParams(myStructure.m_layers.begin()->getMaterial());
+
+	// Initialize time and status variables
+	int status; 
+	double dxnorm, xnorm, fnorm;
+	double fval, simplexSize, gradnorm;
+	double nonlinear_time_initial, nonlinear_time, nonlinear_time_tmp, nonlinear_time_total;
+
+	
+
+	/* - Do linear problem - */
+	myODEParams.initializeY(sourceLeft);
+	printf("Doing linear problem..\n");
+	doLinearProblem(&myODEParams, sourceLeft, sourceRight, myStructure);
+
+	/* - Create time log - */
+	printf("Creating log file.\n");
+	char timeLogFname[STRING_BUFFER_SIZE];
+	snprintf(timeLogFname, sizeof(char) * STRING_BUFFER_SIZE, "%stimeLog.txt", SIM_DATA_OUTPUT);
+	FILE *localLogFile = fopen(timeLogFname, "a");
+
+	localLogFile = fopen(timeLogFname, "a");
+	fprintf(localLogFile, "Initializing fsolver took : %f [s]\n", omp_get_wtime() - nonlinear_time_initial);
+	fprintf(localLogFile, "Generation, best_val, avg, std_dev\n");
+	fclose(localLogFile);
+
+	/* === STARTING GENETIC ALGORITHM === */
+	nonlinear_time_initial = omp_get_wtime();
+	printf("Starting genetic algorithm..\n");
+	int seed = 123456789;
+
+	printf("Initializing population..\n");
+	initializeGA(seed);
+
+	myRootParams.setItNum(1);
+	printf("Evaluating population..\n");
+	evaluateG(&myRootParams);
+
+	printf("Keeping best pops..\n");
+	keepBestGA();
+	
+	myRootParams.setOutParam(0);
+	for (int generation = 0; generation < MAXGENS; generation++)
+	{
+		selectorGA(seed);
+		crossoverGA(seed);
+		mutateGA(seed);
+		reportGA(generation);
+		evaluateG(&myRootParams);
+		elitistGA();
+	}
+
+	//cout << "  Best fitness = " << population[POPSIZE].fitness << "\n";
+
+	printf("Performing final iteration [%d] with output enabled..\n", myRootParams.getItNum());
+	myRootParams.setOutParam(1);
+
+	gsl_vector *u = gsl_vector_alloc(NVARS);
+	getBestGA(u);
+
+	mapG(u, &myRootParams);
+
+	gsl_vector_free(u);
+}
+
+//****************************************************************************
+

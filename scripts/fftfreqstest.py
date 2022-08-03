@@ -11,8 +11,8 @@ CHARGE_E = 1.602176634e-19
 MASS_E = 9.10938356e-31
 
 #%% Set parameters
-num_t = 2**13
-dom_t = 1.2e-12
+num_t = 2**14
+dom_t = 6.6e-12
 delta_t = dom_t / num_t
 
 print('num_t = {}'.format(num_t))
@@ -31,7 +31,7 @@ print('min_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / max_omeg))
 print('max_lambda = {:.3e}'.format(2 * np.pi * CLIGHT / delta_om))
 
 #%% Use the central frequency for further analysis
-lamb0 = 1.9e-6
+lamb0 = 9.41825784e-06
 omeg0 = 2 * np.pi * CLIGHT / lamb0 
 maxHarm = int(max_omeg / omeg0)
 
@@ -65,7 +65,7 @@ print('cutoff for 6th = {:d}'.format(cutoff6th))
 print('cutoff for 7th = {:d}'.format(cutoff7th))
 print('cutoff for last = {:d}'.format(cutoffLast))
 
-customHarmonic = 10*omeg0
+customHarmonic = 2*omeg0
 cutoffCustom = np.max(np.nonzero(omegArr < customHarmonic))
 print('custom cutoff = {:d}'.format(cutoffCustom))
 
@@ -78,7 +78,7 @@ print('cutoff for 0.21 = {:d}'.format(cutoffOm1))
 print('cutoff for 6.7 = {:d}'.format(cutoffOm2))
 
 # %%
-numE = 2.0e26
+numE = 1.0e25
 omegPlasma = np.sqrt(CHARGE_E**2*numE/(EPS0*MASS_E))
 
 print("For {:} electrons, the plasma frequency is: {:.3e} 1/s".format(numE, omegPlasma))
@@ -107,6 +107,12 @@ dat = {'nE [m^-3]' : numE_li, 'omeg_p' : omegp_li, 'lambda_0' : lamb_li, 'Half P
 df = pd.DataFrame(data = dat)
 df
 # %%
+omeg0 = 2e14
+omegp = 1.8e14
 
+print(' omeg0 = {:.8e}'.format(omeg0))
+print(' lamb0 = {:.8e}'.format(2 * np.pi * CLIGHT / omeg0))
+print(' omegp = {:.8e}'.format(omegp))
+print(' rho   = {:.8e}'.format(omegp**2 * EPS0 * MASS_E / CHARGE_E**2))
 
 # %%

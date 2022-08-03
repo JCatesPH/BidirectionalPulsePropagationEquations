@@ -5,9 +5,9 @@
 
 void generateLayers(MaterialDB& theMaterialDB, Structure& theStructure)
 {
-	generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
+	//generatePlasmaTestMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateSilicaMaterialsAndStructure(theMaterialDB, theStructure);
-	//generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
+	generateDefectMaterialsAndStructure(theMaterialDB, theStructure);
 	//generateLayerTestMaterialsAndStructure(theMaterialDB,  theStructure);
 }
 
@@ -142,6 +142,7 @@ void generatePlasmaTestMaterialsAndStructure(MaterialDB& theMaterialDB, Structur
 	Material argon("Argon", n0_Argon, 0.0, 0.0, 0.0);
 	//argon.setAsPlasmaMaterial(2, mpi_sigmaK, mpi_k);
 	//argon.setAsPlasmaMaterial(1, U_Ar);
+	argon.setStaticPlasma();
 	theMaterialDB.addMaterial(argon);
 
 	Material plasmaMat("PlasmaMat", 1.0, 0.0, 0.0, 0.0);

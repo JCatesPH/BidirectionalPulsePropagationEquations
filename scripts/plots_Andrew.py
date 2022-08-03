@@ -23,11 +23,11 @@ else:
 if hasattr(sys, 'ps1'):
     print("Interactive mode detected..")
     #pathhead = '../DATA_Drude_10umOmeg0_FixedPointComp/5umL_NoFixedPoint_1e-6Noise'
-    pathhead = '../DATA/Drude_2umL_SecantSD_062122'
+    pathhead = '../DATA/Drude_2umL_50fsTau_bfgs2_062622'
     #pathhead = '/home/jcates/Code/dataRepo/gridSearch_10umPulse/Drude_50umL_25nE'
     #pathhead = '../DATA/Durand2013_031822'
     #pathhead = '../DATA/testing2D'
-    itnum = '5'
+    itnum = '50'
 
 
 CLIGHT = 299792458
@@ -261,4 +261,59 @@ plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}.png'.format(itnum),
 plt.show()
 
 
+#############################################################################
 # %%
+df = pd.read_csv('../DATA/MathematicaData/Drude_Incident_Mathematica.csv', header=None)
+aI_m = df.values
+
+df = pd.read_csv('../DATA/MathematicaData/DrudeT_2umL_1000fsTau_Mathematica.csv', header=None)
+aT_m = df.values
+
+df = pd.read_csv('../DATA/MathematicaData/DrudeR_2umL_1000fsTau_Mathematica.csv', header=None)
+aR_m = df.values
+
+omegPlasma = 1.8e14
+
+#%%
+fig = plt.figure(7, figsize=(6.47, 4), dpi=400)
+ax = fig.add_axes([0, 0, 1, 1])
+
+normI = np.max(inSpectrum[firstIndex:freqUpperCutoff,3]**2)
+
+ax.plot(inSpectrum[firstIndex:freqUpperCutoff,0], inSpectrum[firstIndex:freqUpperCutoff,3]**2/normI, 
+    '-b', label='I', linewidth=2)
+ax.plot(eSpectrumT[firstIndex:freqUpperCutoff,0], eSpectrumT[firstIndex:freqUpperCutoff,3]**2/normI, 
+    '-g', label='T (BPPE)', linewidth=2)
+ax.plot(eSpectrumR[firstIndex:freqUpperCutoff,0], eSpectrumR[firstIndex:freqUpperCutoff,3]**2/normI, 
+    '-r', label='R (BPPE)', linewidth=2)
+
+
+ax.plot(aT_m[:,0], aT_m[:,1], 
+    '--c', label='T', linewidth=2)
+ax.plot(aR_m[:,0], aR_m[:,1], 
+    '--m', label='R', linewidth=2)
+
+ax.legend()
+
+ax.set_xlim([omeg0 - 7/taup, omeg0 + 7/taup])
+ax.set_ylim([0, 1])
+ax.axvline(omegPlasma, color='k', linestyle='--')
+
+ax.set_xlabel(r'$\omega$ [s$^{-1}$]', labelpad=10)
+ax.set_ylabel(r'Intensity [-]', labelpad=10)
+
+# Manipulate the ticks
+ax.xaxis.set_tick_params(which='major', size=10, width=2, direction='in', top=False)
+ax.xaxis.set_tick_params(which='minor', size=7, width=2, direction='in', top=False)
+ax.yaxis.set_tick_params(which='major', size=10, width=2, direction='in', right=False)
+ax.yaxis.set_tick_params(which='minor', size=7, width=2, direction='in', right=False)
+ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4, integer=True))
+ax.xaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(4))
+ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(nbins=4))
+ax.yaxis.set_minor_locator(mpl.ticker.AutoMinorLocator(4))
+
+plt.savefig(pathhead + '/figs/Ew_Fundamental_iter{:}_wAnalytic.png'.format(itnum), 
+    dpi=400, transparent=False, bbox_inches='tight')
+
+# %%
+print(np.amax(eSpectrumR[firstIndex:freqUpperCutoff,3]**2/normI))
